@@ -57,6 +57,7 @@
             <span class="user">Hallo, {{ user.username }}</span>
             {% if user.is_admin %}<span class="badge">Admin</span>{% endif %}
             {% if user.is_admin %}<a href="/admin">Admin</a>{% endif %}
+            {% if user.is_admin %}<a href="/admin/modules">Module</a>{% endif %}
             <a href="/password">Passwort</a>
             <a href="/logout">Abmelden</a>
         </div>
