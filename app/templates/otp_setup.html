@@ -30,6 +30,11 @@
         button:hover { background: #c73e56; }
         a.back { display: block; text-align: center; color: #888; text-decoration: none;
                  margin-top: 16px; font-size: 14px; }
+
+        /* Fußzeile — fixiert am unteren Bildschirmrand */
+        .footer { position: fixed; bottom: 0; left: 0; right: 0;
+                  text-align: center; padding: 8px 16px; color: #555; font-size: 12px;
+                  background: #16213e; border-top: 1px solid #222; z-index: 100; }
     </style>
 </head>
 <body>
@@ -48,5 +53,7 @@
 
         <a class="back" href="/admin">Zurück zum Admin</a>
     </div>
+
+    <div class="footer">STARFACE WebApp {{ version }}</div>
 </body>
 </html>

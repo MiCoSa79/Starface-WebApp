@@ -260,6 +260,72 @@ app.mount("/static", StaticFiles(directory=str(Path(__file__).parent / "static")
 
 
 # ─────────────────────────────────────────────────────────────
+# Passwort ändern (selbst + Admin für andere)
+# ─────────────────────────────────────────────────────────────
+
+@app.get("/password", response_class=HTMLResponse)
+async def password_page(request: Request):
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user:
+        return RedirectResponse("/")
+    users = []
+    if user["is_admin"]:
+        conn = _db()
+        users = conn.execute("SELECT id, username FROM users ORDER BY username").fetchall()
+        conn.close()
+    return TEMPLATES.TemplateResponse("password.html",
+                                      {"request": request, "user": user,
+                                       "users": users,
+                                       "target_uid": request.query_params.get("uid"),
+                                       "target_name": "", "is_admin": bool(user["is_admin"]),
+                                       "version": os.environ.get("APP_VERSION", "dev")})
+
+
+@app.post("/password")
+async def password_change(request: Request,
+                          password: str = Form(...),
+                          new_password: str = Form(...),
+                          confirm: str = Form(...),
+                          target_uid: int = Form(0)):
+    """Passwort ändern. User ändert eigenes, Admin ändert beliebig."""
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user:
+        return RedirectResponse("/dashboard")
+
+    if new_password != confirm:
+        return RedirectResponse("/dashboard?pw_err=nomatch", status_code=303)
+
+    if user["is_admin"] and target_uid:
+        # Admin ändert anderen User → eigene Passwort als Bestätigung prüfen
+        target = target_uid
+        verify_user_id = user["user_id"]
+    else:
+        # User ändert sich selbst
+        target = user["user_id"]
+        verify_user_id = user["user_id"]
+
+    conn = _db()
+    # Aktuelles Passwort prüfen (bei Admin-Änderung: Admin-Passwort,
+    # sonst das eigene)
+    admin_row = conn.execute(
+        "SELECT password_hash FROM users WHERE id = ?", (verify_user_id,)).fetchone()
+    target_row = conn.execute(
+        "SELECT id FROM users WHERE id = ?", (target,)).fetchone()
+    if not admin_row or not bcrypt.checkpw(password.encode(), admin_row["password_hash"].encode()):
+        conn.close()
+        return RedirectResponse("/dashboard?pw_err=wrong", status_code=303)
+    if not target_row:
+        conn.close()
+        return RedirectResponse("/dashboard?pw_err=notfound", status_code=303)
+
+    new_hash = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt()).decode()
+    conn.execute("UPDATE users SET password_hash = ? WHERE id = ?", (new_hash, target))
+    conn.commit()
+    conn.close()
+    return RedirectResponse("/dashboard?pw_ok=1", status_code=303)
+
+
+# ─────────────────────────────────────────────────────────────
 # Auth-Routen
 # ─────────────────────────────────────────────────────────────
 
@@ -416,7 +482,8 @@ async def admin_page(request: Request):
                                       {"request": request, "user": user,
                                        "installations": installations,
                                        "users": users, "access": access,
-                                       "OTP_ISSUER": "STARFACE-WebApp"})
+                                       "OTP_ISSUER": "STARFACE-WebApp",
+                                       "version": os.environ.get("APP_VERSION", "dev")})
 
 
 @app.post("/admin/installations")
@@ -573,7 +640,8 @@ async def admin_totp_setup(request: Request, uid: int):
     qr_data_uri = "data:image/png;base64," + _b64.b64encode(buf.getvalue()).decode()
     return TEMPLATES.TemplateResponse("otp_setup.html",
                                       {"request": request, "user": user, "uid": uid,
-                                       "secret": secret, "qr_data_uri": qr_data_uri})
+                                       "secret": secret, "qr_data_uri": qr_data_uri,
+                                       "version": os.environ.get("APP_VERSION", "dev")})
 
 
 @app.post("/admin/users/{uid}/totp-confirm")
@@ -629,7 +697,8 @@ async def blocklist_page(request: Request, inst_id: int):
     return TEMPLATES.TemplateResponse("blocklist.html",
                                       {"request": request, "user": user, "inst": inst,
                                        "numbers": numbers, "error": error,
-                                       "can_write": acc["can_write"]})
+                                       "can_write": acc["can_write"],
+                                       "version": os.environ.get("APP_VERSION", "dev")})
 
 
 @app.post("/installation/{inst_id}/blocklist/add")

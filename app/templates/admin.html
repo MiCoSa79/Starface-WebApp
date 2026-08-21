@@ -15,7 +15,9 @@
         .topbar { background: #16213e; padding: 16px 24px; display: flex;
                   justify-content: space-between; align-items: center;
                   border-bottom: 1px solid #333; }
-        .topbar h1 { font-size: 20px; color: #e94560; }
+        .topbar h1 { font-size: 20px; display: flex; align-items: center; gap: 8px; }
+        .topbar h1 img { height: 24px; width: auto; }
+        .topbar h1 span { color: #e94560; }
         .topbar a { color: #e94560; text-decoration: none; margin-left: 16px; }
         .container { max-width: 1100px; margin: 0 auto; padding: 24px; }
         h2 { font-size: 18px; margin: 24px 0 12px; color: #e94560; }
@@ -40,14 +42,20 @@
                  padding: 2px 8px; border-radius: 4px; font-size: 11px; }
         .badge-gray { background: #333; }
         .codes { font-family: monospace; word-break: break-all; }
+
+        /* Fußzeile — fixiert am unteren Bildschirmrand */
+        .footer { position: fixed; bottom: 0; left: 0; right: 0;
+                  text-align: center; padding: 12px 16px; color: #555; font-size: 12px;
+                  background: #16213e; border-top: 1px solid #222; z-index: 100; }
     </style>
 </head>
 <body>
     <div class="topbar">
-        <h1>🛡️ STARFACE WebApp</h1>
+        <h1><img src="/static/kits-logo.png" alt="Logo"><span>Kraemer-IT WebApp</span></h1>
         <div>
             <span>{{ user.username }}</span>
             <a href="/dashboard">Dashboard</a>
+            <a href="/password">Passwort</a>
             <a href="/logout">Abmelden</a>
         </div>
     </div>
@@ -176,6 +184,8 @@
             </tr>
             {% endfor %}
         </table>
+
+        <div class="footer">STARFACE WebApp {{ version }}</div>
     </div>
 </body>
 </html>
