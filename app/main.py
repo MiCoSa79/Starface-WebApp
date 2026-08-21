@@ -23,6 +23,7 @@ import pyotp
 from cryptography.fernet import Fernet
 from fastapi import FastAPI, Form, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 # ─────────────────────────────────────────────────────────────
@@ -252,6 +253,9 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="STARFACE WebApp", lifespan=lifespan)
+
+# Statische Dateien (Favicon, Icons, Logo)
+app.mount("/static", StaticFiles(directory=str(Path(__file__).parent / "static")), name="static")
 
 
 # ─────────────────────────────────────────────────────────────
