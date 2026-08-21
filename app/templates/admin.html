@@ -140,6 +140,7 @@
                 <td>{% if u.otp_confirmed %}✅{% else %}{% if u.otp_secret %}⏳{% else %}—{% endif %}{% endif %}</td>
                 <td>
                     <a href="/admin/users/{{ u.id }}/totp-setup" class="btn-secondary" style="padding:6px 12px;border-radius:6px;text-decoration:none;background:#333;color:#ccc;">2FA einrichten</a>
+                    <a href="/password?uid={{ u.id }}" class="btn-secondary" style="padding:6px 12px;border-radius:6px;text-decoration:none;background:#333;color:#ccc;">Passwort zurücksetzen</a>
                     {% if u.id != user.id %}
                     <form method="POST" action="/admin/users/{{ u.id }}/delete" style="display:inline"
                           onsubmit="return confirm('Benutzer {{ u.username }} wirklich löschen?');">

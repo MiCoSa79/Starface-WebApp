@@ -268,26 +268,33 @@ async def password_page(request: Request):
     user = verify_session(request.cookies.get(SESSION_COOKIE))
     if not user:
         return RedirectResponse("/")
-    users = []
-    if user["is_admin"]:
+    target_uid = request.query_params.get("uid")
+    target_name = ""
+    target_mode = False
+    if target_uid and user["is_admin"] and int(target_uid) != user["user_id"]:
+        # Admin öffnet Passwort-Formular für einen anderen User
         conn = _db()
-        users = conn.execute("SELECT id, username FROM users ORDER BY username").fetchall()
+        target = conn.execute("SELECT id, username FROM users WHERE id = ?", (int(target_uid),)).fetchone()
         conn.close()
+        if target:
+            target_mode = True
+            target_name = target["username"]
     return TEMPLATES.TemplateResponse("password.html",
                                       {"request": request, "user": user,
-                                       "users": users,
-                                       "target_uid": request.query_params.get("uid"),
-                                       "target_name": "", "is_admin": bool(user["is_admin"]),
+                                       "target_uid": target_uid,
+                                       "target_name": target_name,
+                                       "target_mode": target_mode,
                                        "version": os.environ.get("APP_VERSION", "dev")})
 
 
 @app.post("/password")
 async def password_change(request: Request,
-                          password: str = Form(...),
+                          password: str = Form(""),
                           new_password: str = Form(...),
                           confirm: str = Form(...),
                           target_uid: int = Form(0)):
-    """Passwort ändern. User ändert eigenes, Admin ändert beliebig."""
+    """Passwort ändern. User ändert eigenes, Admin ändert beliebig
+    (ohne das aktuelle Passwort des Ziel-Users zu kennen)."""
     user = verify_session(request.cookies.get(SESSION_COOKIE))
     if not user:
         return RedirectResponse("/dashboard")
@@ -295,31 +302,35 @@ async def password_change(request: Request,
     if new_password != confirm:
         return RedirectResponse("/dashboard?pw_err=nomatch", status_code=303)
 
-    if user["is_admin"] and target_uid:
-        # Admin ändert anderen User → eigene Passwort als Bestätigung prüfen
+    if user["is_admin"] and target_uid and target_uid != user["user_id"]:
+        # Admin setzt Passwort eines anderen Users neu — kein aktuelles Passwort nötig
         target = target_uid
-        verify_user_id = user["user_id"]
-    else:
-        # User ändert sich selbst
-        target = user["user_id"]
-        verify_user_id = user["user_id"]
+        if not new_password:
+            return RedirectResponse("/dashboard?pw_err=empty", status_code=303)
+        conn = _db()
+        target_row = conn.execute(
+            "SELECT id, username FROM users WHERE id = ?", (target,)).fetchone()
+        if not target_row:
+            conn.close()
+            return RedirectResponse("/dashboard?pw_err=notfound", status_code=303)
+        new_hash = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt()).decode()
+        conn.execute("UPDATE users SET password_hash = ? WHERE id = ?", (new_hash, target))
+        conn.commit()
+        conn.close()
+        return RedirectResponse("/dashboard?pw_ok=1", status_code=303)
 
+    # Eigenes Passwort ändern (User oder Admin): aktuelles Passwort prüfen
     conn = _db()
-    # Aktuelles Passwort prüfen (bei Admin-Änderung: Admin-Passwort,
-    # sonst das eigene)
-    admin_row = conn.execute(
-        "SELECT password_hash FROM users WHERE id = ?", (verify_user_id,)).fetchone()
-    target_row = conn.execute(
-        "SELECT id FROM users WHERE id = ?", (target,)).fetchone()
-    if not admin_row or not bcrypt.checkpw(password.encode(), admin_row["password_hash"].encode()):
-        conn.close()
+    row = conn.execute(
+        "SELECT password_hash FROM users WHERE id = ?", (user["user_id"],)).fetchone()
+    conn.close()
+    if not row or not bcrypt.checkpw(password.encode(), row["password_hash"].encode()):
         return RedirectResponse("/dashboard?pw_err=wrong", status_code=303)
-    if not target_row:
-        conn.close()
-        return RedirectResponse("/dashboard?pw_err=notfound", status_code=303)
 
     new_hash = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt()).decode()
-    conn.execute("UPDATE users SET password_hash = ? WHERE id = ?", (new_hash, target))
+    conn = _db()
+    conn.execute("UPDATE users SET password_hash = ? WHERE id = ?",
+                 (new_hash, user["user_id"]))
     conn.commit()
     conn.close()
     return RedirectResponse("/dashboard?pw_ok=1", status_code=303)
