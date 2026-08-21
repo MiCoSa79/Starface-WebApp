@@ -330,6 +330,7 @@ async def password_page(request: Request):
                                        "target_uid": target_uid,
                                        "target_name": target_name,
                                        "target_mode": target_mode,
+                                       "active": "password",
                                        "version": os.environ.get("APP_VERSION", "dev")})
 
 
@@ -519,6 +520,7 @@ async def dashboard(request: Request):
     return TEMPLATES.TemplateResponse("dashboard.html",
                                       {"request": request, "user": user,
                                        "installations": rows,
+                                       "active": "dashboard",
                                        "version": os.environ.get("APP_VERSION", "dev")})
 
 
@@ -542,6 +544,7 @@ async def admin_page(request: Request):
                                       {"request": request, "user": user,
                                        "installations": installations,
                                        "users": users, "access": access,
+                                       "active": "admin",
                                        "OTP_ISSUER": "STARFACE-WebApp",
                                        "version": os.environ.get("APP_VERSION", "dev")})
 
@@ -558,6 +561,7 @@ async def admin_modules_page(request: Request):
     return TEMPLATES.TemplateResponse("modules.html",
                                       {"request": request, "user": user,
                                        "modules": modules,
+                                       "active": "modules",
                                        "version": os.environ.get("APP_VERSION", "dev")})
 
 
@@ -799,6 +803,7 @@ async def blocklist_page(request: Request, inst_id: int):
                                       {"request": request, "user": user, "inst": inst,
                                        "numbers": numbers, "error": error,
                                        "can_write": acc["can_write"],
+                                       "active": "blocklist",
                                        "version": os.environ.get("APP_VERSION", "dev")})
 
 

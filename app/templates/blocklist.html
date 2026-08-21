@@ -45,6 +45,16 @@
         .entry { display: flex; justify-content: space-between; align-items: center;
                  background: #0f3460; padding: 10px 14px; border-radius: 8px;
                  margin-bottom: 8px; font-family: monospace; font-size: 16px; }
+
+        /* Navigation */
+        .nav { background: #16213e; border-bottom: 1px solid #333;
+               display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
+               padding: 8px 24px; }
+        .nav a { color: #aaa; text-decoration: none; padding: 6px 14px;
+                 border-radius: 6px; font-size: 13px; }
+        .nav a:hover { background: #0f3460; color: #fff; }
+        .nav a.active { background: #e94560; color: #fff; font-weight: 600; }
+        .nav .spacer { flex: 1; }
         .entry form { margin: 0; }
         .wildcards { color: #666; font-size: 12px; margin-top: 6px; }
         .empty { color: #666; text-align: center; padding: 24px; }
@@ -55,15 +65,19 @@
 <body>
     <div class="topbar">
         <h1><img src="/static/kits-logo.png" alt="Logo"><span>{{ inst.name }}</span></h1>
-        <div>
-            <span>{{ user.username }}</span>
-            {% if user.is_admin %}<a href="/admin">Admin</a>{% endif %}
-            {% if user.is_admin %}<a href="/admin/modules">Module</a>{% endif %}
-            <a href="/dashboard">Dashboard</a>
-            <a href="/password">Passwort</a>
-            <a href="/logout">Abmelden</a>
+        <div style="display:flex;align-items:center;gap:12px;">
+            {% if user.is_admin %}<span style="background:#2d6a4f;color:#95d5b2;padding:2px 8px;border-radius:4px;font-size:12px;">Admin</span>{% endif %}
+            <span style="color:#aaa;font-size:13px;">{{ user.username }}</span>
         </div>
     </div>
+    <nav class="nav">
+        <a href="/dashboard" class="{% if active=='blocklist' or active=='dashboard' %}active{% endif %}">Dashboard</a>
+        <a href="/admin" class="{% if active=='admin' %}active{% endif %}">Admin</a>
+        <a href="/admin/modules" class="{% if active=='modules' %}active{% endif %}">Module</a>
+        <a href="/password" class="{% if active=='password' %}active{% endif %}">Passwort</a>
+        <span class="spacer"></span>
+        <a href="/logout">Abmelden</a>
+    </nav>
 
     <div class="container">
         <a class="back" href="/dashboard">← Zurück</a>
