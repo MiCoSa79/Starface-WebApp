@@ -1,9 +1,26 @@
 version: '3'
+
 services:
   starface-webapp:
+    image: micosa79/starface-webapp:latest
     build: .
     restart: always
     ports:
       - "8895:8000"
+    environment:
+      # ── Pflicht-ENV für den ersten Start ─────────────────────
+      # ⚠️ BEISPIELWERTE — vor dem ersten Start ersetzen!
+      #
+      # FERNET_KEY: Schlüssel zum Verschlüsseln der Anlagen-Zugangsdaten.
+      #   Erzeugen mit:  python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+      #   WICHTIG: Nach dem ersten Start muss der Schlüssel bei jedem
+      #   Neustart GLEICH bleiben, sonst sind gespeicherte Daten unlesbar.
+      FERNET_KEY: "pTW7pUSdFomvs0xDAf3K1wyhIEEa5OTUsA6On7pXk3g="
+      #
+      # ADMIN_USERNAME / ADMIN_PASSWORD: Erster Admin-Benutzer.
+      #   Wird NUR beim ersten Start (leere Datenbank) angelegt,
+      #   danach nicht mehr ausgewertet.
+      ADMIN_USERNAME: "admin@example.com"
+      ADMIN_PASSWORD: "BeispielPasswort123!"
     volumes:
       - ./data:/data
