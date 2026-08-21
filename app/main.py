@@ -549,6 +549,13 @@ async def admin_page(request: Request):
                                        "version": os.environ.get("APP_VERSION", "dev")})
 
 
+@app.get("/sw.js")
+async def service_worker():
+    """Service Worker im Root-Scope (PWA-Offline-Assets)."""
+    return FileResponse(Path(__file__).parent / "static" / "sw.js",
+                        media_type="application/javascript")
+
+
 @app.get("/admin/modules", response_class=HTMLResponse)
 async def admin_modules_page(request: Request):
     """Admin-Seite: Liste aller .sfm-Module mit Download-Button."""
