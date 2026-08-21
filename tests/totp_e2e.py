@@ -1,17 +1,20 @@
 #!/usr/bin/env python3
-"""E2E-Test: TOTP-2FA-Flow der Starface-WebApp.
+"""E2E-Test: Zwei-Schritt-Login (User+Pass → TOTP) der Starface-WebApp.
 
-Verwendung (vom Repo-Root):
+Verwendung (vom Repo-Root, Server läuft mit frischer DB):
     BASE_URL=http://127.0.0.1:8000 ADMIN_USER=admin ADMIN_PASS=test1234 \
         python tests/totp_e2e.py
 
 Erwartete Ausgabe — alle Zeilen beginnen mit "OK":
-    OK 1  Login als Admin -> /dashboard
-    OK 2  totp-setup GET -> QR + Secret
-    OK 3  falscher Setup-Code -> /admin?toter=1
-    OK 4  korrekter Setup-Code -> /admin?tot_ok=1&codes=...
-    OK 5  Login mit falschem TOTP -> /?error=2 (keine Session)
-    OK 6  Login mit korrektem TOTP -> /dashboard (Session)
+    OK 1  Login-Seite: Schritt 1 (User/Pass), kein OTP-Feld initial
+    OK 2  falsche Zugangsdaten -> 401
+    OK 3  Login ohne 2FA -> sofort Session-Cookie
+    OK 4  Dashboard mit Session erreichbar
+    OK 5  2FA aktivieren + bestätigen
+    OK 6  Login mit 2FA -> 2fa_required + pending_token, KEINE Session
+    OK 7  falscher TOTP-Code -> 401 "Code ungültig"
+    OK 8  korrekter TOTP-Code -> Session
+    OK 9  Dashboard nach 2FA-Login erreichbar
 
 Erfordert: frisches STARFACE_DB (oder DB ohne TOTP), Admin aus ENV.
 """
@@ -19,6 +22,7 @@ import os
 import re
 import sys
 import time
+import json
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -29,11 +33,6 @@ ADMIN_USER = os.environ.get("ADMIN_USER", "admin")
 ADMIN_PASS = os.environ.get("ADMIN_PASS", "test1234")
 
 failures = []
-
-
-class NoRedirect(urllib.request.HTTPRedirectHandler):
-    def redirect_request(self, req, fp, code, msg, headers, newurl):
-        raise urllib.error.HTTPError(req.full_url, code, "Redirect", headers, fp)
 
 
 def check(num, label, cond):
@@ -57,74 +56,86 @@ def main():
         print("FAIL Server nicht erreichbar:", BASE)
         sys.exit(1)
 
-    cj = http.cookiejar.CookieJar()
-    opener = urllib.request.build_opener(NoRedirect, urllib.request.HTTPCookieProcessor(cj))
-
-    def post(path, data):
+    def post_json(path, data, cookies=None):
+        cj = cookies if cookies is not None else http.cookiejar.CookieJar()
+        op = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
         body = urllib.parse.urlencode(data).encode()
-        req = urllib.request.Request(BASE + path, data=body, method="POST")
+        req = urllib.request.Request(
+            BASE + path, data=body, method="POST",
+            headers={"Content-Type": "application/x-www-form-urlencoded"})
         try:
-            r = opener.open(req)
-            return r.status, r.geturl()
+            r = op.open(req)
+            return r.status, json.loads(r.read().decode()), cj
         except urllib.error.HTTPError as e:
-            return e.code, e.headers.get("Location", "")
+            payload = e.read().decode()
+            try:
+                return e.code, json.loads(payload), cj
+            except Exception:
+                return e.code, {"message": payload[:200]}, cj
 
-    # 1. Login als Admin
-    code, loc = post("/login", {"username": ADMIN_USER, "password": ADMIN_PASS})
-    check(1, "Login als Admin -> /dashboard", code == 303 and "dashboard" in loc)
+    # 1. Login-Seite: Schritt 1, kein OTP-Feld sichtbar
+    html = urllib.request.urlopen(BASE + "/").read().decode()
+    check(1, "Login-Seite: Schritt 1, OTP-Feld versteckt",
+          "loginForm" in html and 'id="otpForm" class="hidden"' in html)
 
-    # 2. 2FA-Setup-Seite (GET): QR-Daten-URI + Secret
+    # 2. Falsche Zugangsdaten -> 401
+    code, data, _ = post_json("/api/login", {"username": ADMIN_USER, "password": "falsch"})
+    check(2, "falsche Zugangsdaten -> 401",
+          code == 401 and data.get("status") == "error")
+
+    # 3. Login ohne 2FA -> sofort Session
+    code, data, cj = post_json("/api/login",
+                               {"username": ADMIN_USER, "password": ADMIN_PASS})
+    check(3, "Login ohne 2FA -> Session-Cookie",
+          code == 200 and data.get("status") == "ok" and len(list(cj)) == 1)
+
+    # 4. Dashboard erreichbar
+    op = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
+    html = op.open(BASE + "/dashboard").read().decode()
+    check(4, "Dashboard mit Session erreichbar", "Anlagen" in html)
+
+    # 5. 2FA für admin aktivieren (Setup + Confirm mit Admin-Session)
+    html = op.open(BASE + "/admin/users/1/totp-setup").read().decode()
+    m = re.search(r"Geheimer Schlüssel: ([A-Z0-9]+)", html)
+    if not m:
+        check(5, "2FA-Setup (Secret/QR)", False)
+        sys.exit(1)
+    secret = m.group(1)
     try:
-        body = opener.open(BASE + "/admin/users/1/totp-setup").read().decode()
-        m = re.search(r"Geheimer Schlüssel: ([A-Z0-9]+)", body)
-        check(2, "totp-setup GET -> QR + Secret",
-              "data:image/png;base64" in body and bool(m))
-        secret = m.group(1) if m else None
-    except urllib.error.HTTPError as e:
-        check(2, "totp-setup GET -> QR + Secret", False)
-        secret = None
-
-    if not secret:
-        print("FAIL TOTP-Setup fehlgeschlagen")
+        import pyotp
+        totp = pyotp.TOTP(secret)
+        body = urllib.parse.urlencode({"code": totp.now()}).encode()
+        req = urllib.request.Request(
+            BASE + "/admin/users/1/totp-confirm", data=body, method="POST")
+        op.open(req)
+        check(5, "2FA-Setup + Bestätigung", True)
+    except Exception as e:
+        check(5, f"2FA-Setup + Bestätigung ({e})", False)
         sys.exit(1)
 
-    import pyotp
-    totp = pyotp.TOTP(secret)
+    # 6. Login mit aktiver 2FA -> 2fa_required + pending_token, KEINE Session
+    code, data, cj2 = post_json("/api/login",
+                                {"username": ADMIN_USER, "password": ADMIN_PASS})
+    token = data.get("pending_token") if isinstance(data, dict) else None
+    check(6, "Login mit 2FA -> 2fa_required ohne Session",
+          code == 200 and data.get("status") == "2fa_required" and bool(token)
+          and len(list(cj2)) == 0)
 
-    # 3. Falscher Bestätigungscode -> /admin?toter=1
-    code, loc = post("/admin/users/1/totp-confirm", {"code": "000000"})
-    check(3, "falscher Setup-Code -> /admin?toter=1", code == 303 and "toter=1" in loc)
+    # 7. Falscher TOTP-Code -> 401
+    code, data, _ = post_json("/api/2fa/verify",
+                              {"pending_token": token, "code": "000000"})
+    check(7, "falscher TOTP-Code -> 401", code == 401)
 
-    # 4. Korrekter Bestätigungscode -> /admin?tot_ok=1&codes=...
-    code, loc = post("/admin/users/1/totp-confirm", {"code": totp.now()})
-    check(4, "korrekter Setup-Code -> Backup-Codes sichtbar",
-          code == 303 and "tot_ok=1" in loc and "codes=" in loc)
+    # 8. Korrekter TOTP-Code -> Session
+    code, data, cj4 = post_json("/api/2fa/verify",
+                                {"pending_token": token, "code": totp.now()})
+    check(8, "korrekter TOTP-Code -> Session",
+          code == 200 and data.get("status") == "ok" and len(list(cj4)) == 1)
 
-    # 5. Login mit falschem TOTP -> /?error=2, keine Session
-    cj2 = http.cookiejar.CookieJar()
-    op2 = urllib.request.build_opener(NoRedirect, urllib.request.HTTPCookieProcessor(cj2))
-    body = urllib.parse.urlencode(
-        {"username": ADMIN_USER, "password": ADMIN_PASS, "otp_code": "000000"}).encode()
-    req = urllib.request.Request(BASE + "/login", data=body, method="POST")
-    try:
-        op2.open(req)
-        check(5, "Login falscher TOTP -> abgewiesen", False)
-    except urllib.error.HTTPError as e:
-        loc = e.headers.get("Location", "")
-        check(5, "Login falscher TOTP -> /?error=2 ohne Session",
-              "error=2" in loc and len(list(cj2)) == 0)
-
-    # 6. Login mit korrektem TOTP -> /dashboard, Session gesetzt
-    body = urllib.parse.urlencode(
-        {"username": ADMIN_USER, "password": ADMIN_PASS, "otp_code": totp.now()}).encode()
-    req = urllib.request.Request(BASE + "/login", data=body, method="POST")
-    try:
-        op2.open(req)
-        check(6, "Login korrekter TOTP -> /dashboard", False)
-    except urllib.error.HTTPError as e:
-        loc = e.headers.get("Location", "")
-        check(6, "Login korrekter TOTP -> /dashboard (Session)",
-              "dashboard" in loc and len(list(cj2)) == 1)
+    # 9. Dashboard nach 2FA-Login
+    op4 = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj4))
+    html = op4.open(BASE + "/dashboard").read().decode()
+    check(9, "Dashboard nach 2FA-Login", "Anlagen" in html)
 
     if failures:
         print(f"\n{len(failures)} Test(s) fehlgeschlagen: {failures}")

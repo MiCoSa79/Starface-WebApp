@@ -11,6 +11,7 @@ import hashlib
 import os
 import secrets
 import sqlite3
+import time
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -262,6 +263,25 @@ app.mount("/static", StaticFiles(directory=str(Path(__file__).parent / "static")
 # Auth-Routen
 # ─────────────────────────────────────────────────────────────
 
+# TTL für den pending-AUTH-Token (5 Minuten, wie in Atlas)
+PENDING_2FA_TTL = 300
+# Maximum falsche Versuche
+PENDING_2FA_MAX_ATTEMPTS = 5
+# TOTP-Bereich (±30s, wie in Atlas)
+OTP_WINDOW = 1
+
+# In-Memory-Speicher für 2fa-pending-Token (entspricht Atlas app.state.pending_2fa)
+pending_2fa: dict = {}
+
+
+def _clean_pending():
+    """Löscht abgelaufene pending-Tokens."""
+    now = time.time()
+    expired = [t for t, d in pending_2fa.items() if d["expires"] < now]
+    for t in expired:
+        pending_2fa.pop(t, None)
+
+
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     if verify_session(request.cookies.get(SESSION_COOKIE)):
@@ -269,25 +289,72 @@ async def index(request: Request):
     return TEMPLATES.TemplateResponse("login.html", {"request": request})
 
 
-@app.post("/login")
-async def login(request: Request,
-                username: str = Form(...),
-                password: str = Form(...),
-                otp_code: Optional[str] = Form(None)):
+@app.post("/api/login")
+async def login(username: str = Form(...), password: str = Form(...)):
+    """Stufe 1: Benutzername + Passwort. Wenn TOTP aktiv → pending_token."""
     conn = _db()
-    user = conn.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
+    user = conn.execute(
+        "SELECT id, username, is_admin, otp_secret, otp_confirmed, password_hash FROM users "
+        "WHERE username = ?", (username,)).fetchone()
     conn.close()
+
     if not user or not bcrypt.checkpw(password.encode(), user["password_hash"].encode()):
-        return RedirectResponse("/?error=1", status_code=303)
+        return JSONResponse(
+            {"status": "error", "message": "Falsche Zugangsdaten"}, status_code=401)
+
+    _clean_pending()
 
     if user["otp_secret"] and user["otp_confirmed"]:
-        if not otp_code or not pyotp.TOTP(user["otp_secret"]).verify(otp_code):
-            return RedirectResponse("/?error=2", status_code=303)
+        token = secrets.token_urlsafe(32)
+        pending_2fa[token] = {
+            "user_id": user["id"],
+            "username": user["username"],
+            "expires": time.time() + PENDING_2FA_TTL,
+            "attempts": 0,
+        }
+        return JSONResponse({"status": "2fa_required", "pending_token": token})
 
+    # Kein TOTP → sofort Session erstellen
     sid = create_session(user["id"])
-    resp = RedirectResponse("/dashboard", status_code=303)
-    resp.set_cookie(SESSION_COOKIE, sid, httponly=True, samesite="lax",
-                    max_age=SESSION_LIFETIME)
+    resp = JSONResponse({"status": "ok", "is_admin": bool(user["is_admin"])})
+    resp.set_cookie(SESSION_COOKIE, sid, httponly=True, samesite="lax", max_age=SESSION_LIFETIME)
+    return resp
+
+
+@app.post("/api/2fa/verify")
+async def login_2fa_verify(pending_token: str = Form(...), code: str = Form(...)):
+    """Stufe 2: TOTP prüfen → Session erstellen."""
+    _clean_pending()
+    pending = pending_2fa.get(pending_token)
+    if not pending or pending["expires"] < time.time():
+        pending_2fa.pop(pending_token, None)
+        return JSONResponse(
+            {"status": "error", "message": "Anmeldung abgelaufen"}, status_code=401)
+
+    conn = _db()
+    user = conn.execute(
+        "SELECT id, username, is_admin, otp_secret, otp_confirmed FROM users "
+        "WHERE id = ?", (pending["user_id"],)).fetchone()
+    conn.close()
+
+    if not user or not user["otp_secret"] or not user["otp_confirmed"]:
+        pending_2fa.pop(pending_token, None)
+        return JSONResponse(
+            {"status": "error", "message": "2FA ist nicht mehr aktiv"}, status_code=401)
+
+    totp = pyotp.TOTP(user["otp_secret"])
+    if not totp.verify(code, valid_window=OTP_WINDOW):
+        pending["attempts"] += 1
+        if pending["attempts"] >= PENDING_2FA_MAX_ATTEMPTS:
+            pending_2fa.pop(pending_token, None)
+            return JSONResponse(
+                {"status": "error", "message": "Zu viele Fehlversuche"}, status_code=401)
+        return JSONResponse({"status": "error", "message": "Code ungültig"}, status_code=401)
+
+    pending_2fa.pop(pending_token, None)
+    sid = create_session(user["id"])
+    resp = JSONResponse({"status": "ok", "is_admin": bool(user["is_admin"])})
+    resp.set_cookie(SESSION_COOKIE, sid, httponly=True, samesite="lax", max_age=SESSION_LIFETIME)
     return resp
 
 

@@ -24,8 +24,10 @@
         button { width: 100%; padding: 14px; background: #e94560; color: #fff; border: none;
                  border-radius: 8px; font-size: 16px; cursor: pointer; font-weight: 600; }
         button:hover { background: #c73e56; }
-        .error { color: #ff6b6b; font-size: 14px; margin-bottom: 16px; text-align: center; }
+        button[disabled] { background: #555; cursor: not-allowed; }
+        .error { color: #ff6b6b; font-size: 14px; margin-bottom: 16px; text-align: center; min-height: 20px; }
         .logo { text-align: center; font-size: 48px; margin-bottom: 16px; }
+        .hidden { display: none; }
     </style>
 </head>
 <body>
@@ -34,24 +36,95 @@
         <h1>STARFACE WebApp</h1>
         <p>Anrufblocker — Rufnummernlisten-Verwaltung</p>
 
-        {% if request.query_params.get('error') == '1' %}
-        <div class="error">Falscher Benutzername oder Passwort.</div>
-        {% elif request.query_params.get('error') == '2' %}
-        <div class="error">Falscher 2FA-Code.</div>
-        {% endif %}
+        <div class="error" id="loginError"></div>
 
-        <form method="POST" action="/login">
+        <!-- Schritt 1: Benutzername + Passwort -->
+        <form id="loginForm">
             <label for="username">Benutzername</label>
             <input type="text" id="username" name="username" required autofocus autocomplete="username">
 
             <label for="password">Passwort</label>
             <input type="password" id="password" name="password" required autocomplete="current-password">
 
-            <label for="otp_code">2FA-Code {% if not show_otp %}(falls aktiviert){% endif %}</label>
-            <input type="text" id="otp_code" name="otp_code" maxlength="6" inputmode="numeric" autocomplete="one-time-code" placeholder="6-stellig">
+            <button type="submit" id="loginBtn">Anmelden</button>
+        </form>
 
-            <button type="submit">Anmelden</button>
+        <!-- Schritt 2: 2FA-Code (nur eingeblendet, wenn aktiviert) -->
+        <form id="otpForm" class="hidden">
+            <p style="margin-bottom: 16px;">Gib deinen 2FA-Code aus der Authenticator-App ein.</p>
+            <label for="otp_code">2FA-Code</label>
+            <input type="text" id="otp_code" name="otp_code" maxlength="6" inputmode="numeric"
+                   autocomplete="one-time-code" placeholder="6-stellig" required>
+            <button type="submit" id="otpBtn">Bestätigen</button>
         </form>
     </div>
+
+    <script>
+        let pendingToken = null;
+
+        function showError(msg) {
+            document.getElementById('loginError').textContent = msg || '';
+        }
+
+        document.getElementById('loginForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+            showError('');
+            document.getElementById('loginBtn').disabled = true;
+            try {
+                const resp = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({
+                        username: document.getElementById('username').value,
+                        password: document.getElementById('password').value
+                    })
+                });
+                const data = await resp.json();
+                if (resp.status === 401) {
+                    showError(data.message || 'Falsche Zugangsdaten.');
+                    document.getElementById('loginBtn').disabled = false;
+                    return;
+                }
+                if (data.status === '2fa_required') {
+                    pendingToken = data.pending_token;
+                    document.getElementById('loginForm').classList.add('hidden');
+                    document.getElementById('otpForm').classList.remove('hidden');
+                    document.getElementById('otp_code').focus();
+                    document.getElementById('loginBtn').disabled = false;
+                    return;
+                }
+                window.location.href = '/dashboard';
+            } catch (err) {
+                showError('Verbindungsfehler. Bitte erneut versuchen.');
+                document.getElementById('loginBtn').disabled = false;
+            }
+        });
+
+        document.getElementById('otpForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+            showError('');
+            document.getElementById('otpBtn').disabled = true;
+            try {
+                const resp = await fetch('/api/2fa/verify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({
+                        pending_token: pendingToken,
+                        code: document.getElementById('otp_code').value
+                    })
+                });
+                const data = await resp.json();
+                if (resp.status === 401) {
+                    showError(data.message || 'Code ungültig.');
+                    document.getElementById('otpBtn').disabled = false;
+                    return;
+                }
+                window.location.href = '/dashboard';
+            } catch (err) {
+                showError('Verbindungsfehler. Bitte erneut versuchen.');
+                document.getElementById('otpBtn').disabled = false;
+            }
+        });
+    </script>
 </body>
 </html>
