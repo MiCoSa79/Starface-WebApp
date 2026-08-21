@@ -18,7 +18,8 @@
         .topbar h1 { font-size: 20px; color: #e94560; }
         .topbar .user { color: #aaa; }
         .topbar a { color: #e94560; text-decoration: none; margin-left: 16px; }
-        .container { max-width: 960px; margin: 0 auto; padding: 24px; }
+        .container { max-width: 960px; margin: 0 auto; padding: 24px;
+                     padding-bottom: 60px; }
 
         /* Anlagen-Karten */
         .card { background: #16213e; border-radius: 12px; padding: 20px; margin-bottom: 16px;
@@ -39,9 +40,10 @@
         .badge { display: inline-block; background: #2d6a4f; color: #95d5b2;
                  padding: 2px 8px; border-radius: 4px; font-size: 12px; margin-left: 8px; }
 
-        /* Fußzeile */
-        .footer { text-align: center; padding: 16px; color: #555; font-size: 12px;
-                  margin-top: 24px; border-top: 1px solid #222; }
+        /* Fußzeile — fixiert am unteren Bildschirmrand */
+        .footer { position: fixed; bottom: 0; left: 0; right: 0;
+                  text-align: center; padding: 12px 16px; color: #555; font-size: 12px;
+                  background: #16213e; border-top: 1px solid #222; z-index: 100; }
     </style>
 </head>
 <body>
