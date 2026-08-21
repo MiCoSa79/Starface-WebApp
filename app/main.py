@@ -9,6 +9,7 @@ Port: 8000 (Docker, Container-intern) → Host: 8895
 
 import hashlib
 import os
+import re
 import secrets
 import sqlite3
 import time
@@ -23,7 +24,7 @@ import httpx
 import pyotp
 from cryptography.fernet import Fernet
 from fastapi import FastAPI, Form, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -105,9 +106,54 @@ def init_db():
             detail TEXT,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
         );
+        CREATE TABLE IF NOT EXISTS modules (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE NOT NULL,
+            filename TEXT NOT NULL,
+            version TEXT DEFAULT '',
+            description TEXT DEFAULT '',
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
     """)
     conn.commit()
     conn.close()
+    _scan_modules()
+
+
+def _scan_modules():
+    """Scannt app/modules/*.sfm und traegt neue Module in die DB ein.
+    Version/Beschreibung werden aus module-descriptor.xml gelesen."""
+    modules_dir = os.path.join(os.path.dirname(__file__), "modules")
+    if not os.path.isdir(modules_dir):
+        return
+    conn = _db()
+    for fname in sorted(os.listdir(modules_dir)):
+        if not fname.endswith(".sfm"):
+            continue
+        name = os.path.splitext(fname)[0]
+        version, description = _module_meta(os.path.join(modules_dir, fname))
+        row = conn.execute("SELECT id FROM modules WHERE name = ?", (name,)).fetchone()
+        if not row:
+            conn.execute(
+                "INSERT INTO modules (name, filename, version, description) VALUES (?,?,?,?)",
+                (name, fname, version, description))
+    conn.commit()
+    conn.close()
+
+
+def _module_meta(path: str) -> tuple:
+    """Liest version + description aus module-descriptor.xml einer .sfm-Datei."""
+    import zipfile as _zip
+    try:
+        with _zip.ZipFile(path) as z:
+            if "module-descriptor.xml" not in z.namelist():
+                return "", ""
+            desc = z.read("module-descriptor.xml").decode("utf-8", "ignore")
+        ver = re.search(r'version="([^"]+)"', desc)
+        dsc = re.search(r'<description>([^<]+)</description>', desc)
+        return (ver.group(1) if ver else "", dsc.group(1).strip() if dsc else "")
+    except Exception:
+        return "", ""
 
 
 # ─────────────────────────────────────────────────────────────
@@ -498,6 +544,47 @@ async def admin_page(request: Request):
                                        "users": users, "access": access,
                                        "OTP_ISSUER": "STARFACE-WebApp",
                                        "version": os.environ.get("APP_VERSION", "dev")})
+
+
+@app.get("/admin/modules", response_class=HTMLResponse)
+async def admin_modules_page(request: Request):
+    """Admin-Seite: Liste aller .sfm-Module mit Download-Button."""
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user or not user["is_admin"]:
+        return RedirectResponse("/dashboard")
+    conn = _db()
+    modules = conn.execute("SELECT * FROM modules ORDER BY name").fetchall()
+    conn.close()
+    return TEMPLATES.TemplateResponse("modules.html",
+                                      {"request": request, "user": user,
+                                       "modules": modules,
+                                       "version": os.environ.get("APP_VERSION", "dev")})
+
+
+@app.get("/admin/modules/{module_id}/download")
+async def admin_module_download(request: Request, module_id: int):
+    """Download einer .sfm-Datei (nur Admins). Dateiname kommt aus der DB
+    (Whitelist), nie direkt aus der URL → kein Pfad-Traversal."""
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user or not user["is_admin"]:
+        return RedirectResponse("/dashboard")
+
+    conn = _db()
+    mod = conn.execute("SELECT * FROM modules WHERE id = ?", (module_id,)).fetchone()
+    conn.close()
+    if not mod:
+        return RedirectResponse("/admin/modules", status_code=303)
+
+    modules_dir = Path(__file__).parent / "modules"
+    file_path = (modules_dir / mod["filename"]).resolve()
+    # Sicherheit: Datei muss wirklich im modules-Verzeichnis liegen
+    if not file_path.is_file() or modules_dir.resolve() not in file_path.parents:
+        return RedirectResponse("/admin/modules?err=missing", status_code=303)
+
+    return FileResponse(
+        file_path,
+        media_type="application/octet-stream",
+        filename=mod["filename"])
 
 
 @app.post("/admin/installations")
