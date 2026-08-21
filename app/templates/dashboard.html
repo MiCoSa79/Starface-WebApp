@@ -42,6 +42,7 @@
         <div>
             <span class="user">Hallo, {{ user.username }}</span>
             {% if user.is_admin %}<span class="badge">Admin</span>{% endif %}
+            {% if user.is_admin %}<a href="/admin">Admin</a>{% endif %}
             <a href="/logout">Abmelden</a>
         </div>
     </div>
@@ -49,8 +50,21 @@
     <div class="container">
         <h2 style="margin-bottom: 16px; font-size: 18px;">Anlagen</h2>
 
+        {% if user.is_admin %}
+        <div style="margin-bottom: 16px;">
+            <a href="/admin" class="btn btn-primary" style="padding: 10px 20px; border-radius: 8px; text-decoration: none; display: inline-block;">+ Anlage hinzufügen</a>
+        </div>
+        {% endif %}
+
         {% if not installations %}
-        <div class="empty">Noch keine STARFACE-Anlagen hinzugefügt.</div>
+        <div class="empty">
+            Noch keine STARFACE-Anlagen hinzugefügt.
+            {% if user.is_admin %}
+            <br><span style="font-size: 13px; color: #888;">→ Im <a href="/admin" style="color: #e94560;">Admin-Bereich</a> kannst du Anlagen, Benutzer, 2FA und Rechte verwalten.</span>
+            {% else %}
+            <br><span style="font-size: 13px; color: #888;">Frag einen Administrator, der dir Zugriff auf eine Anlage einrichtet.</span>
+            {% endif %}
+        </div>
         {% endif %}
 
         {% for inst in installations %}
