@@ -513,6 +513,39 @@ async def admin_user_delete(request: Request, uid: int):
     return RedirectResponse("/admin", status_code=303)
 
 
+@app.post("/admin/users/{uid}/role")
+async def admin_user_role(request: Request, uid: int, is_admin: int = Form(0)):
+    """Adminrolle vergeben/entziehen — der letzte verbleibende Admin 
+    kann nie entlassen werden (Schutz wie in Atlas)."""
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user or not user["is_admin"]:
+        return RedirectResponse("/dashboard")
+
+    want_admin = 1 if is_admin == 1 else 0
+    conn = _db()
+    row = conn.execute("SELECT id, username, is_admin FROM users WHERE id = ?", (uid,)).fetchone()
+    if not row:
+        conn.close()
+        return RedirectResponse("/admin?role_err=notfound", status_code=303)
+    current = row["is_admin"]
+    if want_admin == current:
+        conn.close()
+        return RedirectResponse("/admin", status_code=303)
+
+    if want_admin == 0:
+        # Schutz: Es muss immer mindestens ein Admin aktiv bleiben (wie Atlas)
+        admin_count = conn.execute("SELECT COUNT(*) FROM users WHERE is_admin = 1").fetchone()[0]
+        if admin_count <= 1:
+            conn.close()
+            return RedirectResponse("/admin?role_err=lastadmin", status_code=303)
+
+    conn.execute("UPDATE users SET is_admin = ? WHERE id = ?", (want_admin, uid))
+    conn.commit()
+    conn.close()
+    _log_event(None, user["user_id"], "user_role", f"{row['username']}->{'admin' if want_admin else 'user'}")
+    return RedirectResponse("/admin", status_code=303)
+
+
 # ─────────────────────────────────────────────────────────────
 # 2FA (TOTP) — Admin-Bereich
 # ─────────────────────────────────────────────────────────────

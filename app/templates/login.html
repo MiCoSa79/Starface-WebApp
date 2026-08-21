@@ -26,14 +26,15 @@
         button:hover { background: #c73e56; }
         button[disabled] { background: #555; cursor: not-allowed; }
         .error { color: #ff6b6b; font-size: 14px; margin-bottom: 16px; text-align: center; min-height: 20px; }
-        .logo { text-align: center; font-size: 48px; margin-bottom: 16px; }
+        .logo { text-align: center; margin-bottom: 16px; }
+        .logo img { max-height: 48px; width: auto; }
         .hidden { display: none; }
     </style>
 </head>
 <body>
     <div class="card">
-        <div class="logo">🛡️</div>
-        <h1>STARFACE WebApp</h1>
+        <div class="logo"><img src="/static/kits-logo.png" alt="Logo"></div>
+        <h1>Kraemer-IT WebApp</h1>
         <p>Anrufblocker — Rufnummernlisten-Verwaltung</p>
 
         <div class="error" id="loginError"></div>
