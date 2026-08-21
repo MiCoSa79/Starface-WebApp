@@ -19,7 +19,8 @@
         .topbar h1 img { height: 24px; width: auto; }
         .topbar h1 span { color: #e94560; }
         .topbar a { color: #e94560; text-decoration: none; margin-left: 16px; }
-        .container { max-width: 1100px; margin: 0 auto; padding: 24px; }
+        .container { max-width: 1100px; margin: 0 auto; padding: 24px;
+                     padding-bottom: 60px; }
         h2 { font-size: 18px; margin: 24px 0 12px; color: #e94560; }
         h2:first-child { margin-top: 0; }
         .card { background: #16213e; border-radius: 12px; padding: 20px; margin-bottom: 16px;
@@ -63,6 +64,15 @@
     <div class="container">
         {% if request.query_params.get('toter') %}
         <div class="okmsg" style="background:#3d0000;color:#ff9b9b;">Falscher Code — TOTP nicht aktiviert.</div>
+        {% endif %}
+        {% if request.query_params.get('pw_ok') %}
+        <div class="okmsg">✅ Passwort wurde zurückgesetzt.</div>
+        {% elif request.query_params.get('pw_err') == 'nomatch' %}
+        <div class="error">Neues Passwort und Bestätigung stimmen nicht überein.</div>
+        {% elif request.query_params.get('pw_err') == 'empty' %}
+        <div class="error">Neues Passwort darf nicht leer sein.</div>
+        {% elif request.query_params.get('pw_err') == 'notfound' %}
+        <div class="error">Benutzer nicht gefunden.</div>
         {% endif %}
         {% if request.query_params.get('tot_ok') %}
         <div class="okmsg">2FA aktiviert! Backup-Codes (einmal nutzbar, sicher aufbewahren):<br>

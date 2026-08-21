@@ -300,24 +300,27 @@ async def password_change(request: Request,
         return RedirectResponse("/dashboard")
 
     if new_password != confirm:
+        if user["is_admin"] and target_uid and target_uid != user["user_id"]:
+            return RedirectResponse("/admin?pw_err=nomatch", status_code=303)
         return RedirectResponse("/dashboard?pw_err=nomatch", status_code=303)
 
     if user["is_admin"] and target_uid and target_uid != user["user_id"]:
-        # Admin setzt Passwort eines anderen Users neu — kein aktuelles Passwort nötig
+        # Admin setzt Passwort eines anderen Users neu — kein aktuelles Passwort nötig.
+        # Redirect zurück zum Admin-Bereich.
         target = target_uid
         if not new_password:
-            return RedirectResponse("/dashboard?pw_err=empty", status_code=303)
+            return RedirectResponse("/admin?pw_err=empty", status_code=303)
         conn = _db()
         target_row = conn.execute(
             "SELECT id, username FROM users WHERE id = ?", (target,)).fetchone()
         if not target_row:
             conn.close()
-            return RedirectResponse("/dashboard?pw_err=notfound", status_code=303)
+            return RedirectResponse("/admin?pw_err=notfound", status_code=303)
         new_hash = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt()).decode()
         conn.execute("UPDATE users SET password_hash = ? WHERE id = ?", (new_hash, target))
         conn.commit()
         conn.close()
-        return RedirectResponse("/dashboard?pw_ok=1", status_code=303)
+        return RedirectResponse("/admin?pw_ok=1", status_code=303)
 
     # Eigenes Passwort ändern (User oder Admin): aktuelles Passwort prüfen
     conn = _db()
