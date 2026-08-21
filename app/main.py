@@ -391,7 +391,9 @@ async def dashboard(request: Request):
                      "is10": bool(inst["is_starface10"]), **acc})
 
     return TEMPLATES.TemplateResponse("dashboard.html",
-                                      {"request": request, "user": user, "installations": rows})
+                                      {"request": request, "user": user,
+                                       "installations": rows,
+                                       "version": os.environ.get("APP_VERSION", "dev")})
 
 
 # ─────────────────────────────────────────────────────────────
