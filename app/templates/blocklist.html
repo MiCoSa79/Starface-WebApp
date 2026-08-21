@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ inst.name }} — Blocklist</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+               background: #1a1a2e; color: #e0e0e0; }
+        .topbar { background: #16213e; padding: 16px 24px; display: flex;
+                  justify-content: space-between; align-items: center;
+                  border-bottom: 1px solid #333; }
+        .topbar h1 { font-size: 20px; color: #e94560; }
+        .topbar a { color: #e94560; text-decoration: none; margin-left: 16px; }
+        .container { max-width: 720px; margin: 0 auto; padding: 24px; }
+        h2 { font-size: 18px; margin-bottom: 16px; }
+        .msg { padding: 10px 16px; border-radius: 8px; margin-bottom: 12px; font-size: 14px; }
+        .msg-ok { background: #1b4332; color: #95d5b2; }
+        .msg-err { background: #3d0000; color: #ff9b9b; }
+        .card { background: #16213e; border-radius: 12px; padding: 20px; margin-bottom: 16px;
+                border: 1px solid #333; }
+        textarea { width: 100%; padding: 12px; border: 1px solid #333; border-radius: 8px;
+                   background: #0f3460; color: #fff; font-size: 15px; font-family: monospace;
+                   min-height: 100px; resize: vertical; }
+        input { width: 100%; padding: 12px; border: 1px solid #333; border-radius: 8px;
+                background: #0f3460; color: #fff; font-size: 16px; }
+        button { padding: 10px 18px; border-radius: 6px; border: none; cursor: pointer;
+                 font-size: 14px; font-weight: 600; }
+        .btn-primary { background: #e94560; color: #fff; }
+        .btn-secondary { background: #333; color: #ccc; }
+        .btn-danger { background: #8b0000; color: #fff; }
+        .entry { display: flex; justify-content: space-between; align-items: center;
+                 background: #0f3460; padding: 10px 14px; border-radius: 8px;
+                 margin-bottom: 8px; font-family: monospace; font-size: 16px; }
+        .entry form { margin: 0; }
+        .wildcards { color: #666; font-size: 12px; margin-top: 6px; }
+        .empty { color: #666; text-align: center; padding: 24px; }
+        .hint { color: #888; font-size: 13px; margin-bottom: 8px; }
+        .back { display: inline-block; color: #888; text-decoration: none; margin-bottom: 16px; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        <h1>🛡️ {{ inst.name }}</h1>
+        <div>
+            <span>{{ user.username }}</span>
+            <a href="/dashboard">Dashboard</a>
+            <a href="/logout">Abmelden</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <a class="back" href="/dashboard">← Zurück</a>
+        <h2>Blocklist</h2>
+
+        {% if request.query_params.get('ok') %}
+        <div class="msg msg-ok">✅ {{ request.query_params.get('ok') }} Eintrag/Einträge gespeichert.</div>
+        {% endif %}
+        {% if error or request.query_params.get('error') %}
+        <div class="msg msg-err">⚠️ {{ error or request.query_params.get('error') }}</div>
+        {% endif %}
+
+        <div class="card">
+            <div class="hint">Eine Nummer pro Zeile. Wildcards: <code>+49*</code> (beginnt mit), <code>2??</code> (genau 2 weitere Zeichen), <code>????</code> (genau 4-stellig).</div>
+            {% if can_write %}
+            <form method="POST" action="/installation/{{ inst.id }}/blocklist/add">
+                <textarea name="numbers" placeholder="+491512345678&#10;+49*&#10;2??"></textarea>
+                <div style="margin-top:10px;"><button type="submit" class="btn-primary">Hinzufügen</button></div>
+            </form>
+            {% else %}
+            <div class="hint">Nur-Lese-Zugriff.</div>
+            {% endif %}
+        </div>
+
+        {% if numbers %}
+            <div class="hint">{{ numbers|length }} Einträge:</div>
+            {% for n in numbers %}
+            <div class="entry">
+                <span>{{ n }}</span>
+                {% if can_write %}
+                <form method="POST" action="/installation/{{ inst.id }}/blocklist/remove">
+                    <input type="hidden" name="number" value="{{ n }}">
+                    <button type="submit" class="btn-danger">Entfernen</button>
+                </form>
+                {% endif %}
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty">Liste ist leer.</div>
+        {% endif %}
+
+        <div style="margin-top:16px;">
+            <a href="/installation/{{ inst.id }}/test?json=1" id="testbtn" class="back">Verbindungstest</a>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('testbtn').addEventListener('click', function (e) {
+            e.preventDefault();
+            fetch('/installation/{{ inst.id }}/test')
+                .then(r => r.json())
+                .then(d => alert(d.ok ? 'Verbindung OK (' + d.entries + ' Einträge)' : 'Fehler: ' + d.error))
+                .catch(err => alert('Fehler: ' + err));
+        });
+    </script>
+</body>
+</html>

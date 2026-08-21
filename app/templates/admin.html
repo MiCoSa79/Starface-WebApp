@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>STARFACE WebApp — Admin</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+               background: #1a1a2e; color: #e0e0e0; }
+        .topbar { background: #16213e; padding: 16px 24px; display: flex;
+                  justify-content: space-between; align-items: center;
+                  border-bottom: 1px solid #333; }
+        .topbar h1 { font-size: 20px; color: #e94560; }
+        .topbar a { color: #e94560; text-decoration: none; margin-left: 16px; }
+        .container { max-width: 1100px; margin: 0 auto; padding: 24px; }
+        h2 { font-size: 18px; margin: 24px 0 12px; color: #e94560; }
+        h2:first-child { margin-top: 0; }
+        .card { background: #16213e; border-radius: 12px; padding: 20px; margin-bottom: 16px;
+                border: 1px solid #333; }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th, td { text-align: left; padding: 8px; border-bottom: 1px solid #2a2a4a; }
+        th { color: #888; font-weight: 600; }
+        input, select { padding: 8px; border: 1px solid #333; border-radius: 6px;
+                        background: #0f3460; color: #fff; font-size: 14px; }
+        button { padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer;
+                 font-size: 13px; font-weight: 600; }
+        .btn-primary { background: #e94560; color: #fff; }
+        .btn-secondary { background: #333; color: #ccc; }
+        .btn-danger { background: #8b0000; color: #fff; }
+        .form-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
+        .hint { color: #666; font-size: 12px; margin-top: 4px; }
+        .okmsg { background: #1b4332; color: #95d5b2; padding: 10px 16px; border-radius: 8px;
+                 margin-bottom: 12px; font-size: 14px; }
+        .badge { display: inline-block; background: #e94560; color: #fff;
+                 padding: 2px 8px; border-radius: 4px; font-size: 11px; }
+        .badge-gray { background: #333; }
+        .codes { font-family: monospace; word-break: break-all; }
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        <h1>🛡️ STARFACE WebApp</h1>
+        <div>
+            <span>{{ user.username }}</span>
+            <a href="/dashboard">Dashboard</a>
+            <a href="/logout">Abmelden</a>
+        </div>
+    </div>
+
+    <div class="container">
+        {% if request.query_params.get('toter') %}
+        <div class="okmsg" style="background:#3d0000;color:#ff9b9b;">Falscher Code — TOTP nicht aktiviert.</div>
+        {% endif %}
+        {% if request.query_params.get('tot_ok') %}
+        <div class="okmsg">2FA aktiviert! Backup-Codes (einmal nutzbar, sicher aufbewahren):<br>
+            <span class="codes">{{ request.query_params.get('codes', '') }}</span></div>
+        {% endif %}
+
+        <h2>Anlagen</h2>
+        <div class="card">
+            <form method="POST" action="/admin/installations">
+                <div class="form-row">
+                    <input type="text" name="name" placeholder="Name (z. B. Hauptstandort)" required>
+                    <input type="text" name="url" placeholder="https://pbx.example.de" required>
+                    <input type="text" name="auth_id" placeholder="API-Login-ID (z. B. 0001)" required>
+                    <input type="password" name="auth_pass" placeholder="Passwort" autocomplete="new-password">
+                    <input type="text" name="client_secret" placeholder="Client-Secret (10.x)">
+                    <select name="is_starface10">
+                        <option value="1" selected>STARFACE 10.x (OAuth)</option>
+                        <option value="0">STARFACE ≤ 9.x (Legacy)</option>
+                    </select>
+                    <button type="submit" class="btn-primary">Anlage hinzufügen</button>
+                </div>
+                <div class="hint">Login-ID, Passwort und Client-Secret werden verschlüsselt (Fernet) gespeichert.</div>
+            </form>
+        </div>
+
+        <table>
+            <tr><th>ID</th><th>Name</th><th>URL</th><th>API-Version</th><th></th></tr>
+            {% for inst in installations %}
+            <tr>
+                <td>{{ inst.id }}</td>
+                <td>{{ inst.name }}</td>
+                <td>{{ inst.url }}</td>
+                <td>{% if inst.is_starface10 %}10.x{% else %}≤9.x{% endif %}</td>
+                <td>
+                    <form method="POST" action="/admin/installations/{{ inst.id }}/delete" style="display:inline"
+                          onsubmit="return confirm('Anlage {{ inst.name }} wirklich löschen?');">
+                        <button type="submit" class="btn-danger">Löschen</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+
+        <h2>Benutzer</h2>
+        <div class="card">
+            <form method="POST" action="/admin/users">
+                <div class="form-row">
+                    <input type="text" name="username" placeholder="Benutzername" required>
+                    <input type="password" name="password" placeholder="Passwort" required autocomplete="new-password">
+                    <label style="color:#aaa; font-size:13px;"><input type="checkbox" name="is_admin" value="1"> Admin</label>
+                    <button type="submit" class="btn-primary">Benutzer anlegen</button>
+                </div>
+            </form>
+        </div>
+
+        <table>
+            <tr><th>ID</th><th>Benutzer</th><th>Rolle</th><th>2FA</th><th></th></tr>
+            {% for u in users %}
+            <tr>
+                <td>{{ u.id }}</td>
+                <td>{{ u.username }}</td>
+                <td>{% if u.is_admin %}<span class="badge">Admin</span>{% else %}User{% endif %}</td>
+                <td>{% if u.otp_confirmed %}✅{% else %}{% if u.otp_secret %}⏳{% else %}—{% endif %}{% endif %}</td>
+                <td>
+                    <a href="/admin/users/{{ u.id }}/totp-setup" class="btn-secondary" style="padding:6px 12px;border-radius:6px;text-decoration:none;background:#333;color:#ccc;">2FA einrichten</a>
+                    {% if u.id != user.id %}
+                    <form method="POST" action="/admin/users/{{ u.id }}/delete" style="display:inline"
+                          onsubmit="return confirm('Benutzer {{ u.username }} wirklich löschen?');">
+                        <button type="submit" class="btn-danger">Löschen</button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+
+        <h2>Rechte (User → Anlage)</h2>
+        <div class="card">
+            <form method="POST" action="/admin/access">
+                <div class="form-row">
+                    <select name="user_id">
+                        {% for u in users %}{% if not u.is_admin %}
+                        <option value="{{ u.id }}">{{ u.username }}</option>
+                        {% endif %}{% endfor %}
+                    </select>
+                    <select name="installation_id">
+                        {% for inst in installations %}
+                        <option value="{{ inst.id }}">{{ inst.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <label style="color:#aaa; font-size:13px;"><input type="checkbox" name="can_read" value="1"> lesen</label>
+                    <label style="color:#aaa; font-size:13px;"><input type="checkbox" name="can_write" value="1"> bearbeiten</label>
+                    <button type="submit" class="btn-primary">Recht setzen</button>
+                </div>
+                <div class="hint">User: keine Sicht / nur lesen / lesen + bearbeiten. Admins sehen und bearbeiten alles.</div>
+            </form>
+        </div>
+
+        <table>
+            <tr><th>User</th><th>Anlage</th><th>Lesen</th><th>Bearbeiten</th></tr>
+            {% for a in access %}
+            <tr>
+                <td>{% for u in users %}{% if u.id == a.user_id %}{{ u.username }}{% endif %}{% endfor %}</td>
+                <td>{% for i in installations %}{% if i.id == a.installation_id %}{{ i.name }}{% endif %}{% endfor %}</td>
+                <td>{{ '✅' if a.can_read else '—' }}</td>
+                <td>{{ '✅' if a.can_write else '—' }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+</body>
+</html>

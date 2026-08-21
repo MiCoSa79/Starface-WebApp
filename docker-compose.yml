@@ -1,0 +1,9 @@
+version: '3'
+services:
+  starface-webapp:
+    build: .
+    restart: always
+    ports:
+      - "8895:8000"
+    volumes:
+      - ./data:/data

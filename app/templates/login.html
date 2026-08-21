@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>STARFACE WebApp — Login</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+               background: #1a1a2e; color: #e0e0e0; min-height: 100vh;
+               display: flex; align-items: center; justify-content: center; padding: 16px; }
+        .card { background: #16213e; border-radius: 12px; padding: 40px; width: 100%; max-width: 400px;
+                box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
+        h1 { font-size: 24px; margin-bottom: 8px; color: #e94560; text-align: center; }
+        p { color: #888; font-size: 14px; margin-bottom: 24px; text-align: center; }
+        label { display: block; font-size: 13px; color: #aaa; margin-bottom: 4px; }
+        input { width: 100%; padding: 12px; border: 1px solid #333; border-radius: 8px;
+                background: #0f3460; color: #fff; font-size: 16px; margin-bottom: 16px; }
+        input:focus { outline: none; border-color: #e94560; }
+        button { width: 100%; padding: 14px; background: #e94560; color: #fff; border: none;
+                 border-radius: 8px; font-size: 16px; cursor: pointer; font-weight: 600; }
+        button:hover { background: #c73e56; }
+        .error { color: #ff6b6b; font-size: 14px; margin-bottom: 16px; text-align: center; }
+        .logo { text-align: center; font-size: 48px; margin-bottom: 16px; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="logo">🛡️</div>
+        <h1>STARFACE WebApp</h1>
+        <p>Anrufblocker — Rufnummernlisten-Verwaltung</p>
+
+        {% if request.query_params.get('error') == '1' %}
+        <div class="error">Falscher Benutzername oder Passwort.</div>
+        {% elif request.query_params.get('error') == '2' %}
+        <div class="error">Falscher 2FA-Code.</div>
+        {% endif %}
+
+        <form method="POST" action="/login">
+            <label for="username">Benutzername</label>
+            <input type="text" id="username" name="username" required autofocus autocomplete="username">
+
+            <label for="password">Passwort</label>
+            <input type="password" id="password" name="password" required autocomplete="current-password">
+
+            <label for="otp_code">2FA-Code {% if not show_otp %}(falls aktiviert){% endif %}</label>
+            <input type="text" id="otp_code" name="otp_code" maxlength="6" inputmode="numeric" autocomplete="one-time-code" placeholder="6-stellig">
+
+            <button type="submit">Anmelden</button>
+        </form>
+    </div>
+</body>
+</html>

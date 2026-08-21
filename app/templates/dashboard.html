@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>STARFACE WebApp — Dashboard</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+               background: #1a1a2e; color: #e0e0e0; }
+        .topbar { background: #16213e; padding: 16px 24px; display: flex;
+                  justify-content: space-between; align-items: center;
+                  border-bottom: 1px solid #333; }
+        .topbar h1 { font-size: 20px; color: #e94560; }
+        .topbar .user { color: #aaa; }
+        .topbar a { color: #e94560; text-decoration: none; margin-left: 16px; }
+        .container { max-width: 960px; margin: 0 auto; padding: 24px; }
+
+        /* Anlagen-Karten */
+        .card { background: #16213e; border-radius: 12px; padding: 20px; margin-bottom: 16px;
+                border: 1px solid #333; }
+        .card h3 { color: #e94560; margin-bottom: 8px; font-size: 16px; }
+        .card .info { color: #888; font-size: 14px; margin-bottom: 12px; }
+        .card .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+        .card .actions button, .card .actions a {
+            padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer;
+            font-size: 13px; font-weight: 600; text-decoration: none; }
+        .btn-primary { background: #e94560; color: #fff; }
+        .btn-primary:hover { background: #c73e56; }
+        .btn-secondary { background: #333; color: #ccc; }
+        .btn-secondary:hover { background: #444; }
+        .btn-danger { background: #8b0000; color: #fff; }
+
+        .empty { color: #666; text-align: center; padding: 40px; }
+        .badge { display: inline-block; background: #2d6a4f; color: #95d5b2;
+                 padding: 2px 8px; border-radius: 4px; font-size: 12px; margin-left: 8px; }
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        <h1>🛡️ STARFACE WebApp</h1>
+        <div>
+            <span class="user">Hallo, {{ user.username }}</span>
+            {% if user.is_admin %}<span class="badge">Admin</span>{% endif %}
+            <a href="/logout">Abmelden</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2 style="margin-bottom: 16px; font-size: 18px;">Anlagen</h2>
+
+        {% if not installations %}
+        <div class="empty">Noch keine STARFACE-Anlagen hinzugefügt.</div>
+        {% endif %}
+
+        {% for inst in installations %}
+        <div class="card">
+            <h3>{{ inst.name }}</h3>
+            <div class="info">{{ inst.url }}{% if inst.is_starface10 %}<span class="badge">v10+</span>{% else %}<span class="badge">v9</span>{% endif %}</div>
+            <div class="actions">
+                <a href="/installation/{{ inst.id }}/blocklist" class="btn-primary">Blocklist bearbeiten</a>
+                <a href="/installation/{{ inst.id }}/test" class="btn-secondary">Verbindungstest</a>
+                {% if user.is_admin or inst.access_user == user.id|string %}
+                <a href="/installation/{{ inst.id }}/edit" class="btn-secondary">Bearbeiten</a>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</body>
+</html>
