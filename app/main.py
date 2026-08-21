@@ -448,7 +448,7 @@ async def admin_user_delete(request: Request, uid: int):
 # 2FA (TOTP) — Admin-Bereich
 # ─────────────────────────────────────────────────────────────
 
-@app.post("/admin/users/{uid}/totp-setup")
+@app.get("/admin/users/{uid}/totp-setup")
 async def admin_totp_setup(request: Request, uid: int):
     user = verify_session(request.cookies.get(SESSION_COOKIE))
     if not user or not user["is_admin"]:

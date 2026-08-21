@@ -78,9 +78,6 @@
             <div class="actions">
                 <a href="/installation/{{ inst.id }}/blocklist" class="btn-primary">Blocklist bearbeiten</a>
                 <a href="/installation/{{ inst.id }}/test" class="btn-secondary">Verbindungstest</a>
-                {% if user.is_admin or inst.access_user == user.id|string %}
-                <a href="/installation/{{ inst.id }}/edit" class="btn-secondary">Bearbeiten</a>
-                {% endif %}
             </div>
         </div>
         {% endfor %}
