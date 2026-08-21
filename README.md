@@ -60,6 +60,6 @@ Das Modul `.sfm` ist im `releases/`-Ordner enthalten. Einbau im Modul-Editor:
 
 Die Web-App verwaltet diese Datei serverseitig via XML-RPC.
 
-## Wiki
+## Detaillierte Modul-Doku
 
-Detaillierte Dokumentation: `/opt/data/profiles/axel/wiki/entities/starface-anrufblocker.md`
+Siehe [`module/README.md`](module/README.md) (Einbau, blocklist.txt-Format, Kompilieren).
