@@ -20,6 +20,9 @@
                padding: 16px 16px 56px
         }
         @media (max-width: 640px) {
+            html { padding-top: env(safe-area-inset-top, 0px);
+                   background: #1a1a2e; }
+            body { margin-top: 0; }
             body { padding: 12px 12px 56px; }
             .card { padding: 24px 20px; }; }
         .card { background: #16213e; border-radius: 12px; padding: 40px; width: 100%; max-width: 420px;
