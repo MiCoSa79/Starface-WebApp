@@ -46,10 +46,10 @@
         <!-- Schritt 1: Benutzername + Passwort -->
         <form id="loginForm">
             <label for="username">Benutzername</label>
-            <input type="text" id="username" name="username" required autofocus autocomplete="username">
+            <input type="text" id="username" name="username" required autofocus autocomplete="username" style="font-size:16px;">
 
             <label for="password">Passwort</label>
-            <input type="password" id="password" name="password" required autocomplete="current-password">
+            <input type="password" id="password" name="password" required autocomplete="current-password" style="font-size:16px;">
 
             <button type="submit" id="loginBtn">Anmelden</button>
         </form>
@@ -58,7 +58,7 @@
         <form id="otpForm" class="hidden">
             <p style="margin-bottom: 16px;">Gib deinen 2FA-Code aus der Authenticator-App ein.</p>
             <label for="otp_code">2FA-Code</label>
-            <input type="text" id="otp_code" name="otp_code" maxlength="6" inputmode="numeric"
+            <input type="text" id="otp_code" name="otp_code" maxlength="6" inputmode="numeric" style="font-size:16px;"
                    autocomplete="one-time-code" placeholder="6-stellig" required>
             <button type="submit" id="otpBtn">Bestätigen</button>
         </form>

@@ -85,7 +85,7 @@
     </style>
 </head>
 <body>
-    <input type="checkbox" id="nav-open" style="; font-size:16px;display:none;">
+    <input type="checkbox" id="nav-open" style="display:none;">
     <div class="topbar">
         <h1><img src="/static/kits-logo.png" alt="Logo"><span>{{ inst.name }}</span></h1>
         <div style="display:flex;align-items:center;gap:12px;">
@@ -118,7 +118,7 @@
             <div class="hint">Eine Nummer pro Zeile. Wildcards: <code>+49*</code> (beginnt mit), <code>2??</code> (genau 2 weitere Zeichen), <code>????</code> (genau 4-stellig).</div>
             {% if can_write %}
             <form method="POST" action="/installation/{{ inst.id }}/blocklist/add">
-                <textarea name="numbers" placeholder="+491512345678&#10;+49*&#10;2??"></textarea>
+                <textarea name="numbers" placeholder="+491512345678&#10;+49*&#10;2??" style="font-size:16px;"></textarea>
                 <div style="margin-top:10px;"><button type="submit" class="btn-primary">Hinzufügen</button></div>
             </form>
             {% else %}
