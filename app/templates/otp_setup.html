@@ -56,7 +56,7 @@
         <div class="key">Geheimer Schlüssel: {{ secret }}</div>
 
         <form method="POST" action="/admin/users/{{ uid }}/totp-confirm">
-            <input type="text" name="code" required maxlength="6" inputmode="numeric" placeholder="000000" style="font-size:16px;">
+            <input type="text" name="code" required maxlength="6" inputmode="numeric" placeholder="000000" aria-label="2FA-Code" style="font-size:16px;">
             <button type="submit">Bestätigen</button>
         </form>
 

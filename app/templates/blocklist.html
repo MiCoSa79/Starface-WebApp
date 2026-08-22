@@ -118,7 +118,7 @@
             <div class="hint">Eine Nummer pro Zeile. Wildcards: <code>+49*</code> (beginnt mit), <code>2??</code> (genau 2 weitere Zeichen), <code>????</code> (genau 4-stellig).</div>
             {% if can_write %}
             <form method="POST" action="/installation/{{ inst.id }}/blocklist/add">
-                <textarea name="numbers" placeholder="+491512345678&#10;+49*&#10;2??" style="font-size:16px;"></textarea>
+                <textarea name="numbers" placeholder="+491****5678&#10;+49*&#10;2??" aria-label="Telefonnummern" style="font-size:16px;"></textarea>
                 <div style="margin-top:10px;"><button type="submit" class="btn-primary">Hinzufügen</button></div>
             </form>
             {% else %}
