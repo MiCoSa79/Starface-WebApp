@@ -120,7 +120,7 @@
             {% if can_write %}
             <form method="POST" action="/installation/{{ inst.id }}/blocklist/add">
                 <label class="sr-only" for="numbers">Telefonnummern (eine pro Zeile)</label>
-                <textarea name="numbers" id="numbers" placeholder="+491****5678&#10;+49*&#10;2??" style="font-size:16px;"></textarea>
+                <textarea name="numbers" id="numbers" placeholder="+491****5678&#10;+49*&#10;2??" autocomplete="off" style="font-size:16px;"></textarea>
                 <div style="margin-top:10px;"><button type="submit" class="btn-primary">Hinzufügen</button></div>
             </form>
             {% else %}
