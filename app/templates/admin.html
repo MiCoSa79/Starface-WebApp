@@ -13,6 +13,7 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png">
     <link rel="manifest" href="/static/site.webmanifest">
     <style>
+        .sr-only { position:absolute; width:1px; height:1px; margin:-1px; padding:0; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
                background: #1a1a2e; color: #e0e0e0; }
@@ -132,12 +133,18 @@
         <div class="card">
             <form method="POST" action="/admin/installations">
                 <div class="form-row">
-                    <input type="text" name="name" placeholder="Name (z. B. Hauptstandort)" aria-label="Name (z. B. Hauptstandort)" required style="font-size:16px;">
-                    <input type="text" name="url" placeholder="https://pbx.example.de" aria-label="URL" required style="font-size:16px;">
-                    <input type="text" name="auth_id" placeholder="API-Login-ID (z. B. 0001)" aria-label="API-Login-ID (z. B. 0001)" required style="font-size:16px;">
-                    <input type="password" name="auth_pass" placeholder="Passwort" aria-label="Passwort" autocomplete="new-password" style="font-size:16px;">
-                    <input type="text" name="client_secret" placeholder="Client-Secret (10.x)" aria-label="Client-Secret (10.x)" style="font-size:16px;">
-                    <select name="is_starface10" aria-label="API-Version">
+                    <label class="sr-only" for="inst_name">Name (z. B. Hauptstandort)</label>
+                    <input type="text" id="inst_name" name="name" placeholder="Name (z. B. Hauptstandort)" required style="font-size:16px;">
+                    <label class="sr-only" for="inst_url">URL (z. B. https://pbx.example.de)</label>
+                    <input type="text" id="inst_url" name="url" placeholder="https://pbx.example.de" required style="font-size:16px;">
+                    <label class="sr-only" for="inst_auth_id">API-Login-ID (z. B. 0001)</label>
+                    <input type="text" id="inst_auth_id" name="auth_id" placeholder="API-Login-ID (z. B. 0001)" required style="font-size:16px;">
+                    <label class="sr-only" for="inst_auth_pass">Passwort</label>
+                    <input type="password" id="inst_auth_pass" name="auth_pass" placeholder="Passwort" autocomplete="new-password" style="font-size:16px;">
+                    <label class="sr-only" for="inst_client_secret">Client-Secret (10.x)</label>
+                    <input type="text" id="inst_client_secret" name="client_secret" placeholder="Client-Secret (10.x)" style="font-size:16px;">
+                    <label class="sr-only" for="inst_starface10">API-Version</label>
+                    <select name="is_starface10" id="inst_starface10">
                         <option value="1" selected>STARFACE 10.x (OAuth)</option>
                         <option value="0">STARFACE ≤ 9.x (Legacy)</option>
                     </select>
@@ -169,8 +176,10 @@
         <div class="card">
             <form method="POST" action="/admin/users">
                 <div class="form-row">
-                    <input type="text" name="username" placeholder="Benutzername" aria-label="Benutzername" required style="font-size:16px;">
-                    <input type="password" name="password" placeholder="Passwort" aria-label="Passwort" required autocomplete="new-password" style="font-size:16px;">
+                    <label class="sr-only" for="new_username">Benutzername</label>
+                    <input type="text" id="new_username" name="username" placeholder="Benutzername" required style="font-size:16px;">
+                    <label class="sr-only" for="new_password">Passwort</label>
+                    <input type="password" id="new_password" name="password" placeholder="Passwort" required autocomplete="new-password" style="font-size:16px;">
                     <label style="color:#aaa; font-size:13px;"><input type="checkbox" name="is_admin" value="1"> Admin</label>
                     <button type="submit" class="btn-primary">Benutzer anlegen</button>
                 </div>
@@ -185,7 +194,8 @@
                 <td>{{ u.username }}</td>
                 <td>
                     <form method="POST" action="/admin/users/{{ u.id }}/role" style="display:inline-flex;align-items:center;gap:4px;">
-                        <select name="is_admin" aria-label="Rolle" style="padding:4px 8px;border:1px solid #333;border-radius:6px;background:#0f3460;color:#e0e0e0;font-size:13px;">
+                        <label class="sr-only" for="role_{{ u.id }}">Rolle von {{ u.username }}</label>
+                        <select name="is_admin" id="role_{{ u.id }}" style="padding:4px 8px;border:1px solid #333;border-radius:6px;background:#0f3460;color:#e0e0e0;font-size:13px;">
                             <option value="0" {% if not u.is_admin %}selected{% endif %}>User</option>
                             <option value="1" {% if u.is_admin %}selected{% endif %}>Admin</option>
                         </select>
@@ -211,12 +221,14 @@
         <div class="card">
             <form method="POST" action="/admin/access">
                 <div class="form-row">
-                    <select name="user_id" aria-label="Benutzer">
+                    <label class="sr-only" for="access_user_id">Benutzer</label>
+                    <select name="user_id" id="access_user_id">
                         {% for u in users %}{% if not u.is_admin %}
                         <option value="{{ u.id }}">{{ u.username }}</option>
                         {% endif %}{% endfor %}
                     </select>
-                    <select name="installation_id" aria-label="Anlage">
+                    <label class="sr-only" for="access_installation_id">Anlage</label>
+                    <select name="installation_id" id="access_installation_id">
                         {% for inst in installations %}
                         <option value="{{ inst.id }}">{{ inst.name }}</option>
                         {% endfor %}

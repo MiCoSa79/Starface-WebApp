@@ -13,6 +13,7 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png">
     <link rel="manifest" href="/static/site.webmanifest">
     <style>
+        .sr-only { position:absolute; width:1px; height:1px; margin:-1px; padding:0; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
                background: #1a1a2e; color: #e0e0e0; min-height: 100vh;
@@ -56,7 +57,8 @@
         <div class="key">Geheimer Schlüssel: {{ secret }}</div>
 
         <form method="POST" action="/admin/users/{{ uid }}/totp-confirm">
-            <input type="text" name="code" required maxlength="6" inputmode="numeric" placeholder="000000" aria-label="2FA-Code" style="font-size:16px;">
+            <label class="sr-only" for="code">2FA-Code</label>
+            <input type="text" name="code" id="code" required maxlength="6" inputmode="numeric" placeholder="000000" style="font-size:16px;">
             <button type="submit">Bestätigen</button>
         </form>
 

@@ -13,6 +13,7 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png">
     <link rel="manifest" href="/static/site.webmanifest">
     <style>
+        .sr-only { position:absolute; width:1px; height:1px; margin:-1px; padding:0; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
                background: #1a1a2e; color: #e0e0e0; }
@@ -118,7 +119,8 @@
             <div class="hint">Eine Nummer pro Zeile. Wildcards: <code>+49*</code> (beginnt mit), <code>2??</code> (genau 2 weitere Zeichen), <code>????</code> (genau 4-stellig).</div>
             {% if can_write %}
             <form method="POST" action="/installation/{{ inst.id }}/blocklist/add">
-                <textarea name="numbers" placeholder="+491****5678&#10;+49*&#10;2??" aria-label="Telefonnummern" style="font-size:16px;"></textarea>
+                <label class="sr-only" for="numbers">Telefonnummern (eine pro Zeile)</label>
+                <textarea name="numbers" id="numbers" placeholder="+491****5678&#10;+49*&#10;2??" style="font-size:16px;"></textarea>
                 <div style="margin-top:10px;"><button type="submit" class="btn-primary">Hinzufügen</button></div>
             </form>
             {% else %}
