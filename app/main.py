@@ -1251,7 +1251,7 @@ async def blocklist_page(request: Request, inst_id: int):
 
 
 @app.post("/installation/{inst_id}/blocklist/add")
-async def blocklist_add(request: Request, inst_id: int, numbers: str = Form(...)):
+async def blocklist_add(request: Request, inst_id: int, numbers: str = Form("")):
     user = verify_session(request.cookies.get(SESSION_COOKIE))
     if not user:
         return RedirectResponse("/")
@@ -1266,6 +1266,10 @@ async def blocklist_add(request: Request, inst_id: int, numbers: str = Form(...)
         return RedirectResponse("/dashboard")
 
     cleaned = [n.strip() for n in numbers.replace("\r", "").split("\n") if n.strip()]
+    if not cleaned:
+        return RedirectResponse(
+            f"/installation/{inst_id}/blocklist?error={quote('Bitte mindestens eine Rufnummer eingeben.')}",
+            status_code=303)
     try:
         token = _get_token(inst)
         last = None

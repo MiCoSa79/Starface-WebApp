@@ -118,11 +118,27 @@
         <div class="card">
             <div class="hint">Eine Nummer pro Zeile. Wildcards: <code>+49*</code> (beginnt mit), <code>2??</code> (genau 2 weitere Zeichen), <code>????</code> (genau 4-stellig).</div>
             {% if can_write %}
-            <form method="POST" action="/installation/{{ inst.id }}/blocklist/add">
+            <form method="POST" action="/installation/{{ inst.id }}/blocklist/add" onsubmit="return blocklistAddCheck(this)">
                 <label class="sr-only" for="numbers">Telefonnummern (eine pro Zeile)</label>
-                <textarea name="numbers" id="numbers" placeholder="+491****5678&#10;+49*&#10;2??" autocomplete="off" style="font-size:16px;"></textarea>
+                <textarea name="numbers" id="numbers" placeholder="+491****5678&#10;+49*&#10;2??" autocomplete="off" style="font-size:16px;" required></textarea>
                 <div style="margin-top:10px;"><button type="submit" class="btn-primary">Hinzufügen</button></div>
             </form>
+            <script>
+                function blocklistAddCheck(f) {
+                    var v = f.querySelector('#numbers').value.trim();
+                    if (v) { return true; }
+                    var el = document.getElementById('add-msg');
+                    if (!el) {
+                        el = document.createElement('div');
+                        el.id = 'add-msg';
+                        el.className = 'msg msg-err';
+                        f.querySelector('#numbers').insertAdjacentElement('afterend', el);
+                    }
+                    el.textContent = 'Bitte mindestens eine Rufnummer eingeben.';
+                    f.querySelector('#numbers').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    return false;
+                }
+            </script>
             {% else %}
             <div class="hint">Nur-Lese-Zugriff.</div>
             {% endif %}
