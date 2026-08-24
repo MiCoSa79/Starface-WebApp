@@ -19,9 +19,18 @@ import java.util.*;
 import org.apache.logging.log4j.Logger;
 
 import de.vertico.starface.module.core.runtime.IRuntimeEnvironment;
+import de.vertico.starface.module.core.runtime.VariableScope;
 
 public class ListManager
 {
+    /**
+     * ID der Modul-GUI-Variable "Geblockte Nummern" (declariert im
+     * module-descriptor.xml als GUI_BLOCKED_NUMBERS, type LIST; gebunden an
+     * die textList im inputGUITabs-Tab "Geblockte Nummern").
+     */
+    public static final String GUI_BLOCKED_NUMBERS_VAR_ID =
+        "c4d5e6f7-8a9b-4c0d-8e1f-2a3b4c5d6e7f";
+
     /** Pfad zur blocklist.txt im Instanz-Datenverzeichnis. */
     public static File getBlocklistFile(IRuntimeEnvironment context)
     {
@@ -82,10 +91,37 @@ public class ListManager
             Files.write(f.toPath(), sb.toString().getBytes());
             log.info("ListManager: " + entries.size() + " Einträge nach "
                      + f.getAbsolutePath() + " geschrieben (" + sb.length() + " Bytes)");
+
+            // GUI-Tab "Geblockte Nummern" in der Modul-Instanz aktuell halten
+            syncGuiList(context, log);
         }
         catch (IOException e)
         {
             log.error("ListManager: Schreibfehler für " + f.getAbsolutePath(), e);
+        }
+    }
+
+    /**
+     * Schreibt den aktuellen Inhalt der blocklist.txt in die Modul-GUI-Variable
+     * "Geblockte Nummern" (Instanz-Scope) — so zeigt der gleichnamige Tab in
+     * der Modul-Instanz-Konfiguration der STARFACE-Verwaltung den aktuellen Stand.
+     *
+     * Kanonischer Weg: context.getScope(VariableScope.Instance) — STARFACE-intern
+     * genauso von GetVariableValue2 genutzt (Bytecode-verifiziert, 10.0.2.5).
+     */
+    public static void syncGuiList(IRuntimeEnvironment context, Logger log)
+    {
+        try
+        {
+            List<String> entries = loadBlocklist(context, log);
+            context.getScope(VariableScope.Instance)
+                   .put(GUI_BLOCKED_NUMBERS_VAR_ID, entries);
+            log.info("ListManager: GUI-Variable '" + GUI_BLOCKED_NUMBERS_VAR_ID
+                     + "' aktualisiert (" + entries.size() + " Einträge)");
+        }
+        catch (Exception e)
+        {
+            log.warn("ListManager: GUI-Sync fehlgeschlagen", e);
         }
     }
 
