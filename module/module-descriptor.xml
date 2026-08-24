@@ -1,0 +1,279 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<module lastChangedTime="1787608800000" moduleType="EXTENDED" createTime="1784793600000" id="a3c1b4e5-8f2d-4a7b-9c1e-2d4f6a8b0c1e" name="CallBlocker" specVersion="5" vendor="MiCoSa79" version="22">
+    <description>Weist Anrufe von Rufnummern aus der Blocklist ab.</description>
+    <descriptionURL />
+    <disabled>false</disabled>
+    <inputVars>
+        <variable id="c42f4bb5-dfa4-42bb-b907-1aae15471d1d" name="GUI_GEBLOCKTE_RUFNUMMERN" type="LIST" valueByReference="false" valueByReferenceAllowed="false" valueByValueAllowed="true" visible="true">
+            <accessRights>Read</accessRights>
+            <value>56f65b6e-f5e5-49ad-9dc4-53bf7c4e97a8</value>
+        </variable>
+    </inputVars>
+    <outputVars />
+    <resources />
+    <children>
+        <function visibility="Public" createTime="1787572800000" id="CallBlocker" name="CallBlocker" specVersion="0" vendor="MiCoSa79" version="0">
+            <description>Weist Anrufe von Rufnummern in der Blocklist ab.</description>
+            <descriptionURL />
+            <disabled>false</disabled>
+            <inputVars />
+            <outputVars>
+                <variable id="BlockStatus" label="BlockStatus" name="BlockStatus" type="BOOLEAN" valueByReference="false" valueByReferenceAllowed="false" valueByValueAllowed="true" visible="true">
+                    <description>BlockStatus ist true wenn der Anruf blockiert wurde, false sonst</description>
+                    <value>false</value>
+                </variable>
+            </outputVars>
+            <resources />
+            <children />
+            <implementationFile>CallBlocker.class</implementationFile>
+        </function>
+        <function visibility="Public" createTime="1787572800000" id="ListGet" name="ListGet" specVersion="0" vendor="MiCoSa79" version="0">
+            <description>Gibt alle Nummern der Blocklist zurueck.</description>
+            <descriptionURL />
+            <disabled>false</disabled>
+            <inputVars>
+                <variable id="INPUT_DEFAULT" label="INPUT_DEFAULT" name="INPUT_DEFAULT" type="STRING" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="true" visible="true">
+                    <description />
+                    <value />
+                </variable>
+            </inputVars>
+            <outputVars>
+                <variable id="OUTPUT_NUMMERN" label="Nummern" name="OUTPUT_NUMMERN" type="STRING" valueByReference="false" valueByReferenceAllowed="false" valueByValueAllowed="true" visible="true">
+                    <description>Komma-getrennte Liste aller Nummern</description>
+                    <value />
+                </variable>
+            </outputVars>
+            <resources />
+            <children />
+            <implementationFile>ListGet.class</implementationFile>
+        </function>
+        <function visibility="Public" createTime="1787572800000" id="ListAdd" name="ListAdd" specVersion="0" vendor="MiCoSa79" version="0">
+            <description>Fuegt Nummern zur Blocklist hinzu.</description>
+            <descriptionURL />
+            <disabled>false</disabled>
+            <inputVars>
+                <variable id="INPUT_NUMMERN" label="Nummern" name="INPUT_NUMMERN" type="STRING" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="true" visible="true">
+                    <description>Komma-getrennte Liste der hinzuzufuegenden Nummern</description>
+                    <value />
+                </variable>
+            </inputVars>
+            <outputVars>
+                <variable id="OUTPUT_ANZAHL" label="Hinzugefuegt" name="OUTPUT_ANZAHL" type="NUMBER" valueByReference="false" valueByReferenceAllowed="false" valueByValueAllowed="true" visible="true">
+                    <description>Anzahl erfolgreich hinzugefuegter Nummern</description>
+                    <value>0</value>
+                </variable>
+            </outputVars>
+            <resources />
+            <children />
+            <implementationFile>ListAdd.class</implementationFile>
+        </function>
+        <function visibility="Public" createTime="1787572800000" id="ListRemove" name="ListRemove" specVersion="0" vendor="MiCoSa79" version="0">
+            <description>Entfernt Nummern aus der Blocklist.</description>
+            <descriptionURL />
+            <disabled>false</disabled>
+            <inputVars>
+                <variable id="INPUT_NUMMERN" label="Nummern" name="INPUT_NUMMERN" type="STRING" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="true" visible="true">
+                    <description>Komma-getrennte Liste der zu entfernenden Nummern</description>
+                    <value />
+                </variable>
+            </inputVars>
+            <outputVars>
+                <variable id="OUTPUT_ANZAHL" label="Entfernt" name="OUTPUT_ANZAHL" type="NUMBER" valueByReference="false" valueByReferenceAllowed="false" valueByValueAllowed="true" visible="true">
+                    <description>Anzahl erfolgreich entfernter Nummern</description>
+                    <value>0</value>
+                </variable>
+            </outputVars>
+            <resources />
+            <children />
+            <implementationFile>ListRemove.class</implementationFile>
+        </function>
+        <function visibility="Private" createTime="1787572800000" id="5092badc-525d-492e-b57a-e30cf86c0fe9" name="ListGetRpc" specVersion="0" vendor="MiCoSa79" version="0">
+            <description>RPC-Wrapper: Blocklist abfragen (XmlMonitoring-Muster).</description>
+            <descriptionURL />
+            <disabled>false</disabled>
+            <inputVars />
+            <outputVars>
+                <variable id="4bd7b754-4b32-4ce2-86e6-1169fb76ed8c" label="Nummern" name="OUTPUT_NUMMERN" type="STRING" valueByReference="true" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="true">
+                    <description>Komma-getrennte Liste aller Nummern</description>
+                    <value />
+                </variable>
+            </outputVars>
+            <resources />
+            <children>
+                <functionCall createTime="1787572800000" id="a31cb9d4-8f3e-4a0e-b75b-59d0555769c6" name="Call --&gt; ListGet" specVersion="0" vendor="MiCoSa79" version="0">
+                    <description />
+                    <descriptionURL />
+                    <disabled>false</disabled>
+                    <inputVars>
+                        <variable id="INPUT_DEFAULT" label="" name="INPUT_DEFAULT" type="STRING" valueByReference="true" valueByReferenceAllowed="true" valueByValueAllowed="true" visible="false">
+                            <description />
+                            <value />
+                        </variable>
+                    </inputVars>
+                    <outputVars>
+                        <variable id="OUTPUT_NUMMERN" label="" name="OUTPUT_NUMMERN" type="STRING" valueByReference="true" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
+                            <description />
+                            <value>4bd7b754-4b32-4ce2-86e6-1169fb76ed8c</value>
+                        </variable>
+                    </outputVars>
+                    <resources />
+                    <target targetDomainId="a3c1b4e5-8f2d-4a7b-9c1e-2d4f6a8b0c1e" targetId="ListGet" targetName="ListGet" targetVersion="0" />
+                </functionCall>
+            </children>
+        </function>
+        <function visibility="Private" createTime="1787572800000" id="9c8839a3-2cd5-445f-8384-9aef50b8ccf0" name="ListAddRpc" specVersion="0" vendor="MiCoSa79" version="0">
+            <description>RPC-Wrapper: Nummern zur Blocklist hinzufuegen (XmlMonitoring-Muster).</description>
+            <descriptionURL />
+            <disabled>false</disabled>
+            <inputVars>
+                <variable id="2c9163a8-2d11-417a-91f6-05750e8347ef" label="Nummern" name="INPUT_NUMMERN" type="STRING" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="true" visible="true">
+                    <description>Komma-getrennte Liste der hinzuzufuegenden Nummern</description>
+                    <value />
+                </variable>
+            </inputVars>
+            <outputVars>
+                <variable id="a833e520-1a3d-448d-a111-5a14f5fa9d19" label="Hinzugefuegt" name="OUTPUT_ANZAHL" type="NUMBER" valueByReference="true" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="true">
+                    <description>Anzahl erfolgreich hinzugefuegter Nummern</description>
+                    <value />
+                </variable>
+            </outputVars>
+            <resources />
+            <children>
+                <functionCall createTime="1787572800000" id="63a28323-6806-44f5-8cc5-67f8ceb61cad" name="Call --&gt; ListAdd" specVersion="0" vendor="MiCoSa79" version="0">
+                    <description />
+                    <descriptionURL />
+                    <disabled>false</disabled>
+                    <inputVars>
+                        <variable id="INPUT_NUMMERN" label="" name="INPUT_NUMMERN" type="STRING" valueByReference="true" valueByReferenceAllowed="true" valueByValueAllowed="true" visible="false">
+                            <description />
+                            <value>2c9163a8-2d11-417a-91f6-05750e8347ef</value>
+                        </variable>
+                    </inputVars>
+                    <outputVars>
+                        <variable id="OUTPUT_ANZAHL" label="" name="OUTPUT_ANZAHL" type="NUMBER" valueByReference="true" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
+                            <description />
+                            <value>a833e520-1a3d-448d-a111-5a14f5fa9d19</value>
+                        </variable>
+                    </outputVars>
+                    <resources />
+                    <target targetDomainId="a3c1b4e5-8f2d-4a7b-9c1e-2d4f6a8b0c1e" targetId="ListAdd" targetName="ListAdd" targetVersion="0" />
+                </functionCall>
+            </children>
+        </function>
+        <function visibility="Private" createTime="1787572800000" id="9652c626-0538-440d-b9dd-e8188779aeef" name="ListRemoveRpc" specVersion="0" vendor="MiCoSa79" version="0">
+            <description>RPC-Wrapper: Nummern aus der Blocklist entfernen (XmlMonitoring-Muster).</description>
+            <descriptionURL />
+            <disabled>false</disabled>
+            <inputVars>
+                <variable id="cacbe8ec-c17a-42be-b661-b1cc125b280d" label="Nummern" name="INPUT_NUMMERN" type="STRING" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="true" visible="true">
+                    <description>Komma-getrennte Liste der zu entfernenden Nummern</description>
+                    <value />
+                </variable>
+            </inputVars>
+            <outputVars>
+                <variable id="6770013e-017f-4506-a233-14058e129156" label="Entfernt" name="OUTPUT_ANZAHL" type="NUMBER" valueByReference="true" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="true">
+                    <description>Anzahl erfolgreich entfernter Nummern</description>
+                    <value />
+                </variable>
+            </outputVars>
+            <resources />
+            <children>
+                <functionCall createTime="1787572800000" id="bfb80840-76c5-4e82-8d0d-960d5ececf79" name="Call --&gt; ListRemove" specVersion="0" vendor="MiCoSa79" version="0">
+                    <description />
+                    <descriptionURL />
+                    <disabled>false</disabled>
+                    <inputVars>
+                        <variable id="INPUT_NUMMERN" label="" name="INPUT_NUMMERN" type="STRING" valueByReference="true" valueByReferenceAllowed="true" valueByValueAllowed="true" visible="false">
+                            <description />
+                            <value>cacbe8ec-c17a-42be-b661-b1cc125b280d</value>
+                        </variable>
+                    </inputVars>
+                    <outputVars>
+                        <variable id="OUTPUT_ANZAHL" label="" name="OUTPUT_ANZAHL" type="NUMBER" valueByReference="true" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
+                            <description />
+                            <value>6770013e-017f-4506-a233-14058e129156</value>
+                        </variable>
+                    </outputVars>
+                    <resources />
+                    <target targetDomainId="a3c1b4e5-8f2d-4a7b-9c1e-2d4f6a8b0c1e" targetId="ListRemove" targetName="ListRemove" targetVersion="0" />
+                </functionCall>
+            </children>
+        </function>
+    </children>
+    <createdWith>STARFACE 10.0.2.5</createdWith>
+    <defaultLocale>de</defaultLocale>
+    <editable>true</editable>
+    <entryPoints>
+        <agiKernelEntryPoint stage="PostTargetDeterminationIncoming" id="81086651-cfeb-4412-b7bc-49533dfc5725" name="">
+            <functionReference targetDomainId="a3c1b4e5-8f2d-4a7b-9c1e-2d4f6a8b0c1e" targetId="CallBlocker" targetName="CallBlocker" targetVersion="0" />
+        </agiKernelEntryPoint>
+        <rpcEntryPoint id="0185c25c-b9fc-4740-93aa-1117f0c02483" name="ListGet">
+            <functionReference targetDomainId="a3c1b4e5-8f2d-4a7b-9c1e-2d4f6a8b0c1e" targetId="5092badc-525d-492e-b57a-e30cf86c0fe9" targetName="ListGetRpc" targetVersion="0" />
+            <type>XMLRPC_auth</type>
+        </rpcEntryPoint>
+        <rpcEntryPoint id="d6a92668-9e58-413f-af5c-173a3b9c1557" name="ListAdd">
+            <functionReference targetDomainId="a3c1b4e5-8f2d-4a7b-9c1e-2d4f6a8b0c1e" targetId="9c8839a3-2cd5-445f-8384-9aef50b8ccf0" targetName="ListAddRpc" targetVersion="0" />
+            <type>XMLRPC_auth</type>
+        </rpcEntryPoint>
+        <rpcEntryPoint id="0e1fbbe7-6154-4cb5-891a-c706a0b9f9b1" name="ListRemove">
+            <functionReference targetDomainId="a3c1b4e5-8f2d-4a7b-9c1e-2d4f6a8b0c1e" targetId="9652c626-0538-440d-b9dd-e8188779aeef" targetName="ListRemoveRpc" targetVersion="0" />
+            <type>XMLRPC_auth</type>
+        </rpcEntryPoint>
+    </entryPoints>
+    <inputGUITabs createTime="1787604757322" id="9b9bfd68-1b0e-4485-8051-dc809f35c6f9" name="Geblockte Rufnummern" specVersion="0" vendor="" version="0">
+        <description />
+        <descriptionURL />
+        <disabled>false</disabled>
+        <resourceKeys>
+            <entries>
+                <key>en</key>
+            </entries>
+            <entries>
+                <key>de</key>
+                <value>Geblockte Rufnummern</value>
+            </entries>
+            <entries>
+                <key>es</key>
+            </entries>
+            <entries>
+                <key>fr</key>
+            </entries>
+            <entries>
+                <key>nl</key>
+            </entries>
+            <entries>
+                <key>pl</key>
+            </entries>
+            <entries>
+                <key>sv</key>
+            </entries>
+            <key>inputguitab.name{9b9bfd68-1b0e-4485-8051-dc809f35c6f9}</key>
+            <propertyName>NAME</propertyName>
+        </resourceKeys>
+        <GUIDescriptors>
+            <textList maxLength="0" variableId="c42f4bb5-dfa4-42bb-b907-1aae15471d1d" createTime="1787604811186" id="3914013b-a7a8-4569-8a0d-b383cb8e9a64" name="Geblockte Rufnummern" specVersion="0" vendor="" version="0">
+                <description>Geben sie hier die Rufnummern ein, die blockiert werden sollen</description>
+                <descriptionURL />
+                <disabled>false</disabled>
+                <defaultValue />
+                <elements />
+                <listName>Geblockte Rufnummern</listName>
+            </textList>
+        </GUIDescriptors>
+    </inputGUITabs>
+    <resourceKeys>
+        <entries>
+            <key>en</key>
+            <value>CallBlocker</value>
+        </entries>
+        <entries>
+            <key>de</key>
+            <value>Anrufblocker</value>
+        </entries>
+        <key>module.name{a3c1b4e5-8f2d-4a7b-9c1e-2d4f6a8b0c1e}</key>
+        <propertyName>NAME</propertyName>
+    </resourceKeys>
+    <shortDescription>Rufnummern-Blacklist zum Abweisen unerwuenschter Anrufe</shortDescription>
+    <noLicenseId>1d38ad171943b0ae052aa8380cc1e01eeb44be30</noLicenseId>
+    <writeHash>181fe5eff8babfd0dad648993038a3d67ad19ba4</writeHash>
+</module>
