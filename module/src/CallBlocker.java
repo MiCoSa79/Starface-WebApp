@@ -13,6 +13,7 @@ import de.vertico.starface.module.core.runtime.annotations.Function;
 import de.vertico.starface.module.core.runtime.annotations.OutputVar;
 import de.vertico.starface.module.core.runtime.functions.callHandling.call.GetCaller2;
 import de.vertico.starface.module.core.runtime.functions.lang.string.regexp.SimpleMatch;
+import de.vertico.starface.module.core.runtime.functions.system.Log2;
 
 /**
  * CallBlocker — weist Anrufe unerwünschter Rufnummern ab.
@@ -50,58 +51,60 @@ public class CallBlocker implements IAGIJavaExecutable
         Logger log = context.getLog();
         String channel = context.getCallerChannelName();
 
-        log.info("CallBlocker: EINTRITT (channel=" + (channel == null ? "null" : channel) + ")");
+        logAll(context, log, "INFO", "CallBlocker: EINTRITT (channel="
+               + (channel == null ? "null" : channel) + ")");
 
         // Kein aktiver Kanal? → nichts tun
         if (channel == null || channel.isEmpty())
         {
-            log.info("CallBlocker: kein aktiver Kanal -> Abbruch");
+            logAll(context, log, "INFO", "CallBlocker: kein aktiver Kanal -> Abbruch");
             return;
         }
 
         // 1) Anrufernummer auflösen
         String callerNumber = resolveCallerNumber(context);
-        log.info("CallBlocker: callerSignallingNumber RAW = '" + callerNumber + "'");
+        logAll(context, log, "INFO", "CallBlocker: callerSignallingNumber RAW = '"
+               + callerNumber + "'");
         if (callerNumber == null)
         {
-            log.warn("CallBlocker: keine Anrufernummer gefunden -> Abbruch");
+            logAll(context, log, "WARN", "CallBlocker: keine Anrufernummer gefunden -> Abbruch");
             return;
         }
 
         String normalized = normalize(callerNumber);
-        log.info("CallBlocker: normalisiert = '" + normalized + "'");
+        logAll(context, log, "INFO", "CallBlocker: normalisiert = '" + normalized + "'");
         if (normalized.isEmpty())
         {
-            log.warn("CallBlocker: nummer nach Normalisierung leer -> Abbruch");
+            logAll(context, log, "WARN", "CallBlocker: nummer nach Normalisierung leer -> Abbruch");
             return;
         }
 
         // 2) Blocklist laden (ListResource der Instanz, seit v22)
         List<String> patterns = loadBlocklist(context, log);
-        log.info("CallBlocker: Blocklist geladen -> " + patterns.size()
-                 + " Muster: " + patterns);
+        logAll(context, log, "INFO", "CallBlocker: Blocklist geladen -> "
+               + patterns.size() + " Muster: " + patterns);
 
         // 3) Prüfen — exakt die STARFACE-SimpleMatch-Semantik (wie Referenzmodul
         //    "Blacklist v64"): Wildcard '*' = beliebig viele Zeichen, '?' = genau
         //    eines, kompletter String-Match. Verglichen wird gegen die RAW-
         //    Anrufernummer (callerSignallingNumber) und als Fallback gegen die
         //    normalisierte Form (deckt 0…/0049…-Lieferungen der Anlage ab).
-        log.info("CallBlocker: prüfe Anruf von " + callerNumber
-                 + " (normalisiert: " + normalized + ") gegen "
-                 + patterns.size() + " Muster");
+        logAll(context, log, "INFO", "CallBlocker: prüfe Anruf von " + callerNumber
+               + " (normalisiert: " + normalized + ") gegen "
+               + patterns.size() + " Muster");
         if (matchesAny(context, log, callerNumber, normalized, patterns))
         {
             // 4) Abweisen + Log
             ModuleBusinessObject MBO = (ModuleBusinessObject)
                 context.springApplicationContext().getBean(ModuleBusinessObject.class);
             MBO.hangup(channel, HangupCause.NORMAL_CLEARING);
-            log.info("BLOCKED: Anruf von " + callerNumber + " (normalisiert: "
-                     + normalized + ") abgewiesen (Blocklist)");
+            logAll(context, log, "INFO", "BLOCKED: Anruf von " + callerNumber
+                   + " (normalisiert: " + normalized + ") abgewiesen (Blocklist)");
             BlockStatus = true;
             return;
         }
         // Kein Treffer: nichts weiter tun — Route läuft normal weiter
-        log.info("CallBlocker: kein Treffer -> Anruf läuft normal weiter");
+        logAll(context, log, "INFO", "CallBlocker: kein Treffer -> Anruf läuft normal weiter");
         BlockStatus = false;
     }
 
@@ -186,17 +189,54 @@ public class CallBlocker implements IAGIJavaExecutable
                 || (!normalizedNumber.equals(rawNumber)
                     && simpleMatch(context, log, normalizedNumber, p)))
             {
-                log.info("BLOCKLIST-MATCH: Muster '" + p + "' traf auf '"
-                         + rawNumber + "'");
+                logAll(context, log, "INFO", "BLOCKLIST-MATCH: Muster '" + p
+                       + "' traf auf '" + rawNumber + "'");
                 return true;
             }
             else
             {
-                log.info("CallBlocker: Muster '" + p + "' -> kein Match"
-                         + " (RAW='" + rawNumber + "', norm='" + normalizedNumber + "')");
+                logAll(context, log, "INFO", "CallBlocker: Muster '" + p
+                       + "' -> kein Match (RAW='" + rawNumber
+                       + "', norm='" + normalizedNumber + "')");
             }
         }
         return false;
+    }
+
+    /**
+     * Schreibt eine Meldung in das MODUL-Log (Log2-Baustein, exakt wie das
+     * Referenzmodul "Blacklist v64" — erscheint im Modul-/Instanz-Log) UND
+     * zusätzlich über context.getLog() ins System-Logbuch. level: DEBUG,
+     * INFO, WARN, ERROR.
+     */
+    private void logAll(IAGIRuntimeEnvironment context, Logger log,
+                        String level, String msg)
+    {
+        // 1) Log2-Baustein -> Modul-Log (das Log, das der Nutzer im Admin-UI sieht)
+        try
+        {
+            Log2 l = new Log2();
+            l.logLevel = level;
+            l.messages = Collections.singletonList(msg);
+            l.execute(context);
+        }
+        catch (Exception e1)
+        {
+            try { log.warn("Log2-Ausgabe fehlgeschlagen: " + e1.getMessage()); }
+            catch (Exception ignored) {}
+        }
+        // 2) Log4J -> System-Logbuch (Fallback)
+        try
+        {
+            switch (level)
+            {
+                case "ERROR": log.error(msg); break;
+                case "WARN":  log.warn(msg);  break;
+                case "DEBUG": log.debug(msg); break;
+                default:      log.info(msg);  break;
+            }
+        }
+        catch (Exception ignored) {}
     }
 
     /** Führt den STARFACE-SimpleMatch-Baustein direkt aus (wie Referenzmodul). */
@@ -213,8 +253,9 @@ public class CallBlocker implements IAGIJavaExecutable
         }
         catch (Exception e)
         {
-            log.error("SimpleMatch-Fehler bei Muster '" + pattern + "' gegen '"
-                      + text + "': " + e.getClass().getName() + ": " + e.getMessage(), e);
+            logAll(context, log, "ERROR", "SimpleMatch-Fehler bei Muster '"
+                   + pattern + "' gegen '" + text + "': "
+                   + e.getClass().getName() + ": " + e.getMessage());
             return false;
         }
     }
