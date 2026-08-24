@@ -84,7 +84,10 @@ def init_db():
             auth_id TEXT,
             auth_pass TEXT,
             client_secret TEXT,
-            is_starface10 INTEGER DEFAULT 1
+            is_starface10 INTEGER DEFAULT 1,
+            oauth_access TEXT,
+            oauth_refresh TEXT,
+            oauth_expires INTEGER
         );
         CREATE TABLE IF NOT EXISTS access (
             user_id INTEGER NOT NULL,
@@ -129,6 +132,13 @@ def init_db():
                      ("build_date", "TEXT DEFAULT ''")):
         if col not in cols:
             conn.execute(f"ALTER TABLE modules ADD COLUMN {col} {ddl}")
+    # Migration (v0.0.42): OAuth-Token-Spalten an installations
+    icols = [r[1] for r in conn.execute("PRAGMA table_info(installations)").fetchall()]
+    for col, ddl in (("oauth_access", "TEXT DEFAULT ''"),
+                     ("oauth_refresh", "TEXT DEFAULT ''"),
+                     ("oauth_expires", "INTEGER DEFAULT 0")):
+        if col not in icols:
+            conn.execute(f"ALTER TABLE installations ADD COLUMN {col} {ddl}")
     conn.commit()
     conn.close()
     _scan_modules()
@@ -282,60 +292,100 @@ def _legacy_token(url: str, auth_id: str, auth_pass: str) -> str:
 
 
 def starface_token(url: str, auth_id: str, auth_pass: str, client_secret: str,
-                   is_starface10: bool) -> str:
-    """Liefert den XML-RPC-Auth-Token.
+                   is_starface10: bool,
+                   oauth_access: str = "", oauth_refresh: str = "",
+                   oauth_expires: int = 0) -> tuple:
+    """Liefert (access_token, refresh_token, expires_ts) für XML-RPC.
 
-    10.x bevorzugt: OAuth2 Password Grant (JWT) — mit Basic-Auth-Header
-        (Keycloak confidential client) UND Form-Fields (public client).
-        Wenn beides scheitert: Fallback auf Legacy-v9-Token (v10 akzeptiert ihn).
-    ≤9.x: Legacy-Token Login:sha512(Login+"*"+sha512(Passwort))
+    v10 (is_starface10=True): OAuth2 Password Grant gegen
+      /auth/realms/pbx/oauth2/token (client_id=rest-client-headless).
+      KEIN Legacy-Fallback (v9-Auth verschwindet mit Version 11)!
+      Erst Basic-Auth-Header, dann Form-Fields (Keycloak-Varianten).
+      Refresh-Token wird bei Ablauf automatisch verwendet.
+    ≤9 (is_starface10=False): Legacy-Token Login:sha512(Login+"*"+sha512(PW)).
     """
     url = _ensure_url(url)
-    if is_starface10:
-        import base64
-        attempts = []
-        # 1) OAuth2 Password Grant mit Basic-Auth-Header (confidential client)
-        auth_header = "Basic " + base64.b64encode(
-            f"rest-client-headless:{client_secret}".encode()).decode()
+    if not is_starface10:
+        inner = hashlib.sha512(auth_pass.encode()).hexdigest()
+        token = auth_id + ":" + hashlib.sha512((auth_id + "*" + inner).encode()).hexdigest()
+        return token, "", 0
+    import base64
+    import time
+
+    def _oauth(data: dict, headers: dict) -> dict:
+        r = httpx.post(f"{url}/auth/realms/pbx/oauth2/token", data=data,
+                       headers=headers, timeout=20)
+        r.raise_for_status()
+        return r.json()
+
+    now = int(time.time())
+    # 1) Gültiges Access-Token (5 min) wiederverwenden
+    if oauth_access and oauth_expires and now < oauth_expires - 30:
+        return oauth_access, oauth_refresh, oauth_expires
+    # 2) Refresh-Token (6 h) → neuen Access holen
+    if oauth_refresh:
         try:
-            r = httpx.post(
-                f"{url}/auth/realms/pbx/oauth2/token",
-                data={
-                    "client_id": "rest-client-headless",
-                    "grant_type": "password",
-                    "scope": "login",
-                    "username": auth_id,
-                    "password": auth_pass,
-                },
-                headers={"Authorization": auth_header},
-                timeout=20,
-            )
-            r.raise_for_status()
-            return r.json().get("access_token", "")
-        except Exception as e:
-            attempts.append(f"Basic-Auth: {e}")
-        # 2) OAuth2 Password Grant mit Form-Fields (public client)
+            j = _oauth({
+                "grant_type": "refresh_token",
+                "refresh_token": oauth_refresh,
+                "client_id": "rest-client-headless",
+            }, {"Authorization": "Basic " + base64.b64encode(
+                f"rest-client-headless:{client_secret}".encode()).decode()})
+            return j.get("access_token", ""), j.get("refresh_token", oauth_refresh), \
+                now + int(j.get("expires_in", 300))
+        except Exception:
+            pass  # Refresh fehlgeschlagen → neu einloggen
+    # 3) Frischer Password Grant
+    errors = []
+    bases = [
+        ("Basic-Auth", {"Authorization": "Basic " + base64.b64encode(
+            f"rest-client-headless:{client_secret}".encode()).decode()}, True),
+        ("Form-Fields", {}, False),  # Secret im Body statt Header
+    ]
+    for label, headers, secret_in_header in bases:
         try:
-            r = httpx.post(
-                f"{url}/auth/realms/pbx/oauth2/token",
-                data={
-                    "client_id": "rest-client-headless",
-                    "grant_type": "password",
-                    "scope": "login",
-                    "username": auth_id,
-                    "password": auth_pass,
-                    "client_secret": client_secret,
-                },
-                timeout=20,
-            )
-            r.raise_for_status()
-            return r.json().get("access_token", "")
+            data = {
+                "client_id": "rest-client-headless",
+                "grant_type": "password",
+                "scope": "login",
+                "username": auth_id,
+                "password": auth_pass,
+            }
+            if not secret_in_header:
+                data["client_secret"] = client_secret
+            j = _oauth(data, headers)
+            access = j.get("access_token", "")
+            if not access:
+                raise RuntimeError("kein access_token in Antwort")
+            return access, j.get("refresh_token", ""), now + int(j.get("expires_in", 300))
         except Exception as e:
-            attempts.append(f"Form-Fields: {e}")
-        # 3) Fallback: Legacy-v9-Token (v10 akzeptiert den Anmeldemechanismus)
-        return _legacy_token(url, auth_id, auth_pass)
-    else:
-        return _legacy_token(url, auth_id, auth_pass)
+            errors.append(f"{label}: {e}")
+    raise RuntimeError(
+        "OAuth2-Login fehlgeschlagen (401). Prüfen: "
+        "(1) Benutzer hat das Recht „API Zugriff mit OAuth Password Grant“ "
+        "(Admin-UI → Benutzer → Rechte), "
+        "(2) Client-Secret korrekt (Admin-UI → Server → Status → REST-API), "
+        "(3) Auth-ID ist die Login-ID (z. B. 0001). "
+        + " | ".join(errors))
+
+
+def _get_token(inst) -> str:
+    """OAuth-Token für eine Installation holen und Refresh/Expiry persistieren."""
+    access, refresh, expires = starface_token(
+        inst["url"], _decrypt(inst["auth_id"]), _decrypt(inst["auth_pass"]),
+        _decrypt(inst["client_secret"]), bool(inst["is_starface10"]),
+        _decrypt(inst["oauth_access"]) if inst["oauth_access"] else "",
+        _decrypt(inst["oauth_refresh"]) if inst["oauth_refresh"] else "",
+        int(inst["oauth_expires"] or 0))
+    conn = _db()
+    conn.execute(
+        "UPDATE installations SET oauth_access=?, oauth_refresh=?, oauth_expires=? WHERE id=?",
+        (_encrypt(access) if access else inst["oauth_access"],
+         _encrypt(refresh) if refresh else inst["oauth_refresh"],
+         expires, inst["id"]))
+    conn.commit()
+    conn.close()
+    return access
 
 
 def _xmlrpc(url: str, token: str, method: str, params: dict = None) -> dict:
@@ -803,8 +853,7 @@ async def admin_installation_test_conn(request: Request, inst_id: int):
         return JSONResponse({"ok": False, "message": "Installation nicht gefunden"})
     try:
         url = inst["url"]
-        token = starface_token(url, _decrypt(inst["auth_id"]), _decrypt(inst["auth_pass"]),
-                               _decrypt(inst["client_secret"]), bool(inst["is_starface10"]))
+        token = _get_token(inst)
         result = _xmlrpc(url, token, "ListGet")
         count = len(result.get("values", []))
         return JSONResponse({"ok": True, "message": f"Verbunden, {count} Nummern in der Blocklist"})
@@ -976,8 +1025,7 @@ async def blocklist_page(request: Request, inst_id: int):
     numbers = []
     error = ""
     try:
-        token = starface_token(inst["url"], _decrypt(inst["auth_id"]), _decrypt(inst["auth_pass"]),
-                               _decrypt(inst["client_secret"]), bool(inst["is_starface10"]))
+        token = _get_token(inst)
         result = _xmlrpc(inst["url"], token, "ListGet")
         numbers = [v for v in result["values"] if v.strip()]
     except Exception as e:
@@ -1008,8 +1056,7 @@ async def blocklist_add(request: Request, inst_id: int, numbers: str = Form(...)
 
     cleaned = [n.strip() for n in numbers.replace("\r", "").split("\n") if n.strip()]
     try:
-        token = starface_token(inst["url"], _decrypt(inst["auth_id"]), _decrypt(inst["auth_pass"]),
-                               _decrypt(inst["client_secret"]), bool(inst["is_starface10"]))
+        token = _get_token(inst)
         for n in cleaned:
             _xmlrpc(inst["url"], token, "ListAdd", {"INPUT_NUMMERN": n})
         _log_event(inst_id, user["user_id"], "blocklist_add", f"{len(cleaned)} Nummern")
@@ -1036,8 +1083,7 @@ async def blocklist_remove(request: Request, inst_id: int, number: str = Form(..
         return RedirectResponse("/dashboard")
 
     try:
-        token = starface_token(inst["url"], _decrypt(inst["auth_id"]), _decrypt(inst["auth_pass"]),
-                               _decrypt(inst["client_secret"]), bool(inst["is_starface10"]))
+        token = _get_token(inst)
         _xmlrpc(inst["url"], token, "ListRemove", {"INPUT_NUMMERN": number})
         _log_event(inst_id, user["user_id"], "blocklist_remove", number)
     except Exception as e:
@@ -1062,8 +1108,7 @@ async def installation_test(request: Request, inst_id: int):
         return JSONResponse({"ok": False, "error": "unbekannt"})
 
     try:
-        token = starface_token(inst["url"], _decrypt(inst["auth_id"]), _decrypt(inst["auth_pass"]),
-                               _decrypt(inst["client_secret"]), bool(inst["is_starface10"]))
+        token = _get_token(inst)
         result = _xmlrpc(inst["url"], token, "ListGet")
         n = len([v for v in result["values"] if v.strip()])
         return JSONResponse({"ok": True, "token_len": len(token), "entries": n})
