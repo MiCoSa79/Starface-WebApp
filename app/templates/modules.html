@@ -132,7 +132,7 @@
                     {% endif %}
                 </td>
                 <td>
-                    <a href="/admin/modules/{{ m.id }}/download" class="btn-secondary" title="Download">
+                    <a href="/admin/modules/{{ m.id }}/download?cache={{ m.file_hash[:8] or '0' }}" class="btn-secondary" title="Download">
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px;" aria-hidden="true">
                             <path d="M12 3v12"/><path d="m6 11 6 6 6-6"/><path d="M4 21h16"/>
                         </svg>Download</a>

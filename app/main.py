@@ -650,9 +650,14 @@ async def admin_module_download(request: Request, module_id: int):
         file_path,
         media_type="application/octet-stream",
         filename=dl_name,
-        # no-store: iOS Safari cached sonst heuristisch (RFC 7234) und liefert
-        # beim erneuten Download derselben URL eine veraltete Datei (v0.0.34)
-        headers={"Cache-Control": "no-store"})
+        # v0.0.34 Router/NPM cached Download trotz no-store — Inkognito
+        #  arbeitete. Starke Header + Template ändert Download-URL mit
+        # ?cache=<Hash> für URL-Level Cache-Busting (v0.0.36).
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+            "Pragma": "no-cache",
+            "Expires": "0",
+        })
 
 
 @app.post("/admin/installations")
