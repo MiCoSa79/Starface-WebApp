@@ -418,7 +418,7 @@ def _xmlrpc(url: str, token: str, method: str, params: dict = None,
     Antwort: {"raw": ..., "values": [...]} — values enthält alle
     sichtbaren Werte (string/int/i4/boolean) in Antwort-Reihenfolge.
     XML-RPC-Faults werden als RuntimeError mit faultString geworfen —
-    vorher wurden sie verschluckt (fälschliche „erfolgreich“-Meldungen).
+    vorher wurden sie verschluckt (fälschliche „erfolgreich"-Meldungen).
     """
     import xml.etree.ElementTree as ET
     url = _ensure_url(url)
@@ -445,6 +445,8 @@ def _xmlrpc(url: str, token: str, method: str, params: dict = None,
         timeout=20,
     )
     r.raise_for_status()
+    # Debug: rohe XML-Antwort im Docker-Log
+    print(f"[DEBUG _xmlrpc] {method} inst={instance_name} status={r.status_code} len={len(r.text)}")
     # Antwort robust parsen (STARFACE liefert <string>, <int>, Faults oder HTML)
     try:
         root = ET.fromstring(r.text)
@@ -461,6 +463,7 @@ def _xmlrpc(url: str, token: str, method: str, params: dict = None,
     for v in root.iter():
         if v.tag in ("string", "int", "i4", "boolean") and v.text and v.text.strip():
             values.append(v.text)
+    return {"raw": r.text, "values": values}
 
 
 def _split_numbers(values: list) -> list:
