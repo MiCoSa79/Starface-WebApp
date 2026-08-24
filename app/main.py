@@ -88,7 +88,8 @@ def init_db():
             oauth_client TEXT DEFAULT 'rest-client',
             oauth_access TEXT,
             oauth_refresh TEXT,
-            oauth_expires INTEGER
+            oauth_expires INTEGER,
+            module_instance_name TEXT DEFAULT ''
         );
         CREATE TABLE IF NOT EXISTS oauth_auths (
             state TEXT PRIMARY KEY,
@@ -146,8 +147,12 @@ def init_db():
         if col not in icols:
             conn.execute(f"ALTER TABLE installations ADD COLUMN {col} {ddl}")
     # Migration (v0.0.45): oauth_client + oauth_auths-Tabelle
-    if "oauth_client" not in icols:
-        conn.execute("ALTER TABLE installations ADD COLUMN oauth_client TEXT DEFAULT 'rest-client'")
+        if "oauth_client" not in icols:
+            conn.execute("ALTER TABLE installations ADD COLUMN oauth_client TEXT DEFAULT 'rest-client'")
+        # Migration (v0.0.51): module_instance_name für RPC-Präfix
+        icols = [r[1] for r in conn.execute("PRAGMA table_info(installations)").fetchall()]
+        if "module_instance_name" not in icols:
+            conn.execute("ALTER TABLE installations ADD COLUMN module_instance_name TEXT DEFAULT ''")
     try:
         conn.execute("""
             CREATE TABLE IF NOT EXISTS oauth_auths (
@@ -403,9 +408,19 @@ def _get_token(inst) -> str:
     return access
 
 
-def _xmlrpc(url: str, token: str, method: str, params: dict = None) -> dict:
-    """Führt einen XML-RPC-Call gegen die STARFACE aus."""
+def _xmlrpc(url: str, token: str, method: str, params: dict = None,
+             instance_name: str = None) -> dict:
+    """Führt einen XML-RPC-Call gegen die STARFACE aus.
+
+    Wenn instance_name gesetzt ist, wird das Präfix
+    ``[instance_name].`` vor den method-Namen gesetzt.
+    """
     url = _ensure_url(url)
+    # RPC-Präfix für Module: [Instanzname].[EntryPoint]
+    if instance_name:
+        full_method = f"{instance_name}.{method}"
+    else:
+        full_method = method
     params = params or {}
     members = "".join(
         f"<member><name>{k}</name><value><string>{v}</string></value></member>"
@@ -413,7 +428,7 @@ def _xmlrpc(url: str, token: str, method: str, params: dict = None) -> dict:
     )
     body = (
         '<?xml version="1.0"?><methodCall>'
-        f"<methodName>{method}</methodName>"
+        f"<methodName>{full_method}</methodName>"
         f"<params><param><value><struct>{members}</struct></value></param></params>"
         "</methodCall>"
     )
@@ -832,6 +847,7 @@ async def admin_installation_update(request: Request, inst_id: int,
                                     auth_id: str = Form(""),
                                     auth_pass: str = Form(""),
                                     client_secret: str = Form(""),
+                                    module_instance_name: str = Form(""),
                                     is_starface10: int = Form(1)):
     """Update einer bestehenden Anlage."""
     user = verify_session(request.cookies.get(SESSION_COOKIE))
@@ -847,8 +863,8 @@ async def admin_installation_update(request: Request, inst_id: int,
     new_auth_pass = _encrypt(auth_pass) if auth_pass else inst["auth_pass"]
     new_client_secret = _encrypt(client_secret) if client_secret else inst["client_secret"]
     conn.execute(
-        "UPDATE installations SET name=?, url=?, auth_id=?, auth_pass=?, client_secret=?, is_starface10=? WHERE id=?",
-        (name, url, new_auth_id, new_auth_pass, new_client_secret, bool(is_starface10), inst_id))
+        "UPDATE installations SET name=?, url=?, auth_id=?, auth_pass=?, client_secret=?, module_instance_name=?, is_starface10=? WHERE id=?",
+        (name, url, new_auth_id, new_auth_pass, new_client_secret, module_instance_name, bool(is_starface10), inst_id))
     conn.commit()
     conn.close()
     _log_event(inst_id, user["user_id"], "installation_update", name)
@@ -869,7 +885,7 @@ async def admin_installation_test_conn(request: Request, inst_id: int):
     try:
         url = inst["url"]
         token = _get_token(inst)
-        result = _xmlrpc(url, token, "ListGet")
+        result = _xmlrpc(url, token, "ListGet", instance_name=inst["module_instance_name"])
         count = len(result.get("values", []))
         return JSONResponse({"ok": True, "message": f"Verbunden, {count} Nummern in der Blocklist"})
     except Exception as e:
@@ -1185,7 +1201,7 @@ async def blocklist_page(request: Request, inst_id: int):
     error = ""
     try:
         token = _get_token(inst)
-        result = _xmlrpc(inst["url"], token, "ListGet")
+        result = _xmlrpc(inst["url"], token, "ListGet", instance_name=inst["module_instance_name"])
         numbers = [v for v in result["values"] if v.strip()]
     except Exception as e:
         error = f"Verbindung fehlgeschlagen: {e}"
@@ -1217,7 +1233,7 @@ async def blocklist_add(request: Request, inst_id: int, numbers: str = Form(...)
     try:
         token = _get_token(inst)
         for n in cleaned:
-            _xmlrpc(inst["url"], token, "ListAdd", {"INPUT_NUMMERN": n})
+            _xmlrpc(inst["url"], token, "ListAdd", {"INPUT_NUMMERN": n}, instance_name=inst["module_instance_name"])
         _log_event(inst_id, user["user_id"], "blocklist_add", f"{len(cleaned)} Nummern")
     except Exception as e:
         return RedirectResponse(f"/installation/{inst_id}/blocklist?error={quote(str(e))}",
@@ -1243,7 +1259,7 @@ async def blocklist_remove(request: Request, inst_id: int, number: str = Form(..
 
     try:
         token = _get_token(inst)
-        _xmlrpc(inst["url"], token, "ListRemove", {"INPUT_NUMMERN": number})
+        _xmlrpc(inst["url"], token, "ListRemove", {"INPUT_NUMMERN": number}, instance_name=inst["module_instance_name"])
         _log_event(inst_id, user["user_id"], "blocklist_remove", number)
     except Exception as e:
         return RedirectResponse(f"/installation/{inst_id}/blocklist?error={quote(str(e))}",
@@ -1268,7 +1284,7 @@ async def installation_test(request: Request, inst_id: int):
 
     try:
         token = _get_token(inst)
-        result = _xmlrpc(inst["url"], token, "ListGet")
+        result = _xmlrpc(inst["url"], token, "ListGet", instance_name=inst["module_instance_name"])
         n = len([v for v in result["values"] if v.strip()])
         return JSONResponse({"ok": True, "token_len": len(token), "entries": n})
     except Exception as e:

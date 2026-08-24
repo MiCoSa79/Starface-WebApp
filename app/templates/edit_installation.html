@@ -62,6 +62,13 @@ input[type="checkbox"]{margin-right:6px;transform:scale(1.2)}
                 </select>
             </div>
         </div>
+        <div class="form-row">
+            <div>
+                <label for="module_instance_name">Module Instance Name</label>
+                <input type="text" id="module_instance_name" name="module_instance_name" value="{{ inst.module_instance_name }}" autocomplete="off">
+                <div class="hint">Der Instanzname des CallBlocker-Moduls in der STARFACE-Anlage (z. B. „Anrufblocker Test") — wird für XML-RPC-Aufrufe als Präfix verwendet: [Instanzname].ListGet</div>
+            </div>
+        </div>
         <div class="form-row" style="justify-content:flex-end;gap:12px">
             <a href="/admin" class="btn-secondary">Abbrechen</a>
             <button type="submit" class="btn-primary">Speichern</button>
