@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>STARFACE API-Referenz — STARFACE WebApp</title>
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: #12122a; color: #e0e0e0; }
@@ -46,7 +49,10 @@ h2 { color: #fff; font-size: 20px; margin-bottom: 4px; }
 .nop { color: #777; font-size: 12px; padding: 6px; }
 details.par { margin-top: 8px; }
 details.par summary { color: #7db4e9; font-size: 12px; cursor: pointer; user-select: none; }
-footer { text-align: center; color: #555; font-size: 12px; padding: 20px 0 30px; }
+.footer { position: fixed; bottom: 0; left: 0; right: 0;
+          text-align: center; padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+          color: #555; font-size: 12px;
+          background: #16213e; border-top: 1px solid #222; z-index: 100; }
 .legend { color: #777; font-size: 12px; margin-bottom: 12px; }
 @media (max-width: 641px) {
   .topbar { padding: 8px 12px; }
@@ -87,7 +93,7 @@ footer { text-align: center; color: #555; font-size: 12px; padding: 20px 0 30px;
         <div class="groups" id="groups"></div>
         <div class="legend">Gruppen anklicken, um nur eine Kategorie zu sehen. <span style="color:#ff9b9b;">■</span> = experimentell (experimentalFunctions).</div>
         <div id="cards"></div>
-        <footer>STARFACE WebApp · API-Katalog aus Bytecode-Annotationen (v{{ version }})</footer>
+        <div class="footer">STARFACE WebApp {{ version }}</div>
     </div>
 
 <script>
