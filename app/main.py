@@ -1014,6 +1014,28 @@ def _gen_backup_codes(n=10) -> str:
 # OAuth-Flow: Authorization Code mit PKCE
 # ─────────────────────────────────────────────────────────────
 
+def _get_oidc_config(url: str) -> dict:
+    """Holt OIDC-Discovery (.well-known) der Anlage — auth/token endpoint + scopes.
+
+    Grund: STARFACE-Cloud nutzt eigene Pfade (z. B. /auth/realms/pbx/oauth2/ui/auth),
+    lokale Anlagen den Keycloak-Standard (/protocol/openid-connect/auth). Aus
+    der Discovery ist der korrekte Pfad garantiert.
+    """
+    import time as _t
+    _url = _ensure_url(url).rstrip("/")
+    now = _t.time()
+    cached = getattr(_get_oidc_config, "_cache", {})
+    entry = cached.get(_url)
+    if entry and entry[1] > now:
+        return entry[0]
+    r = httpx.get(f"{_url}/auth/realms/pbx/.well-known/openid-configuration", timeout=15)
+    r.raise_for_status()
+    cfg = r.json()
+    cached[_url] = (cfg, now + 3600)  # 1 h Cache
+    _get_oidc_config._cache = cached
+    return cfg
+
+
 def _base_url(request) -> str:
     """Basis-URL der WebApp (hinter NPM via X-Forwarded-*)."""
     proto = request.headers.get("x-forwarded-proto", "http")
@@ -1048,11 +1070,20 @@ async def admin_oauth_start(request: Request, inst_id: int):
         (state, inst_id, datetime.utcnow().isoformat(), code_verifier, redirect_uri))
     conn.commit()
     conn.close()
+    # Endpoints + Scope aus OIDC-Discovery (Cloud nutzt oauth2/ui/auth, lokal protocol/...)
+    try:
+        oidc = _get_oidc_config(url)
+        auth_endpoint = oidc.get("authorization_endpoint") or f"{url}/auth/realms/pbx/protocol/openid-connect/auth"
+        scopes = oidc.get("scopes_supported") or ["pbx-login"]
+        scope = "pbx-login" if "pbx-login" in scopes else scopes[0]
+    except Exception:
+        auth_endpoint = f"{url}/auth/realms/pbx/protocol/openid-connect/auth"
+        scope = "pbx-login"
     from urllib.parse import quote as q
-    auth_url = (f"{url}/auth/realms/pbx/protocol/openid-connect/auth?"
+    auth_url = (f"{auth_endpoint}?"
                 f"client_id=rest-client&"
                 f"response_type=code&"
-                f"scope=login&"
+                f"scope={q(scope)}&"
                 f"redirect_uri={q(redirect_uri)}&"
                 f"state={state}&"
                 f"code_challenge={code_challenge}&"
@@ -1084,10 +1115,15 @@ async def oauth_callback(request: Request, code: str = None, state: str = None,
         conn.close()
         return RedirectResponse("/admin?oauth_err=1")
     url = _ensure_url(inst["url"])
+    try:
+        oidc = _get_oidc_config(url)
+        token_endpoint = oidc.get("token_endpoint") or f"{url}/auth/realms/pbx/oauth2/token"
+    except Exception:
+        token_endpoint = f"{url}/auth/realms/pbx/oauth2/token"
     # Code gegen Token tauschen (redirect_uri exakt wie beim Auth-Request)
     try:
         r = httpx.post(
-            f"{url}/auth/realms/pbx/oauth2/token",
+            token_endpoint,
             data={
                 "client_id": "rest-client",
                 "grant_type": "authorization_code",
