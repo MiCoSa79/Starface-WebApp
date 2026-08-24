@@ -10,7 +10,6 @@ import de.vertico.starface.module.core.model.Visibility;
 import de.vertico.starface.module.core.runtime.IAGIJavaExecutable;
 import de.vertico.starface.module.core.runtime.IAGIRuntimeEnvironment;
 import de.vertico.starface.module.core.runtime.annotations.Function;
-import de.vertico.starface.module.core.runtime.annotations.InputVar;
 import de.vertico.starface.module.core.runtime.annotations.OutputVar;
 import de.vertico.starface.module.core.runtime.functions.callHandling.call.GetCaller2;
 
@@ -32,12 +31,10 @@ public class CallBlocker implements IAGIJavaExecutable
 {
     // ##########################################################################################
     // Variablen: werden vom Modul-Editor befüllt
-
-    @InputVar(label = "Blocklist-Pfad", description =
-              "Pfad zur blocklist.txt. Leer = Instanz-Ordner /var/starface/module/instances/repo/" +
-              "<InstanzID>/res/blocklist.txt. Pro Zeile eine Nummer/Wildcard: +41*, 004112345678, 2??",
-              type = VariableType.STRING)
-    public String Blocklist = "";
+    // KEIN @InputVar mehr (seit v5): Ein Call-Processing-Entrypoint kann die
+    // Eingabevariable beim automatischen Aufruf nicht befüllen — STARFACE warnt
+    // dann beim Speichern im Designer „An entry point uses a function with input
+    // variables“. Der Blocklist-Pfad ist fix = Instanz-Datenverzeichnis.
 
     @OutputVar(label = "BlockStatus", description =
                "BlockStatus ist true wenn der Anruf blockiert wurde, false sonst",
@@ -140,16 +137,14 @@ public class CallBlocker implements IAGIJavaExecutable
         return entries;
     }
 
-    /** Ermittelt den Pfad zur blocklist.txt. */
+    /** Ermittelt den Pfad zur blocklist.txt — immer Instanz-Datenverzeichnis. */
     private File getBlocklistFile(IAGIRuntimeEnvironment context)
     {
-        // 1) expliziter Pfad aus Modul-Parameter
-        if (Blocklist != null && !Blocklist.isEmpty())
-        {
-            return new File(Blocklist);
-        }
-        // 2) Instanz-Datenverzeichnis (verifizierter API-Weg, seit v4 —
-        //    vorher System.getenv("STARFACE_MODULE_ID") + /tmp-Fallback, beides falsch)
+        // Fix: Instanz-Datenverzeichnis (verifizierter API-Weg, seit v4 — vorher
+        // System.getenv("STARFACE_MODULE_ID") + /tmp-Fallback, beides falsch).
+        // Der frühere @InputVar "Blocklist-Pfad" ist entfernt (v5): Entrypoint-
+        // Funktionen dürfen keine Eingabevariablen haben, und ein getrennter
+        // Pfad würde zudem von ListManager (RPCs) nicht geschrieben.
         return new File(context.getInstanceDataDir(), "blocklist.txt");
     }
 

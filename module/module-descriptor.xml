@@ -1,16 +1,96 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<module lastChangedTime="1787572800000" moduleType="EXTENDED" createTime="1784793600000" id="a3c1b4e5-8f2d-4a7b-9c1e-2d4f6a8b0c1e" name="CallBlocker" specVersion="5" vendor="MiCoSa79" version="4">
+<module lastChangedTime="1787587200000" moduleType="EXTENDED" createTime="1784793600000" id="a3c1b4e5-8f2d-4a7b-9c1e-2d4f6a8b0c1e" name="CallBlocker" specVersion="5" vendor="MiCoSa79" version="5">
     <description>Weist Anrufe von Rufnummern aus der Blocklist ab.</description>
     <descriptionURL />
     <disabled>false</disabled>
     <inputVars />
     <outputVars />
     <resources />
-    <children />
+    <children>
+        <function visibility="Public" createTime="1787572800000" id="CallBlocker" name="CallBlocker" specVersion="0" vendor="MiCoSa79" version="0">
+            <description>Weist Anrufe von Rufnummern in der Blocklist ab.</description>
+            <descriptionURL />
+            <disabled>false</disabled>
+            <inputVars />
+            <outputVars>
+                <variable id="BlockStatus" label="BlockStatus" name="BlockStatus" type="BOOLEAN" valueByReference="false" valueByReferenceAllowed="false" valueByValueAllowed="true" visible="true">
+                    <description>BlockStatus ist true wenn der Anruf blockiert wurde, false sonst</description>
+                    <value>false</value>
+                </variable>
+            </outputVars>
+            <resources />
+            <children />
+            <implementationFile>CallBlocker.class</implementationFile>
+        </function>
+        <function visibility="Public" createTime="1787572800000" id="ListGet" name="ListGet" specVersion="0" vendor="MiCoSa79" version="0">
+            <description>Gibt alle Nummern der Blocklist zurueck.</description>
+            <descriptionURL />
+            <disabled>false</disabled>
+            <inputVars>
+                <variable id="INPUT_DEFAULT" label="INPUT_DEFAULT" name="INPUT_DEFAULT" type="STRING" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="true" visible="true">
+                    <description />
+                    <value />
+                </variable>
+            </inputVars>
+            <outputVars>
+                <variable id="OUTPUT_NUMMERN" label="Nummern" name="OUTPUT_NUMMERN" type="STRING" valueByReference="false" valueByReferenceAllowed="false" valueByValueAllowed="true" visible="true">
+                    <description>Komma-getrennte Liste aller Nummern</description>
+                    <value />
+                </variable>
+            </outputVars>
+            <resources />
+            <children />
+            <implementationFile>ListGet.class</implementationFile>
+        </function>
+        <function visibility="Public" createTime="1787572800000" id="ListAdd" name="ListAdd" specVersion="0" vendor="MiCoSa79" version="0">
+            <description>Fuegt Nummern zur Blocklist hinzu.</description>
+            <descriptionURL />
+            <disabled>false</disabled>
+            <inputVars>
+                <variable id="INPUT_NUMMERN" label="Nummern" name="INPUT_NUMMERN" type="STRING" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="true" visible="true">
+                    <description>Komma-getrennte Liste der hinzuzufuegenden Nummern</description>
+                    <value />
+                </variable>
+            </inputVars>
+            <outputVars>
+                <variable id="OUTPUT_ANZAHL" label="Hinzugefuegt" name="OUTPUT_ANZAHL" type="NUMBER" valueByReference="false" valueByReferenceAllowed="false" valueByValueAllowed="true" visible="true">
+                    <description>Anzahl erfolgreich hinzugefuegter Nummern</description>
+                    <value>0</value>
+                </variable>
+            </outputVars>
+            <resources />
+            <children />
+            <implementationFile>ListAdd.class</implementationFile>
+        </function>
+        <function visibility="Public" createTime="1787572800000" id="ListRemove" name="ListRemove" specVersion="0" vendor="MiCoSa79" version="0">
+            <description>Entfernt Nummern aus der Blocklist.</description>
+            <descriptionURL />
+            <disabled>false</disabled>
+            <inputVars>
+                <variable id="INPUT_NUMMERN" label="Nummern" name="INPUT_NUMMERN" type="STRING" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="true" visible="true">
+                    <description>Komma-getrennte Liste der zu entfernenden Nummern</description>
+                    <value />
+                </variable>
+            </inputVars>
+            <outputVars>
+                <variable id="OUTPUT_ANZAHL" label="Entfernt" name="OUTPUT_ANZAHL" type="NUMBER" valueByReference="false" valueByReferenceAllowed="false" valueByValueAllowed="true" visible="true">
+                    <description>Anzahl erfolgreich entfernter Nummern</description>
+                    <value>0</value>
+                </variable>
+            </outputVars>
+            <resources />
+            <children />
+            <implementationFile>ListRemove.class</implementationFile>
+        </function>
+    </children>
     <createdWith>STARFACE 10.0.2.5</createdWith>
     <defaultLocale>de</defaultLocale>
     <editable>true</editable>
-    <entryPoints />
+    <entryPoints>
+        <agiKernelEntryPoint stage="PostTargetDeterminationIncoming" id="81086651-cfeb-4412-b7bc-49533dfc5725" name="">
+            <functionReference targetDomainId="a3c1b4e5-8f2d-4a7b-9c1e-2d4f6a8b0c1e" targetId="CallBlocker" targetName="CallBlocker" targetVersion="0" />
+        </agiKernelEntryPoint>
+    </entryPoints>
     <resourceKeys>
         <entries>
             <key>en</key>
@@ -23,7 +103,7 @@
         <key>module.name{a3c1b4e5-8f2d-4a7b-9c1e-2d4f6a8b0c1e}</key>
         <propertyName>NAME</propertyName>
     </resourceKeys>
-    <shortDescription>Rufnummern-Blacklist zum Abweisen unerwünschter Anrufe</shortDescription>
-    <noLicenseId>b605314fb4b7b7ed8fa2a9bf2909de26378c1e1d</noLicenseId>
+    <shortDescription>Rufnummern-Blacklist zum Abweisen unerwuenschter Anrufe</shortDescription>
+    <noLicenseId>fd9a6ae8ca8a2e9b53211736f529f6802025b908</noLicenseId>
     <writeHash>181fe5eff8babfd0dad648993038a3d67ad19ba4</writeHash>
 </module>
