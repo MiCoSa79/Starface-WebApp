@@ -42,7 +42,54 @@ def read_module_id(path: str) -> str:
     return m.group(1)
 
 
+def bump_descriptor(path: str) -> None:
+    """Erhöht Modulversion um 1, setzt lastChangedTime neu und berechnet
+    noLicenseId + writeHash nach (Nutzer-Vorgabe: Version IMMER +1 bei Änderung).
+
+    - version   = alte Version + 1
+    - lastChangedTime = aktuelle Zeit (auf volle Stunde abgerundet, damit
+      noLicenseId über Stunden stabil bleibt)
+    - noLicenseId = sha1Hex(id + lastChangedTime + "STARFACE")   (Lizenzfreiheit)
+    - writeHash   = sha1Hex(id)  (== Hash des LEEREN Passworts → Modul offen;
+      NICHT leer lassen! checkWritePassword("") = Strings.equals(sha1Hex(id), writeHash),
+      leerer writeHash ⇒ Modul bleibt passwortgesperrt.)
+    """
+    import hashlib
+    import time
+    import xml.etree.ElementTree as ET
+
+    tree = ET.parse(path)
+    root = tree.getroot()
+    try:
+        version = int(root.get("version", "1")) + 1
+    except ValueError:
+        version = 2
+    root.set("version", str(version))
+
+    module_id = root.get("id")
+    now = int(time.time() * 1000)
+    last = now - (now % 3600000)  # volle Stunde
+    root.set("lastChangedTime", str(last))
+
+    no_license = hashlib.sha1((module_id + str(last) + "STARFACE").encode()).hexdigest()
+    write_hash = hashlib.sha1(module_id.encode()).hexdigest()
+
+    nl = root.find("noLicenseId")
+    if nl is None:
+        nl = ET.SubElement(root, "noLicenseId")
+    nl.text = no_license
+    wh = root.find("writeHash")
+    if wh is None:
+        wh = ET.SubElement(root, "writeHash")
+    wh.text = write_hash
+
+    tree.write(path, encoding="UTF-8", xml_declaration=True)
+    print(f"    Modul-Version erhöht auf {version}, lastChangedTime={last}")
+
+
 def main() -> None:
+    if "--bump" in sys.argv:
+        bump_descriptor(DESCRIPTOR)
     module_id = read_module_id(DESCRIPTOR)
     classes = sorted(
         f for f in os.listdir(CLASSES_DIR) if f.endswith(".class")
