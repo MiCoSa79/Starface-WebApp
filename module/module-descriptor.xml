@@ -1,18 +1,16 @@
-<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<module lastChangedTime="1787569200000" moduleType="EXTENDED" createTime="1784793600000"
-        id="a3c1b4e5-8f2d-4a7b-9c1e-2d4f6a8b0c1e" name="CallBlocker" specVersion="5"
-        vendor="MiCoSa79" version="3">
+<?xml version='1.0' encoding='UTF-8'?>
+<module lastChangedTime="1787572800000" moduleType="EXTENDED" createTime="1784793600000" id="a3c1b4e5-8f2d-4a7b-9c1e-2d4f6a8b0c1e" name="CallBlocker" specVersion="5" vendor="MiCoSa79" version="4">
     <description>Weist Anrufe von Rufnummern aus der Blocklist ab.</description>
-    <descriptionURL></descriptionURL>
+    <descriptionURL />
     <disabled>false</disabled>
-    <inputVars/>
-    <outputVars/>
-    <resources/>
-    <children/>
+    <inputVars />
+    <outputVars />
+    <resources />
+    <children />
     <createdWith>STARFACE 10.0.2.5</createdWith>
     <defaultLocale>de</defaultLocale>
     <editable>true</editable>
-    <entryPoints/>
+    <entryPoints />
     <resourceKeys>
         <entries>
             <key>en</key>
@@ -26,6 +24,6 @@
         <propertyName>NAME</propertyName>
     </resourceKeys>
     <shortDescription>Rufnummern-Blacklist zum Abweisen unerwünschter Anrufe</shortDescription>
-    <noLicenseId>eebf79af76afe77a6cc4407ad93cfa206ca1ad56</noLicenseId>
+    <noLicenseId>b605314fb4b7b7ed8fa2a9bf2909de26378c1e1d</noLicenseId>
     <writeHash>181fe5eff8babfd0dad648993038a3d67ad19ba4</writeHash>
 </module>

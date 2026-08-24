@@ -74,7 +74,7 @@ public class CallBlocker implements IAGIJavaExecutable
         }
 
         // 2) Blocklist laden
-        List<String> patterns = loadBlocklist(log);
+        List<String> patterns = loadBlocklist(context, log);
 
         // 3) Prüfen
         if (matchesAny(normalized, patterns))
@@ -108,11 +108,11 @@ public class CallBlocker implements IAGIJavaExecutable
         }
     }
 
-    /** Liest die blocklist.txt aus dem Instanz-Ordner oder aus dem angegebenen Pfad. */
-    private List<String> loadBlocklist(Logger log)
+    /** Liest die blocklist.txt aus dem Instanz-Datenverzeichnis oder aus dem angegebenen Pfad. */
+    private List<String> loadBlocklist(IAGIRuntimeEnvironment context, Logger log)
     {
         List<String> entries = new ArrayList<>();
-        File f = getBlocklistFile();
+        File f = getBlocklistFile(context);
 
         if (!f.exists())
         {
@@ -134,29 +134,23 @@ public class CallBlocker implements IAGIJavaExecutable
         }
         catch (IOException e)
         {
-            log.error("CallBlocker: Fehler beim Lesen der Blocklist: " + e.getMessage());
+            log.error("CallBlocker: Fehler beim Lesen der Blocklist: "
+                      + f.getAbsolutePath(), e);
         }
         return entries;
     }
 
-    /** Ermittel den Pfad zur blocklist.txt. */
-    private File getBlocklistFile()
+    /** Ermittelt den Pfad zur blocklist.txt. */
+    private File getBlocklistFile(IAGIRuntimeEnvironment context)
     {
         // 1) expliziter Pfad aus Modul-Parameter
         if (Blocklist != null && !Blocklist.isEmpty())
         {
             return new File(Blocklist);
         }
-
-        // 2) Instanz-ID als Env-Variablen?
-        String instanzId = System.getenv("STARFACE_MODULE_ID");
-        if (instanzId != null && !instanzId.isEmpty())
-        {
-            return new File("/var/starface/module/instances/repo/" + instanzId + "/res/blocklist.txt");
-        }
-
-        // 3) Fallback — blocklist.txt kann nicht gefunden werden
-        return new File("/tmp/blocklist-unknown.txt");
+        // 2) Instanz-Datenverzeichnis (verifizierter API-Weg, seit v4 —
+        //    vorher System.getenv("STARFACE_MODULE_ID") + /tmp-Fallback, beides falsch)
+        return new File(context.getInstanceDataDir(), "blocklist.txt");
     }
 
     /** Normalisiert die Nummer: Leerzeichen, Bindestriche, Klammern entfernen. */

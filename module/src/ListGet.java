@@ -10,6 +10,7 @@ import de.vertico.starface.module.core.runtime.IRuntimeEnvironment;
 import de.vertico.starface.module.core.runtime.annotations.Function;
 import de.vertico.starface.module.core.runtime.annotations.InputVar;
 import de.vertico.starface.module.core.runtime.annotations.OutputVar;
+import org.apache.logging.log4j.Logger;
 
 import java.util.List;
 
@@ -27,7 +28,9 @@ public class ListGet implements IBaseExecutable
     @Override
     public void execute(IRuntimeEnvironment context) throws Exception
     {
-        List<String> entries = ListManager.loadBlocklist();
+        Logger log = context.getLog();
+        List<String> entries = ListManager.loadBlocklist(context, log);
         OUTPUT_NUMMERN = String.join(",", entries);
+        log.info("ListGet: " + entries.size() + " Einträge zurückgegeben");
     }
 }

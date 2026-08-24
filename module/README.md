@@ -41,9 +41,9 @@ module/
    Stage ist `PostTargetDetermination` (Ziel ist bekannt, Anruf noch nicht verbunden).
 4. RPC-Entrypoints: Im Modul-Editor pro Funktion (`ListGet`/`ListAdd`/`ListRemove`)
    im ersten Tab **„Rpc Entrypoints“** freigeben.
-5. `blocklist.txt` im Instanz-Ordner anlegen:
-   `/var/starface/module/instances/repo/<InstanzID>/res/blocklist.txt`
-   (eine Nummer pro Zeile; `#` = Kommentar).
+5. `blocklist.txt` wird seit **Modul v4 automatisch** im Instanz-Datenverzeichnis
+   (`IRuntimeEnvironment.getInstanceDataDir()`) erzeugt — kein manuelles Anlegen
+   mehr nötig. Optional: Modul-Parameter „Blocklist“ auf einen festen Pfad setzen.
 
 ### Variante B — Einzelklassen (Weg A aus SFWiki)
 

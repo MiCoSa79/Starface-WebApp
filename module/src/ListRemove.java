@@ -10,6 +10,7 @@ import de.vertico.starface.module.core.runtime.IRuntimeEnvironment;
 import de.vertico.starface.module.core.runtime.annotations.Function;
 import de.vertico.starface.module.core.runtime.annotations.InputVar;
 import de.vertico.starface.module.core.runtime.annotations.OutputVar;
+import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -29,9 +30,11 @@ public class ListRemove implements IBaseExecutable
     @Override
     public void execute(IRuntimeEnvironment context) throws Exception
     {
+        Logger log = context.getLog();
         if (INPUT_NUMMERN.isEmpty())
         {
             OUTPUT_ANZAHL = 0;
+            log.info("ListRemove: leere Eingabe — nichts zu tun");
             return;
         }
 
@@ -46,7 +49,8 @@ public class ListRemove implements IBaseExecutable
             }
         }
 
-        ListManager.removeBlocklistEntries(toRemove);
+        ListManager.removeBlocklistEntries(toRemove, context, log);
         OUTPUT_ANZAHL = toRemove.size();
+        log.info("ListRemove: " + toRemove.size() + " Nummern entfernt");
     }
 }

@@ -10,6 +10,7 @@ import de.vertico.starface.module.core.runtime.IRuntimeEnvironment;
 import de.vertico.starface.module.core.runtime.annotations.Function;
 import de.vertico.starface.module.core.runtime.annotations.InputVar;
 import de.vertico.starface.module.core.runtime.annotations.OutputVar;
+import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -29,9 +30,11 @@ public class ListAdd implements IBaseExecutable
     @Override
     public void execute(IRuntimeEnvironment context) throws Exception
     {
+        Logger log = context.getLog();
         if (INPUT_NUMMERN.isEmpty())
         {
             OUTPUT_ANZAHL = 0;
+            log.info("ListAdd: leere Eingabe — nichts zu tun");
             return;
         }
 
@@ -46,7 +49,8 @@ public class ListAdd implements IBaseExecutable
             }
         }
 
-        ListManager.saveBlocklist(valid);
+        ListManager.saveBlocklist(valid, context, log);
         OUTPUT_ANZAHL = valid.size();
+        log.info("ListAdd: " + valid.size() + " Nummern übernommen (roh: " + nummern.length + ")");
     }
 }
