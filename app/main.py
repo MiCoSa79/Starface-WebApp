@@ -461,7 +461,6 @@ def _xmlrpc(url: str, token: str, method: str, params: dict = None,
     for v in root.iter():
         if v.tag in ("string", "int", "i4", "boolean") and v.text and v.text.strip():
             values.append(v.text)
-    return {"raw": r.text, "values": values}
 
 
 def _split_numbers(values: list) -> list:
@@ -1269,6 +1268,7 @@ async def blocklist_add(request: Request, inst_id: int, numbers: str = Form(...)
         last = None
         for n in cleaned:
             last = _xmlrpc(inst["url"], token, "ListAdd", {"INPUT_NUMMERN": n}, instance_name=inst["module_instance_name"])
+            print(f"[DEBUG blocklist_add] ListAdd for '{n}' instance={inst['module_instance_name']}: values={last['values']}, raw_len={len(last['raw'])}")
         _log_event(inst_id, user["user_id"], "blocklist_add", f"{len(cleaned)} Nummern")
     except Exception as e:
         return RedirectResponse(f"/installation/{inst_id}/blocklist?error={quote(str(e))}",
