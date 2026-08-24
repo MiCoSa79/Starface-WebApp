@@ -153,9 +153,17 @@ def init_db():
             CREATE TABLE IF NOT EXISTS oauth_auths (
                 state TEXT PRIMARY KEY,
                 installation_id INTEGER NOT NULL,
-                created_at TEXT NOT NULL
+                created_at TEXT NOT NULL,
+                verifier TEXT,
+                redirect_uri TEXT
             )
         """)
+        # Migration: fehlende Spalten ergänzen
+        ocols = [r[1] for r in conn.execute("PRAGMA table_info(oauth_auths)").fetchall()]
+        if "verifier" not in ocols:
+            conn.execute("ALTER TABLE oauth_auths ADD COLUMN verifier TEXT")
+        if "redirect_uri" not in ocols:
+            conn.execute("ALTER TABLE oauth_auths ADD COLUMN redirect_uri TEXT")
     except Exception:
         pass  # Tabelle existiert bereits
     conn.commit()
@@ -1006,6 +1014,13 @@ def _gen_backup_codes(n=10) -> str:
 # OAuth-Flow: Authorization Code mit PKCE
 # ─────────────────────────────────────────────────────────────
 
+def _base_url(request) -> str:
+    """Basis-URL der WebApp (hinter NPM via X-Forwarded-*)."""
+    proto = request.headers.get("x-forwarded-proto", "http")
+    host = request.headers.get("x-forwarded-host") or request.headers.get("host", "localhost")
+    return f"{proto}://{host}".rstrip("/")
+
+
 @app.get("/admin/installations/{inst_id}/oauth-start")
 async def admin_oauth_start(request: Request, inst_id: int):
     """Startet OAuth-Login auf der Anlage (Authorization Code Flow mit PKCE)."""
@@ -1014,31 +1029,31 @@ async def admin_oauth_start(request: Request, inst_id: int):
         return RedirectResponse("/dashboard")
     conn = _db()
     inst = conn.execute("SELECT * FROM installations WHERE id=?", (inst_id,)).fetchone()
-    conn.close()
     if not inst:
+        conn.close()
         return RedirectResponse("/admin", status_code=303)
-    import secrets, hashlib
+    import secrets
+    import base64
     url = _ensure_url(inst["url"])
-    state = secrets.token_urlsafe(32)
-    # PKCE: code_verifier + SHA256(code_verifier) als Base64URL
+    # PKCE (RFC 7636): code_verifier + Base64URL(SHA256(verifier)) ohne Padding
     code_verifier = secrets.token_urlsafe(48)
-    code_challenge = (hl.sha256(code_verifier.encode()).digest()).hex()
-    # State und verifier in Session speichern
-    session_data = {
-        "state": state,
-        "verifier": code_verifier,
-        "inst_id": inst_id,
-    }
-    from itsdangerous import URLSafeSerializer
-    s = URLSafeSerializer(FERNET_KEY if FERNET_KEY else "fallback-secret")
-    token = s.dumps(session_data)
-    # Keycloak-Auth-URL
+    code_challenge = base64.urlsafe_b64encode(
+        hashlib.sha256(code_verifier.encode()).digest()).rstrip(b"=").decode()
+    state = secrets.token_urlsafe(32)
+    redirect_uri = _base_url(request) + "/oauth/callback"
+    # State + Verifier + redirect_uri in DB speichern (Keycloak gibt state 1:1 zurück)
+    conn.execute(
+        "INSERT INTO oauth_auths (state, installation_id, created_at, verifier, redirect_uri) "
+        "VALUES (?, ?, ?, ?, ?)",
+        (state, inst_id, datetime.utcnow().isoformat(), code_verifier, redirect_uri))
+    conn.commit()
+    conn.close()
     from urllib.parse import quote as q
     auth_url = (f"{url}/auth/realms/pbx/protocol/openid-connect/auth?"
                 f"client_id=rest-client&"
                 f"response_type=code&"
                 f"scope=login&"
-                f"redirect_uri={q(url + '/oauth/callback')}&"
+                f"redirect_uri={q(redirect_uri)}&"
                 f"state={state}&"
                 f"code_challenge={code_challenge}&"
                 f"code_challenge_method=S256")
@@ -1050,54 +1065,49 @@ async def oauth_callback(request: Request, code: str = None, state: str = None,
                          error: str = None):
     """Callback von Keycloak: code empfangen, Token tauschen, speichern."""
     if error:
-        return RedirectResponse("/admin", query_string="oauth_err=1")
+        return RedirectResponse("/admin?oauth_err=1")
     if not code or not state:
-        return RedirectResponse("/admin", query_string="oauth_err=1")
-    # State und verifier aus URL-Parameter holen — der State war als
-    # Query-Param beim Redirect an Keycloak, also steht er auch hier
-    # (Keycloak leitet state 1:1 weiter). Der verifier muss in der DB
-    # gespeichert sein — wir speichern ihn als Cookie mit State als Key.
-    verifier = request.cookies.get(f"oauth_verifier_{state}")
-    inst_id_str = request.cookies.get("oauth_inst_id")
-    if not verifier or not inst_id_str:
-        # Fallback: state in DB suchen
-        from itsdangerous import URLSafeSerializer
-        s = URLSafeSerializer(FERNET_KEY if FERNET_KEY else "fallback-secret")
-        try:
-            session_data = s.loads(state)
-            if isinstance(session_data, dict):
-                verifier = session_data.get("verifier", "")
-                inst_id_str = str(session_data.get("inst_id", ""))
-        except Exception:
-            return RedirectResponse("/admin", query_string="oauth_err=1")
-    inst_id = int(inst_id_str)
+        return RedirectResponse("/admin?oauth_err=1")
+    # State in DB nachschlagen (verifier + inst_id + redirect_uri), dann löschen
     conn = _db()
+    row = conn.execute("SELECT * FROM oauth_auths WHERE state=?", (state,)).fetchone()
+    if not row:
+        conn.close()
+        return RedirectResponse("/admin?oauth_err=1")
+    verifier = row["verifier"] or ""
+    inst_id = int(row["installation_id"])
+    redirect_uri = row["redirect_uri"] or (_base_url(request) + "/oauth/callback")
+    conn.execute("DELETE FROM oauth_auths WHERE state=?", (state,))
+    conn.commit()
     inst = conn.execute("SELECT * FROM installations WHERE id=?", (inst_id,)).fetchone()
     if not inst:
         conn.close()
-        return RedirectResponse("/admin", query_string="oauth_err=1")
-    client_secret = _decrypt(inst["client_secret"]) if inst["client_secret"] else ""
+        return RedirectResponse("/admin?oauth_err=1")
     url = _ensure_url(inst["url"])
-    # PKCE: code_verifier für Token-Austausch
-    r = httpx.post(
-        f"{url}/auth/realms/pbx/oauth2/token",
-        data={
-            "client_id": "rest-client",
-            "grant_type": "authorization_code",
-            "code": code,
-            "redirect_uri": url + "/oauth/callback",
-            "code_verifier": verifier,
-        },
-        timeout=20,
-    )
+    # Code gegen Token tauschen (redirect_uri exakt wie beim Auth-Request)
+    try:
+        r = httpx.post(
+            f"{url}/auth/realms/pbx/oauth2/token",
+            data={
+                "client_id": "rest-client",
+                "grant_type": "authorization_code",
+                "code": code,
+                "redirect_uri": redirect_uri,
+                "code_verifier": verifier,
+            },
+            timeout=20,
+        )
+    except Exception:
+        conn.close()
+        return RedirectResponse("/admin?oauth_err=1")
     if r.status_code != 200:
         conn.close()
-        return RedirectResponse("/admin", query_string="oauth_err=1")
+        return RedirectResponse("/admin?oauth_err=1")
     j = r.json()
     access = j.get("access_token", "")
     if not access:
         conn.close()
-        return RedirectResponse("/admin", query_string="oauth_err=1")
+        return RedirectResponse("/admin?oauth_err=1")
     refresh = j.get("refresh_token", "")
     expires = int(time.time()) + int(j.get("expires_in", 300))
     conn.execute(
@@ -1105,7 +1115,7 @@ async def oauth_callback(request: Request, code: str = None, state: str = None,
         (_encrypt(access), _encrypt(refresh), expires, inst_id))
     conn.commit()
     conn.close()
-    return RedirectResponse("/admin", query_string="oauth_ok=1")
+    return RedirectResponse("/admin?oauth_ok=1")
 
 
 # ─────────────────────────────────────────────────────────────
