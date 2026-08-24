@@ -29,7 +29,7 @@ public class ListManager
      * die textList im inputGUITabs-Tab "Geblockte Nummern").
      */
     public static final String GUI_BLOCKED_NUMBERS_VAR_ID =
-        "c4d5e6f7-8a9b-4c0d-8e1f-2a3b4c5d6e7f";
+        "c42f4bb5-dfa4-42bb-b907-1aae15471d1d";
 
     /** Pfad zur blocklist.txt im Instanz-Datenverzeichnis. */
     public static File getBlocklistFile(IRuntimeEnvironment context)
