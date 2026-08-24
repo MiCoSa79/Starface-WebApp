@@ -461,7 +461,7 @@ def _xmlrpc(url: str, token: str, method: str, params: dict = None,
         raise RuntimeError(f"STARFACE-Fehler: {msg} — Roh: {r.text[:300]}")
     values = []
     for v in root.iter():
-        if v.tag in ("string", "int", "i4", "boolean") and v.text and v.text.strip():
+        if v.tag in ("string", "int", "i4", "boolean", "double") and v.text and v.text.strip():
             values.append(v.text)
     return {"raw": r.text, "values": values}
 
