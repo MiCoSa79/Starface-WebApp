@@ -70,7 +70,7 @@ public class CallBlocker implements IAGIJavaExecutable
             return;
         }
 
-        // 2) Blocklist laden
+        // 2) Blocklist laden (ListResource der Instanz, seit v22)
         List<String> patterns = loadBlocklist(context, log);
 
         // 3) Prüfen
@@ -110,47 +110,14 @@ public class CallBlocker implements IAGIJavaExecutable
         }
     }
 
-    /** Liest die blocklist.txt aus dem Instanz-Datenverzeichnis oder aus dem angegebenen Pfad. */
+    /**
+     * Liest die Blocklist aus der ListResource der Instanz (seit v22,
+     * keine blocklist.txt mehr). Der Zugriff nutzt denselben Weg wie der
+     * Instanz-Editor: variable.getValue() = ListResource-ID.
+     */
     private List<String> loadBlocklist(IAGIRuntimeEnvironment context, Logger log)
     {
-        List<String> entries = new ArrayList<>();
-        File f = getBlocklistFile(context);
-
-        if (!f.exists())
-        {
-            log.warn("CallBlocker: blocklist.txt nicht gefunden: " + f.getAbsolutePath());
-            return entries;
-        }
-
-        try
-        {
-            List<String> lines = java.nio.file.Files.readAllLines(f.toPath());
-            for (String line : lines)
-            {
-                line = line.trim();
-                if (!line.isEmpty() && !line.startsWith("#"))
-                {
-                    entries.add(line);
-                }
-            }
-        }
-        catch (IOException e)
-        {
-            log.error("CallBlocker: Fehler beim Lesen der Blocklist: "
-                      + f.getAbsolutePath(), e);
-        }
-        return entries;
-    }
-
-    /** Ermittelt den Pfad zur blocklist.txt — immer Instanz-Datenverzeichnis. */
-    private File getBlocklistFile(IAGIRuntimeEnvironment context)
-    {
-        // Fix: Instanz-Datenverzeichnis (verifizierter API-Weg, seit v4 — vorher
-        // System.getenv("STARFACE_MODULE_ID") + /tmp-Fallback, beides falsch).
-        // Der frühere @InputVar "Blocklist-Pfad" ist entfernt (v5): Entrypoint-
-        // Funktionen dürfen keine Eingabevariablen haben, und ein getrennter
-        // Pfad würde zudem von ListManager (RPCs) nicht geschrieben.
-        return new File(context.getInstanceDataDir(), "blocklist.txt");
+        return ListManager.loadBlocklist(context, log);
     }
 
     /**

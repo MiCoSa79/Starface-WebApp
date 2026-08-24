@@ -1,8 +1,11 @@
 # STARFACE CallBlocker-Modul
 
 Anrufblocker-Baustein für STARFACE 10.x — weist Anrufe unerwünschter
-Rufnummern ab. Die Blocklist liegt **auf der Anlage** als Datei
-`blocklist.txt` im Instanz-Ordner.
+Rufnummern ab. Die Blocklist liegt **seit Modul v22 in der ListResource
+der Instanz** (textList "Geblockte Rufnummern") — kein blocklist.txt-
+Dateiumweg mehr. Der Zugriff bildet exakt den Weg des Instanz-Editors ab
+(`variable.getValue()` = ListResource-ID → `setValues` →
+`variable.setValue(resourceId)` → `updateModuleInstance`).
 
 ## Inhalt
 
@@ -27,7 +30,7 @@ module/
 | `ListGet.class` | RPC-Entrypoint: Liste lesen |
 | `ListAdd.class` | RPC-Entrypoint: Nummern hinzufügen |
 | `ListRemove.class` | RPC-Entrypoint: Nummern entfernen |
-| `ListManager.class` | Gemeinsame Datei-Logik (blocklist.txt) |
+| `ListManager.class` | Gemeinsame ListResource-Logik (Lesen/Schreiben, Editor-Weg) |
 
 ## Einbau auf der Anlage
 
@@ -41,9 +44,11 @@ module/
    Stage ist `PostTargetDetermination` (Ziel ist bekannt, Anruf noch nicht verbunden).
 4. RPC-Entrypoints: Im Modul-Editor pro Funktion (`ListGet`/`ListAdd`/`ListRemove`)
    im ersten Tab **„Rpc Entrypoints“** freigeben.
-5. `blocklist.txt` wird seit **Modul v4 automatisch** im Instanz-Datenverzeichnis
-   (`IRuntimeEnvironment.getInstanceDataDir()`) erzeugt — kein manuelles Anlegen
-   mehr nötig. Optional: Modul-Parameter „Blocklist“ auf einen festen Pfad setzen.
+5. Seit **Modul v22** ist die GUI-Liste (textList „Geblockte Rufnummern“)
+   die einzige Datenquelle. Beim Hinzufügen/Entfernen über die WebApp oder
+   per `ListAdd`/`ListRemove` wird die ListResource der Instanz direkt
+   beschrieben und über `updateModuleInstance` persistiert. Der Tab in der
+   Instanz-Konfiguration zeigt die Einträge sofort an.
 
 ### Variante B — Einzelklassen (Weg A aus SFWiki)
 
@@ -52,16 +57,15 @@ module/
    (Baustein-Name = Klassenname), RPC-Entrypoints freigeben.
 3. `CallBlocker` in die Anrufroute einhängen (siehe oben).
 
-## blocklist.txt-Format
+## Listen-Format (textList „Geblockte Rufnummern“)
 
-Eine Nummer oder Wildcard pro Zeile:
+Ein Eintrag pro Listenzeile — exakte Nummer (E.164) oder Wildcard:
 
 ```
-+491512345678    # exakte Nummer (E.164)
 +49*             # beginnt mit +49 (national kürzbar)
-+49160*          # Vorwahl
 2??              # beginnt mit 2, genau 2 weitere Ziffern
 ????             # genau 4 Ziffern
+*9162            # endet mit 9162
 ```
 
 ## Verhalten

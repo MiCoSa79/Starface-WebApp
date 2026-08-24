@@ -1,19 +1,29 @@
 /*
- * ListManager — Lese-/Schreib-Zugriff auf blocklist.txt.
+ * ListManager — Lese-/Schreib-Zugriff auf die textList der Modul-Instanz.
  *
- * Speichert eine Nummer pro Zeile; Zeilen mit # werden als Kommentare ignoriert.
- * Die Datei liegt im Instanz-Datenverzeichnis (getInstanceDataDir()) der
- * STARFACE-Modul-Instanz — verifizierter API-Weg (STARFACE-intern genutzt
- * von io/FileFunction, Implementierung RuntimeEnvironmentImpl).
+ * Seit v22 ist die ListResource der Instanz die EINZIGE Datenquelle
+ * (kein blocklist.txt-Dateiumweg mehr). Der Zugriff bildet exakt den
+ * Weg des Instanz-Editors ab (bytecode-verifiziert, STARFACE 10.0.2.5,
+ * Klassen MultiValueConfig.setValues + ConfigurableFactory.buildConfig):
  *
- * NICHT verwenden: System.getenv("STARFACE_MODULE_ID") (wird von STARFACE
- * nicht gesetzt) und nicht /tmp (alle Instanzen teilen eine Datei, nicht
- * persistent). Seit v4 wird jede Ausführung protokolliert (Pfad + Anzahl +
- * Fehler mit Stacktrace), damit man im Instanz-Log sieht, was passiert.
+ *   1) variable.getValue()  = ID der ListResource (im Descriptor:
+ *      <value>56f65b6e-f5e5-49ad-9dc4-53bf7c4e97a8</value>)
+ *   2) instance.getListResource(id) -> ListResource
+ *      (bei null: neue Resource anlegen + in instance.getResources() aufnehmen)
+ *   3) lr.setValues(elements)
+ *   4) variable.setValue(lr.getId())  — Variable zeigt auf die Resource
+ *   5) runtime.updateModuleInstance(project) — persistiert instance-config.xml
+ *
+ * Der Instanz-Editor LÄDT die textList über denselben Weg
+ * (instance.getListResource(variable.getValue())), daher erscheinen die
+ * Werte sofort im Tab "Geblockte Rufnummern".
+ *
+ * VORHER (v4-v21): blocklist.txt im Instanz-Datenverzeichnis — der GUI-Tab
+ * blieb leer, weil der Editor die Resource über die Variablen-ID adressiert,
+ * nicht über den Variablennamen (v21-Fehler: getListResource(VAR_NAME)).
  */
 
 import java.io.*;
-import java.nio.file.*;
 import java.util.*;
 
 import org.apache.logging.log4j.Logger;
@@ -21,9 +31,9 @@ import org.apache.logging.log4j.Logger;
 import de.vertico.starface.module.core.model.ModuleInstance;
 import de.vertico.starface.module.core.model.ModuleInstanceProject;
 import de.vertico.starface.module.core.model.Variable;
+import de.vertico.starface.module.core.model.resource.ListResource;
 import de.vertico.starface.module.core.runtime.IRuntimeEnvironment;
 import de.vertico.starface.module.core.runtime.ModuleRuntime;
-import de.vertico.starface.module.core.runtime.VariableScope;
 
 public class ListManager
 {
@@ -37,144 +47,100 @@ public class ListManager
     public static final String GUI_BLOCKED_NUMBERS_VAR_ID =
         "c42f4bb5-dfa4-42bb-b907-1aae15471d1d";
 
-    /** Pfad zur blocklist.txt im Instanz-Datenverzeichnis. */
-    public static File getBlocklistFile(IRuntimeEnvironment context)
-    {
-        return new File(context.getInstanceDataDir(), "blocklist.txt");
-    }
-
-    /** Liest die blocklist.txt und gibt die Einträge zurück. */
+    /** Liest die Blocklist aus der ListResource der Instanz. */
     public static List<String> loadBlocklist(IRuntimeEnvironment context, Logger log)
     {
         List<String> entries = new ArrayList<>();
-        File f = getBlocklistFile(context);
-
-        if (!f.exists())
-        {
-            log.info("ListManager: blocklist.txt existiert noch nicht: "
-                     + f.getAbsolutePath() + " (Liste leer)");
-            return entries;
-        }
-
         try
         {
-            List<String> lines = Files.readAllLines(f.toPath());
-            for (String line : lines)
+            ModuleInstance mi = getModuleInstance(context, log);
+            if (mi == null)
             {
-                line = line.trim();
-                if (!line.isEmpty() && !line.startsWith("#"))
-                {
-                    entries.add(line);
-                }
+                return entries;
             }
-            log.info("ListManager: " + entries.size() + " Einträge aus "
-                     + f.getAbsolutePath() + " gelesen");
+
+            Variable var = mi.getInputVar(GUI_BLOCKED_NUMBERS_VAR_NAME);
+            if (var == null)
+            {
+                log.warn("ListManager: Variable '" + GUI_BLOCKED_NUMBERS_VAR_NAME
+                         + "' nicht gefunden");
+                return entries;
+            }
+
+            ListResource lr = getListResourceForVariable(mi, var);
+            if (lr == null)
+            {
+                log.info("ListManager: keine ListResource für Variable '"
+                         + GUI_BLOCKED_NUMBERS_VAR_NAME + "' — Liste leer");
+                return entries;
+            }
+
+            List<String> values = lr.getValues();
+            if (values != null)
+            {
+                entries.addAll(values);
+            }
+            log.info("ListManager: " + entries.size()
+                     + " Einträge aus ListResource gelesen (ID=" + lr.getId() + ")");
         }
-        catch (IOException e)
+        catch (Exception e)
         {
-            log.error("ListManager: Lesefehler für " + f.getAbsolutePath(), e);
+            log.error("ListManager: Lesefehler aus ListResource", e);
         }
         return entries;
     }
 
     /** Speichert die Liste (alle Einträge werden neu geschrieben). */
-    public static void saveBlocklist(List<String> entries, IRuntimeEnvironment context, Logger log)
-    {
-        File f = getBlocklistFile(context);
-        File dir = f.getParentFile();
-        if (dir != null && !dir.exists())
-        {
-            dir.mkdirs();
-        }
-
-        try
-        {
-            StringBuilder sb = new StringBuilder();
-            for (String entry : entries)
-            {
-                sb.append(entry).append("\n");
-            }
-            Files.write(f.toPath(), sb.toString().getBytes());
-            log.info("ListManager: " + entries.size() + " Einträge nach "
-                     + f.getAbsolutePath() + " geschrieben (" + sb.length() + " Bytes)");
-
-            // GUI-Tab "Geblockte Nummern" in der Modul-Instanz aktuell halten
-            syncGuiList(context, log);
-        }
-        catch (IOException e)
-        {
-            log.error("ListManager: Schreibfehler für " + f.getAbsolutePath(), e);
-        }
-    }
-
-    /**
-     * Schreibt den aktuellen Inhalt der blocklist.txt in die Modul-GUI-Variable
-     * "Geblockte Rufnummern" — so zeigt der gleichnamige Tab in der
-     * Modul-Instanz-Konfiguration der STARFACE-Verwaltung den aktuellen Stand.
-     *
-     * Zwei Ebenen (beide bytecode-verifiziert, STARFACE 10.0.2.5):
-     *  1) Laufzeit-Scope: context.getScope(VariableScope.Instance).put(...)
-     *     (STARFACE-intern genutzt von GetVariableValue2)
-     *  2) PERSISTENZ (Anzeige Instanz-Editor): ModuleInstance über
-     *     InvocationInfo.getModuleInstance(), Variable.setValue(...),
-     *     ModuleInstanceProject + ModuleRuntime.updateModuleInstance(...)
-     *     -> schreibt instance-config.xml und feuert InstanceUpdated.
-     * LIST-Werte werden in der Instanz-Konfiguration kommagetrennt gespeichert.
-     */
-    public static void syncGuiList(IRuntimeEnvironment context, Logger log)
+    public static void saveBlocklist(List<String> entries, IRuntimeEnvironment context,
+                                     Logger log)
     {
         try
         {
-            List<String> entries = loadBlocklist(context, log);
-            context.getScope(VariableScope.Instance)
-                   .put(GUI_BLOCKED_NUMBERS_VAR_ID, entries);
+            ModuleInstance mi = getModuleInstance(context, log);
+            if (mi == null)
+            {
+                return;
+            }
 
-            try
+            Variable var = mi.getInputVar(GUI_BLOCKED_NUMBERS_VAR_NAME);
+            if (var == null)
             {
-                ModuleInstance mi = context.getInvocationInfo().getModuleInstance();
-                if (mi != null)
-                {
-                    // 1) Kanonischer Instanz-Weg (bytecode-verifiziert aus
-                    //    MultiValueConfig.setValues): Die textList im
-                    //    Instanz-Editor zeigt die ListResource der Instanz
-                    //    (Name = listName der textList). Der Instanz-Editor
-                    //    persistiert textList-Eintraege GENAU SO:
-                    //    getListResource(name) -> ListResource.setValues()
-                    //    -> addResource. Die Instanz-Variable (value/
-                    //    possibleValues) ist NICHT die Anzeige-Quelle
-                    //    (v18/v20-Beweis: Tab blieb leer).
-                    de.vertico.starface.module.core.model.resource.ListResource lr =
-                        mi.getListResource(GUI_BLOCKED_NUMBERS_VAR_NAME);
-                    if (lr == null)
-                    {
-                        lr = new de.vertico.starface.module.core.model.resource.ListResource();
-                        lr.setName(GUI_BLOCKED_NUMBERS_VAR_NAME);
-                        mi.addResource(lr);
-                    }
-                    lr.setValues(entries);
-                    ModuleRuntime runtime =
-                        context.springApplicationContext()
-                               .getBean(ModuleRuntime.class);
-                    ModuleInstanceProject project = new ModuleInstanceProject(mi);
-                    runtime.updateModuleInstance(project);
-                    log.info("ListManager: textList-Resource '" + GUI_BLOCKED_NUMBERS_VAR_NAME
-                             + "' aktualisiert (ListResource, " + entries.size()
-                             + " Eintraege): " + lr.getValues());
-                }
-                else
-                {
-                    log.warn("ListManager: getInvocationInfo().getModuleInstance() == null");
-                }
+                log.warn("ListManager: Variable '" + GUI_BLOCKED_NUMBERS_VAR_NAME
+                         + "' nicht gefunden — nichts geschrieben");
+                return;
             }
-            catch (Exception e)
+
+            // Editor-Weg: ListResource über die ID aus variable.getValue()
+            ListResource lr = getListResourceForVariable(mi, var);
+            if (lr == null)
             {
-                log.warn("ListManager: Persist-Sync (updateModuleInstance) fehlgeschlagen"
-                         + " — nur Runtime-Scope gesetzt", e);
+                lr = new ListResource();
+                lr.setName(GUI_BLOCKED_NUMBERS_VAR_NAME);
+                mi.addResource(lr);
+                log.info("ListManager: neue ListResource angelegt (Name="
+                         + GUI_BLOCKED_NUMBERS_VAR_NAME + ")");
             }
+
+            lr.setValues(entries);
+            // Variable auf die Resource verweisen lassen (Editor macht das
+            // identisch: Variable.setValue(ListResource.getId()))
+            if (!Objects.equals(var.getValue(), lr.getId()))
+            {
+                var.setValue(lr.getId());
+            }
+
+            // Persistieren: schreibt instance-config.xml + feuert InstanceUpdated
+            ModuleRuntime runtime =
+                context.springApplicationContext().getBean(ModuleRuntime.class);
+            ModuleInstanceProject project = new ModuleInstanceProject(mi);
+            runtime.updateModuleInstance(project);
+
+            log.info("ListManager: " + entries.size()
+                     + " Eintraege in ListResource geschrieben (ID=" + lr.getId() + ")");
         }
         catch (Exception e)
         {
-            log.warn("ListManager: GUI-Sync fehlgeschlagen", e);
+            log.error("ListManager: Schreibfehler in ListResource", e);
         }
     }
 
@@ -185,5 +151,46 @@ public class ListManager
         List<String> entries = loadBlocklist(context, log);
         entries.removeAll(toRemove);
         saveBlocklist(entries, context, log);
+    }
+
+    // ##########################################################################################
+    // Interne Helfer
+
+    /** Holt die Modul-Instanz aus dem InvocationInfo. */
+    private static ModuleInstance getModuleInstance(IRuntimeEnvironment context, Logger log)
+    {
+        try
+        {
+            ModuleInstance mi = context.getInvocationInfo().getModuleInstance();
+            if (mi == null)
+            {
+                log.warn("ListManager: getInvocationInfo().getModuleInstance() == null");
+            }
+            return mi;
+        }
+        catch (Exception e)
+        {
+            log.warn("ListManager: getModuleInstance fehlgeschlagen", e);
+            return null;
+        }
+    }
+
+    /**
+     * Besorgt die ListResource, auf die die Variable zeigt (Editor-Weg:
+     * variable.getValue() = Resource-ID). Fällt auf die Modul-Default-Resource
+     * zurück, falls die Instanz noch keine eigene hat.
+     */
+    private static ListResource getListResourceForVariable(ModuleInstance mi, Variable var)
+    {
+        String resId = var.getValue();
+        if (resId != null && !resId.isEmpty())
+        {
+            ListResource lr = mi.getListResource(resId);
+            if (lr != null)
+            {
+                return lr;
+            }
+        }
+        return null;
     }
 }
