@@ -13,6 +13,7 @@
     <defaultLocale>de</defaultLocale>
     <editable>true</editable>
     <entryPoints/>
+    <noLicenseId>0000000000000000000000000000000000000000</noLicenseId>
     <resourceKeys>
         <entries>
             <key>en</key>
@@ -26,5 +27,6 @@
         <propertyName>NAME</propertyName>
     </resourceKeys>
     <shortDescription>Rufnummern-Blacklist zum Abweisen unerwünschter Anrufe</shortDescription>
+    <noLicenseId>0000000000000000000000000000000000000000</noLicenseId>
     <writeHash>0000000000000000000000000000000000000000</writeHash>
 </module>
