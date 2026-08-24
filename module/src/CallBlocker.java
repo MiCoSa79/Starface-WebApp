@@ -74,14 +74,19 @@ public class CallBlocker implements IAGIJavaExecutable
         List<String> patterns = loadBlocklist(context, log);
 
         // 3) Prüfen
+        log.info("CallBlocker: prüfe Anruf von " + callerNumber
+                 + " (normalisiert: " + normalized + ") gegen "
+                 + patterns.size() + " Muster");
         if (matchesAny(normalized, patterns))
         {
             // 4) Abweisen + Log
             ModuleBusinessObject MBO = (ModuleBusinessObject)
                 context.springApplicationContext().getBean(ModuleBusinessObject.class);
             MBO.hangup(channel, HangupCause.NORMAL_CLEARING);
-            log.info("BLOCKED: Anruf von " + normalized + " abgewiesen (Blocklist)");
+            log.info("BLOCKED: Anruf von " + callerNumber + " (normalisiert: "
+                     + normalized + ") abgewiesen (Blocklist)");
             BlockStatus = true;
+            return;
         }
         // Kein Treffer: nichts weiter tun — Route läuft normal weiter
         BlockStatus = false;
@@ -148,19 +153,43 @@ public class CallBlocker implements IAGIJavaExecutable
         return new File(context.getInstanceDataDir(), "blocklist.txt");
     }
 
-    /** Normalisiert die Nummer: Leerzeichen, Bindestriche, Klammern entfernen. */
+    /**
+     * Normalisiert die Nummer für den Vergleich: Leerzeichen, Bindestriche,
+     * Klammern raus; internationale Schreibweisen vereinheitlicht —
+     * 0049… / +49… / 0… (national) / 49… (Landesvorwahl ohne +) werden
+     * gleichwertig als 49… verglichen. Nicht-DE-Vorwahlen (+41…) bleiben
+     * unangetastet (nur 00→+).
+     */
     private String normalize(String num)
     {
         if (num == null) return "";
         num = num.replaceAll("[\\s\\-()]+", "");
+        if (num.startsWith("00") && num.length() > 2)
+        {
+            num = "+" + num.substring(2);
+        }
+        if (num.startsWith("0") && num.length() > 1)
+        {
+            num = "49" + num.substring(1);
+        }
+        if (num.startsWith("+49"))
+        {
+            num = num.substring(1);
+        }
         return num;
     }
 
     /** Prüft, ob eine Zahl mit einem der Wildcard-Muster übereinstimmt. */
     private boolean matchesAny(String number, List<String> patterns)
     {
-        for (String pattern : patterns)
+        for (String p : patterns)
         {
+            // Muster ebenfalls normalisieren: +49*, 0049*, 0162*, 4916* → 49…
+            String pattern = normalize(p);
+            if (pattern.isEmpty())
+            {
+                continue;
+            }
             if (matchNumber(number, pattern)) return true;
         }
         return false;
@@ -170,9 +199,10 @@ public class CallBlocker implements IAGIJavaExecutable
      * Ein Wildcard-Muster gegen eine Zahl prüfen.
      *
      * +41*  → beginnt mit +41
-     * 004112345678  → exakte Übereinstimmung
+     * 004912345678 (bzw. +4912345678, 012345678, 4912345678)  → exakte Übereinstimmung
      * 2??  → beginnt mit 2, dann genau 2 weitere Zeichen
      * ???  → genau 3 Zeichen, jedes beliebig
+     * *9162  → endet mit 9162 (Suffix-Wildcard, egal welche Vorwahl)
      * +49*80 → beginnt mit +49, endet mit 80 (als Suffix: +49* → beginnt, +80 → endet)
      */
     private boolean matchNumber(String number, String pattern)
@@ -180,7 +210,7 @@ public class CallBlocker implements IAGIJavaExecutable
         // 1) Exakte Übereinstimmung
         if (number.equals(pattern)) return true;
 
-        // 2) Wildcard-Suffix (+41*)
+        // 2) Wildcard-Suffix (+41*, 49*)
         if (pattern.endsWith("*") && pattern.length() > 1)
         {
             return number.startsWith(pattern.substring(0, pattern.length() - 1));
@@ -198,15 +228,21 @@ public class CallBlocker implements IAGIJavaExecutable
             return true;
         }
 
-        // 4) Suffix-Match (+49*80 → endet mit 80)
+        // 4) Suffix-Match mit + und * (+41*80 → endet mit 80)
         if (pattern.startsWith("+") && pattern.contains("*"))
         {
-            // +49*80 → prefix = +49, suffix = 80
+            // +41*80 → prefix = +41, suffix = 80
             int star = pattern.indexOf('*');
             String prefix = pattern.substring(0, star);
             String suffix = pattern.substring(star + 1);
             if (suffix.isEmpty()) return false;
             return number.startsWith(prefix) && number.endsWith(suffix);
+        }
+
+        // 5) Führender Stern (*9162 → endet mit 9162)
+        if (pattern.startsWith("*") && pattern.length() > 1)
+        {
+            return number.endsWith(pattern.substring(1));
         }
 
         return false;
