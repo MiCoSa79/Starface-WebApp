@@ -134,48 +134,32 @@ public class ListManager
                 ModuleInstance mi = context.getInvocationInfo().getModuleInstance();
                 if (mi != null)
                 {
-                    // 1) Kanonischer Instanz-Weg: Variable in den inputVars
-                    //    der Instanz als LISTE setzen. Das textList-Widget im
-                    //    Instanz-Editor rendert den Wert einer LIST-Variablen —
-                    //    java.util.List<Object>, NICHT String! (setInputValue
-                    //    setzt String und blieb deshalb unsichtbar.)
-                    Variable var = mi.getInputVar(GUI_BLOCKED_NUMBERS_VAR_NAME);
-                    if (var != null)
+                    // 1) Kanonischer Instanz-Weg (bytecode-verifiziert aus
+                    //    MultiValueConfig.setValues): Die textList im
+                    //    Instanz-Editor zeigt die ListResource der Instanz
+                    //    (Name = listName der textList). Der Instanz-Editor
+                    //    persistiert textList-Eintraege GENAU SO:
+                    //    getListResource(name) -> ListResource.setValues()
+                    //    -> addResource. Die Instanz-Variable (value/
+                    //    possibleValues) ist NICHT die Anzeige-Quelle
+                    //    (v18/v20-Beweis: Tab blieb leer).
+                    de.vertico.starface.module.core.model.resource.ListResource lr =
+                        mi.getListResource(GUI_BLOCKED_NUMBERS_VAR_NAME);
+                    if (lr == null)
                     {
-                        // textList-Widget im Instanz-Editor: Die sichtbaren
-                        // Eintraege sind die possibleValues der LIST-Variablen,
-                        // value ist die aktuelle Auswahl. Variable-API ist
-                        // String-only (setValue(String)); die Eintraege kommen
-                        // ueber setPossibleValues(List<String>).
-                        var.setPossibleValues(entries);
-                        if (!entries.isEmpty())
-                        {
-                            var.setValue(entries.get(0));
-                        }
-                        ModuleRuntime runtime =
-                            context.springApplicationContext()
-                                   .getBean(ModuleRuntime.class);
-                        ModuleInstanceProject project = new ModuleInstanceProject(mi);
-                        runtime.updateModuleInstance(project);
-                        log.info("ListManager: Instanz-Konfig aktualisiert — GUI-Variable '"
-                                 + GUI_BLOCKED_NUMBERS_VAR_NAME + "' possibleValues ("
-                                 + entries.size() + " Eintraege): " + entries);
+                        lr = new de.vertico.starface.module.core.model.resource.ListResource();
+                        lr.setName(GUI_BLOCKED_NUMBERS_VAR_NAME);
+                        mi.addResource(lr);
                     }
-                    else
-                    {
-                        java.util.List<Variable> ivs = mi.getInputVars();
-                        log.warn("ListManager: GUI-Variable '" + GUI_BLOCKED_NUMBERS_VAR_NAME
-                                 + "' nicht in den inputVars des Instanz-Modells — inputVars ("
-                                 + (ivs == null ? 0 : ivs.size()) + "):");
-                        if (ivs != null)
-                        {
-                            for (Variable v : ivs)
-                            {
-                                log.warn("  name='" + v.getName() + "' id='" + v.getId()
-                                         + "' type=" + v.getType());
-                            }
-                        }
-                    }
+                    lr.setValues(entries);
+                    ModuleRuntime runtime =
+                        context.springApplicationContext()
+                               .getBean(ModuleRuntime.class);
+                    ModuleInstanceProject project = new ModuleInstanceProject(mi);
+                    runtime.updateModuleInstance(project);
+                    log.info("ListManager: textList-Resource '" + GUI_BLOCKED_NUMBERS_VAR_NAME
+                             + "' aktualisiert (ListResource, " + entries.size()
+                             + " Eintraege): " + lr.getValues());
                 }
                 else
                 {
