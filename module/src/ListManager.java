@@ -18,16 +18,22 @@ import java.util.*;
 
 import org.apache.logging.log4j.Logger;
 
+import de.vertico.starface.module.core.model.ModuleInstance;
+import de.vertico.starface.module.core.model.ModuleInstanceProject;
+import de.vertico.starface.module.core.model.Variable;
 import de.vertico.starface.module.core.runtime.IRuntimeEnvironment;
+import de.vertico.starface.module.core.runtime.ModuleRuntime;
 import de.vertico.starface.module.core.runtime.VariableScope;
 
 public class ListManager
 {
     /**
-     * ID der Modul-GUI-Variable "Geblockte Nummern" (declariert im
-     * module-descriptor.xml als GUI_BLOCKED_NUMBERS, type LIST; gebunden an
-     * die textList im inputGUITabs-Tab "Geblockte Nummern").
+     * Name der Modul-GUI-Variable (declariert in module-descriptor.xml unter
+     * module/inputVars, type LIST; gebunden an die textList im inputGUITabs-Tab
+     * "Geblockte Rufnummern"). Der Name/ID-Satz stammt aus dem STARFACE-Designer-
+     * Export (kanonisches Format, Descriptor version=15).
      */
+    public static final String GUI_BLOCKED_NUMBERS_VAR_NAME = "GUI_GEBLOCKTE_RUFNUMMERN";
     public static final String GUI_BLOCKED_NUMBERS_VAR_ID =
         "c42f4bb5-dfa4-42bb-b907-1aae15471d1d";
 
@@ -103,11 +109,17 @@ public class ListManager
 
     /**
      * Schreibt den aktuellen Inhalt der blocklist.txt in die Modul-GUI-Variable
-     * "Geblockte Nummern" (Instanz-Scope) — so zeigt der gleichnamige Tab in
-     * der Modul-Instanz-Konfiguration der STARFACE-Verwaltung den aktuellen Stand.
+     * "Geblockte Rufnummern" — so zeigt der gleichnamige Tab in der
+     * Modul-Instanz-Konfiguration der STARFACE-Verwaltung den aktuellen Stand.
      *
-     * Kanonischer Weg: context.getScope(VariableScope.Instance) — STARFACE-intern
-     * genauso von GetVariableValue2 genutzt (Bytecode-verifiziert, 10.0.2.5).
+     * Zwei Ebenen (beide bytecode-verifiziert, STARFACE 10.0.2.5):
+     *  1) Laufzeit-Scope: context.getScope(VariableScope.Instance).put(...)
+     *     (STARFACE-intern genutzt von GetVariableValue2)
+     *  2) PERSISTENZ (Anzeige Instanz-Editor): ModuleInstance über
+     *     InvocationInfo.getModuleInstance(), Variable.setValue(...),
+     *     ModuleInstanceProject + ModuleRuntime.updateModuleInstance(...)
+     *     -> schreibt instance-config.xml und feuert InstanceUpdated.
+     * LIST-Werte werden in der Instanz-Konfiguration kommagetrennt gespeichert.
      */
     public static void syncGuiList(IRuntimeEnvironment context, Logger log)
     {
@@ -116,8 +128,42 @@ public class ListManager
             List<String> entries = loadBlocklist(context, log);
             context.getScope(VariableScope.Instance)
                    .put(GUI_BLOCKED_NUMBERS_VAR_ID, entries);
-            log.info("ListManager: GUI-Variable '" + GUI_BLOCKED_NUMBERS_VAR_ID
-                     + "' aktualisiert (" + entries.size() + " Einträge)");
+
+            String csv = String.join(",", entries);
+            try
+            {
+                ModuleInstance mi = context.getInvocationInfo().getModuleInstance();
+                if (mi != null)
+                {
+                    Variable var = mi.findVisibleVariable(GUI_BLOCKED_NUMBERS_VAR_NAME);
+                    if (var != null)
+                    {
+                        var.setValue(csv);
+                        ModuleRuntime runtime =
+                            context.springApplicationContext()
+                                   .getBean(ModuleRuntime.class);
+                        ModuleInstanceProject project = new ModuleInstanceProject(mi);
+                        runtime.updateModuleInstance(project);
+                        log.info("ListManager: Instanz-Konfig aktualisiert — GUI-Variable '"
+                                 + GUI_BLOCKED_NUMBERS_VAR_NAME + "' = '" + csv
+                                 + "' (zurückgelesen: '" + var.getValue() + "')");
+                    }
+                    else
+                    {
+                        log.warn("ListManager: GUI-Variable '" + GUI_BLOCKED_NUMBERS_VAR_NAME
+                                 + "' nicht im Instanz-Modell gefunden (findVisibleVariable)");
+                    }
+                }
+                else
+                {
+                    log.warn("ListManager: getInvocationInfo().getModuleInstance() == null");
+                }
+            }
+            catch (Exception e)
+            {
+                log.warn("ListManager: Persist-Sync (updateModuleInstance) fehlgeschlagen"
+                         + " — nur Runtime-Scope gesetzt", e);
+            }
         }
         catch (Exception e)
         {
