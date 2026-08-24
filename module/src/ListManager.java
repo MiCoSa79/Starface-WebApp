@@ -136,6 +136,11 @@ public class ListManager
                 if (mi != null)
                 {
                     Variable var = mi.findVisibleVariable(GUI_BLOCKED_NUMBERS_VAR_NAME);
+                    if (var == null
+                            && !GUI_BLOCKED_NUMBERS_VAR_NAME.equals(GUI_BLOCKED_NUMBERS_VAR_ID))
+                    {
+                        var = mi.findVisibleVariable(GUI_BLOCKED_NUMBERS_VAR_ID);
+                    }
                     if (var != null)
                     {
                         var.setValue(csv);
@@ -151,7 +156,14 @@ public class ListManager
                     else
                     {
                         log.warn("ListManager: GUI-Variable '" + GUI_BLOCKED_NUMBERS_VAR_NAME
-                                 + "' nicht im Instanz-Modell gefunden (findVisibleVariable)");
+                                 + "' / ID '" + GUI_BLOCKED_NUMBERS_VAR_ID
+                                 + "' nicht im Instanz-Modell gefunden — sichtbare Variablen ("
+                                 + mi.getAllVisibleVariables().size() + "):");
+                        for (Variable v : mi.getAllVisibleVariables())
+                        {
+                            log.warn("  name='" + v.getName() + "' id='" + v.getId()
+                                     + "' type=" + v.getType());
+                        }
                     }
                 }
                 else
