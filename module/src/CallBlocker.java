@@ -51,37 +51,37 @@ public class CallBlocker implements IAGIJavaExecutable
         Logger log = context.getLog();
         String channel = context.getCallerChannelName();
 
-        logAll(context, log, "INFO", "CallBlocker: EINTRITT (channel="
+        logAll(context, "INFO", "CallBlocker: EINTRITT (channel="
                + (channel == null ? "null" : channel) + ")");
 
         // Kein aktiver Kanal? → nichts tun
         if (channel == null || channel.isEmpty())
         {
-            logAll(context, log, "INFO", "CallBlocker: kein aktiver Kanal -> Abbruch");
+            logAll(context, "INFO", "CallBlocker: kein aktiver Kanal -> Abbruch");
             return;
         }
 
         // 1) Anrufernummer auflösen
         String callerNumber = resolveCallerNumber(context);
-        logAll(context, log, "INFO", "CallBlocker: callerSignallingNumber RAW = '"
+        logAll(context, "INFO", "CallBlocker: callerSignallingNumber RAW = '"
                + callerNumber + "'");
         if (callerNumber == null)
         {
-            logAll(context, log, "WARN", "CallBlocker: keine Anrufernummer gefunden -> Abbruch");
+            logAll(context, "WARN", "CallBlocker: keine Anrufernummer gefunden -> Abbruch");
             return;
         }
 
         String normalized = normalize(callerNumber);
-        logAll(context, log, "INFO", "CallBlocker: normalisiert = '" + normalized + "'");
+        logAll(context, "INFO", "CallBlocker: normalisiert = '" + normalized + "'");
         if (normalized.isEmpty())
         {
-            logAll(context, log, "WARN", "CallBlocker: nummer nach Normalisierung leer -> Abbruch");
+            logAll(context, "WARN", "CallBlocker: nummer nach Normalisierung leer -> Abbruch");
             return;
         }
 
         // 2) Blocklist laden (ListResource der Instanz, seit v22)
         List<String> patterns = loadBlocklist(context, log);
-        logAll(context, log, "INFO", "CallBlocker: Blocklist geladen -> "
+        logAll(context, "INFO", "CallBlocker: Blocklist geladen -> "
                + patterns.size() + " Muster: " + patterns);
 
         // 3) Prüfen — exakt die STARFACE-SimpleMatch-Semantik (wie Referenzmodul
@@ -89,22 +89,23 @@ public class CallBlocker implements IAGIJavaExecutable
         //    eines, kompletter String-Match. Verglichen wird gegen die RAW-
         //    Anrufernummer (callerSignallingNumber) und als Fallback gegen die
         //    normalisierte Form (deckt 0…/0049…-Lieferungen der Anlage ab).
-        logAll(context, log, "INFO", "CallBlocker: prüfe Anruf von " + callerNumber
+        logAll(context, "INFO", "CallBlocker: prüfe Anruf von " + callerNumber
                + " (normalisiert: " + normalized + ") gegen "
                + patterns.size() + " Muster");
-        if (matchesAny(context, log, callerNumber, normalized, patterns))
+        if (matchesAny(context, callerNumber, normalized, patterns))
         {
-            // 4) Abweisen + Log
+            // 4) Abweisen + Log — BLOCKED-Meldung nur über den dokumentierten
+            //    Log2-Baustein (Modul-Log); getLog() ist kein Schreib-Baustein!
             ModuleBusinessObject MBO = (ModuleBusinessObject)
                 context.springApplicationContext().getBean(ModuleBusinessObject.class);
             MBO.hangup(channel, HangupCause.NORMAL_CLEARING);
-            logAll(context, log, "INFO", "BLOCKED: Anruf von " + callerNumber
+            logAll(context, "INFO", "BLOCKED: Anruf von " + callerNumber
                    + " (normalisiert: " + normalized + ") abgewiesen (Blocklist)");
             BlockStatus = true;
             return;
         }
         // Kein Treffer: nichts weiter tun — Route läuft normal weiter
-        logAll(context, log, "INFO", "CallBlocker: kein Treffer -> Anruf läuft normal weiter");
+        logAll(context, "INFO", "CallBlocker: kein Treffer -> Anruf läuft normal weiter");
         BlockStatus = false;
     }
 
@@ -175,7 +176,7 @@ public class CallBlocker implements IAGIJavaExecutable
      * und 2) als Fallback gegen die normalisierte Form (49…-Schreibweise,
      * deckt Anlagen ab, die nationale 0…/0049…-Formate liefern).
      */
-    private boolean matchesAny(IAGIRuntimeEnvironment context, Logger log,
+    private boolean matchesAny(IAGIRuntimeEnvironment context,
                               String rawNumber, String normalizedNumber,
                               List<String> patterns)
     {
@@ -185,17 +186,17 @@ public class CallBlocker implements IAGIJavaExecutable
             {
                 continue;
             }
-            if (simpleMatch(context, log, rawNumber, p)
+            if (simpleMatch(context, rawNumber, p)
                 || (!normalizedNumber.equals(rawNumber)
-                    && simpleMatch(context, log, normalizedNumber, p)))
+                    && simpleMatch(context, normalizedNumber, p)))
             {
-                logAll(context, log, "INFO", "BLOCKLIST-MATCH: Muster '" + p
+                logAll(context, "INFO", "BLOCKLIST-MATCH: Muster '" + p
                        + "' traf auf '" + rawNumber + "'");
                 return true;
             }
             else
             {
-                logAll(context, log, "INFO", "CallBlocker: Muster '" + p
+                logAll(context, "INFO", "CallBlocker: Muster '" + p
                        + "' -> kein Match (RAW='" + rawNumber
                        + "', norm='" + normalizedNumber + "')");
             }
@@ -204,15 +205,16 @@ public class CallBlocker implements IAGIJavaExecutable
     }
 
     /**
-     * Schreibt eine Meldung in das MODUL-Log (Log2-Baustein, exakt wie das
-     * Referenzmodul "Blacklist v64" — erscheint im Modul-/Instanz-Log) UND
-     * zusätzlich über context.getLog() ins System-Logbuch. level: DEBUG,
-     * INFO, WARN, ERROR.
+     * Schreibt eine Meldung in das MODUL-Log über den dokumentierten
+     * Log2-Baustein (API-Doku: „Logs a message to the module log file.
+     * Additionally, error messages will be appended to the STARFACE error
+     * log." — exakt wie das Referenzmodul "Blacklist v64"). Erscheint im
+     * Modul-/Instanz-Log der Admin-UI. HINWEIS: context.getLog() ist KEIN
+     * Schreib-Baustein (nur ein Getter) — alle Ausgaben laufen hier
+     * ausschließlich über Log2. level: DEBUG, INFO, WARN, ERROR.
      */
-    private void logAll(IAGIRuntimeEnvironment context, Logger log,
-                        String level, String msg)
+    private void logAll(IAGIRuntimeEnvironment context, String level, String msg)
     {
-        // 1) Log2-Baustein -> Modul-Log (das Log, das der Nutzer im Admin-UI sieht)
         try
         {
             Log2 l = new Log2();
@@ -222,25 +224,12 @@ public class CallBlocker implements IAGIJavaExecutable
         }
         catch (Exception e1)
         {
-            try { log.warn("Log2-Ausgabe fehlgeschlagen: " + e1.getMessage()); }
-            catch (Exception ignored) {}
+            // Log-Fehler darf den Anrufpfad nie stören — bewusst still
         }
-        // 2) Log4J -> System-Logbuch (Fallback)
-        try
-        {
-            switch (level)
-            {
-                case "ERROR": log.error(msg); break;
-                case "WARN":  log.warn(msg);  break;
-                case "DEBUG": log.debug(msg); break;
-                default:      log.info(msg);  break;
-            }
-        }
-        catch (Exception ignored) {}
     }
 
     /** Führt den STARFACE-SimpleMatch-Baustein direkt aus (wie Referenzmodul). */
-    private boolean simpleMatch(IAGIRuntimeEnvironment context, Logger log,
+    private boolean simpleMatch(IAGIRuntimeEnvironment context,
                                 String text, String pattern)
     {
         try
@@ -253,7 +242,7 @@ public class CallBlocker implements IAGIJavaExecutable
         }
         catch (Exception e)
         {
-            logAll(context, log, "ERROR", "SimpleMatch-Fehler bei Muster '"
+            logAll(context, "ERROR", "SimpleMatch-Fehler bei Muster '"
                    + pattern + "' gegen '" + text + "': "
                    + e.getClass().getName() + ": " + e.getMessage());
             return false;
