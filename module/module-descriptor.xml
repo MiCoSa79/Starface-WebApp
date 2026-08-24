@@ -1,16 +1,18 @@
-<?xml version='1.0' encoding='UTF-8'?>
-<module lastChangedTime="1784793600000" moduleType="EXTENDED" createTime="1784793600000" id="a3c1b4e5-8f2d-4a7b-9c1e-2d4f6a8b0c1e" name="CallBlocker" specVersion="5" vendor="MiCoSa79" version="1">
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<module lastChangedTime="1785398400000" moduleType="EXTENDED" createTime="1784793600000"
+        id="a3c1b4e5-8f2d-4a7b-9c1e-2d4f6a8b0c1e" name="CallBlocker" specVersion="5"
+        vendor="MiCoSa79" version="2">
     <description>Weist Anrufe von Rufnummern aus der Blocklist ab.</description>
-    <descriptionURL />
+    <descriptionURL></descriptionURL>
     <disabled>false</disabled>
-    <inputVars />
-    <outputVars />
-    <resources />
-    <children />
+    <inputVars/>
+    <outputVars/>
+    <resources/>
+    <children/>
     <createdWith>STARFACE 10.0.2.5</createdWith>
     <defaultLocale>de</defaultLocale>
     <editable>true</editable>
-    <entryPoints><rpcEntryPoint id="48aa0dfd-40f5-4449-b40b-4a667b313ad9" name="ListGet"><functionReference targetDomainId="test" targetId="2a1fe3da-a881-4c0e-94b1-0822ba1f92e9" targetName="ListGet" targetVersion="0" /><type>XMLRPC_auth</type></rpcEntryPoint></entryPoints>
+    <entryPoints/>
     <resourceKeys>
         <entries>
             <key>en</key>
@@ -24,6 +26,6 @@
         <propertyName>NAME</propertyName>
     </resourceKeys>
     <shortDescription>Rufnummern-Blacklist zum Abweisen unerwünschter Anrufe</shortDescription>
-    <noLicenseId>c8aec1e8206ba90a1b918889e69755e6ef011f29</noLicenseId>
-    <writeHash />
+    <noLicenseId>6a40e5ef038db60d65bd1321375bb20be179e6c2</noLicenseId>
+    <writeHash/>
 </module>
