@@ -51,6 +51,33 @@ def main() -> None:
         sys.exit("FEHLER: keine .class-Dateien in classes/")
 
     manifest = MANIFEST_TEMPLATE.format(module_id=module_id)
+
+    # 1) Descriptor laden und rpcEntryPoint-Elemente einfügen
+    import xml.etree.ElementTree as _ET
+    tree = _ET.parse(DESCRIPTOR)
+    root = tree.getroot()
+    entry_points = root.find("entryPoints")
+    # Prüfen ob rpcEntryPoints schon existieren (sonst beim nächsten Build doppelt)
+    existing = entry_points.findall("rpcEntryPoint") if entry_points is not None else []
+    rpc_classes = ["ListGet", "ListAdd", "ListRemove"]
+    if not existing:
+        import uuid as _uuid
+        for cls_name in rpc_classes:
+            if cls_name not in classes:
+                continue
+            eid = str(_uuid.uuid4())
+            rpc_ep = _ET.SubElement(entry_points, "rpcEntryPoint")
+            rpc_ep.set("id", eid)
+            rpc_ep.set("name", cls_name)
+            fr = _ET.SubElement(rpc_ep, "functionReference")
+            fr.set("targetDomainId", module_id)
+            fr.set("targetId", str(_uuid.uuid4()))
+            fr.set("targetName", cls_name)
+            fr.set("targetVersion", "0")
+            tp = _ET.SubElement(rpc_ep, "type")
+            tp.text = "XMLRPC_auth"
+        tree.write(DESCRIPTOR, encoding="UTF-8", xml_declaration=True)
+
     with zipfile.ZipFile(OUT, "w") as z:
         z.writestr(zipfile.ZipInfo("META-INF/MANIFEST.MF"), manifest,
                    compress_type=zipfile.ZIP_STORED)
