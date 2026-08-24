@@ -142,22 +142,24 @@ public class ListManager
                     Variable var = mi.getInputVar(GUI_BLOCKED_NUMBERS_VAR_NAME);
                     if (var != null)
                     {
-                        java.util.List<Object> listValue =
-                            new java.util.ArrayList<Object>();
-                        for (String e : entries)
+                        // textList-Widget im Instanz-Editor: Die sichtbaren
+                        // Eintraege sind die possibleValues der LIST-Variablen,
+                        // value ist die aktuelle Auswahl. Variable-API ist
+                        // String-only (setValue(String)); die Eintraege kommen
+                        // ueber setPossibleValues(List<String>).
+                        var.setPossibleValues(entries);
+                        if (!entries.isEmpty())
                         {
-                            listValue.add(e);
+                            var.setValue(entries.get(0));
                         }
-                        var.setValue(listValue);
                         ModuleRuntime runtime =
                             context.springApplicationContext()
                                    .getBean(ModuleRuntime.class);
                         ModuleInstanceProject project = new ModuleInstanceProject(mi);
                         runtime.updateModuleInstance(project);
                         log.info("ListManager: Instanz-Konfig aktualisiert — GUI-Variable '"
-                                 + GUI_BLOCKED_NUMBERS_VAR_NAME + "' = "
-                                 + var.getValue() + " (List, " + listValue.size()
-                                 + " Einträge)");
+                                 + GUI_BLOCKED_NUMBERS_VAR_NAME + "' possibleValues ("
+                                 + entries.size() + " Eintraege): " + entries);
                     }
                     else
                     {
