@@ -145,7 +145,13 @@
             <div class="info">{{ inst.url }}{% if inst.is_starface10 %}<span class="badge">v10+</span>{% else %}<span class="badge">v9</span>{% endif %}</div>
             <div class="actions">
                 <a href="/installation/{{ inst.id }}/blocklist" class="btn-primary">Blocklist bearbeiten</a>
-                <a href="/installation/{{ inst.id }}/test" class="btn-secondary">Verbindungstest</a>
+                <button onclick="testConn({{ inst.id }}, '{{ inst.name }}')"
+                        class="btn-secondary" style="font-size:13px; padding:6px 12px;
+                        border:1px solid var(--color-border); border-radius:6px;
+                        background:none; color:var(--color-text); cursor:pointer;"
+                        title="Verbindung testen (STARFACE-WebApp → Anlage)">
+                    ⚡ Test
+                </button>
             </div>
         </div>
         {% endfor %}
@@ -153,5 +159,26 @@
         <div class="footer">STARFACE WebApp {{ version }}</div>
     </div>
     <script src="/static/pwa.js" defer></script>
+    <script>
+    function testConn(instId, name) {
+        const btn = event.target;
+        btn.textContent = "⏳ Prüfe..."; btn.disabled = true;
+        fetch("/installation/" + instId + "/test")
+            .then(r => r.json())
+            .then(d => {
+                if (d.ok) {
+                    alert("✅ " + name + "\nVerbunden – " + d.entries + " Nummern in der Blocklist");
+                } else {
+                    alert("❌ " + name + "\n" + (d.error || "Fehler beim Verbindungsaufbau"));
+                }
+            })
+            .catch(err => {
+                alert("❌ " + name + "\nNetzwerkfehler: " + err);
+            })
+            .finally(() => {
+                btn.textContent = "⚡ Test"; btn.disabled = false;
+            });
+    }
+    </script>
 </body>
 </html>
