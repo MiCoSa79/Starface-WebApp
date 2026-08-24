@@ -1310,10 +1310,57 @@ async def blocklist_add(request: Request, inst_id: int, numbers: str = Form(""))
                                 status_code=303)
     if last is not None and last["values"] and last["values"][-1] == "0":
         return RedirectResponse(
-            f"/installation/{inst_id}/blocklist?error={quote('STARFACE hat die letzte Nummer nicht übernommen (Bestätigung 0) — blocklist.txt-Pfad im Modul prüfen')}",
+            f"/installation/{inst_id}/blocklist?error={quote('STARFACE hat die letzte Nummer nicht übernommen (Bestätigung 0) — Modul-Log prüfen')}",
             status_code=303)
     return RedirectResponse(f"/installation/{inst_id}/blocklist?ok={len(cleaned)}",
                             status_code=303)
+
+
+@app.post("/installation/{inst_id}/blocklist/update")
+async def blocklist_update(request: Request, inst_id: int, old_number: str = Form(...),
+                           new_number: str = Form(...)):
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user:
+        return RedirectResponse("/")
+    acc = get_access(user["user_id"], inst_id)
+    if not acc["can_write"]:
+        return RedirectResponse("/dashboard")
+
+    conn = _db()
+    inst = conn.execute("SELECT * FROM installations WHERE id=?", (inst_id,)).fetchone()
+    conn.close()
+    if not inst:
+        return RedirectResponse("/dashboard")
+
+    old_number = old_number.strip()
+    new_number = new_number.strip()
+    if not new_number:
+        return RedirectResponse(
+            f"/installation/{inst_id}/blocklist?error={quote('Bitte eine Rufnummer eingeben.')}",
+            status_code=303)
+    if old_number == new_number:
+        return RedirectResponse(f"/installation/{inst_id}/blocklist?ok=1", status_code=303)
+
+    try:
+        token = _get_token(inst)
+        # Verlustfrei: erst die neue Nummer hinzufügen, dann die alte entfernen.
+        last = _xmlrpc(inst["url"], token, "ListAdd", {"INPUT_NUMMERN": new_number},
+                       instance_name=inst["module_instance_name"])
+        if last is not None and last["values"] and last["values"][-1] == "0":
+            return RedirectResponse(
+                f"/installation/{inst_id}/blocklist?error={quote('STARFACE hat die neue Nummer nicht übernommen (Bestätigung 0) — der alte Eintrag bleibt unverändert')}",
+                status_code=303)
+        last2 = _xmlrpc(inst["url"], token, "ListRemove", {"INPUT_NUMMERN": old_number},
+                        instance_name=inst["module_instance_name"])
+        if last2 is not None and last2["values"] and last2["values"][-1] == "0":
+            return RedirectResponse(
+                f"/installation/{inst_id}/blocklist?error={quote('Die neue Nummer wurde hinzugefügt, aber die alte konnte nicht entfernt werden (Bestätigung 0)')}",
+                status_code=303)
+        _log_event(inst_id, user["user_id"], "blocklist_update", f"{old_number} -> {new_number}")
+    except Exception as e:
+        return RedirectResponse(f"/installation/{inst_id}/blocklist?error={quote(str(e))}",
+                                status_code=303)
+    return RedirectResponse(f"/installation/{inst_id}/blocklist?ok=1", status_code=303)
 
 
 @app.post("/installation/{inst_id}/blocklist/remove")

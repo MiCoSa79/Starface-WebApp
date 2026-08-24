@@ -49,8 +49,18 @@
         .btn-secondary { background: #333; color: #ccc; }
         .btn-danger { background: #8b0000; color: #fff; }
         .entry { display: flex; justify-content: space-between; align-items: center;
+                 flex-wrap: wrap; gap: 8px;
                  background: #0f3460; padding: 10px 14px; border-radius: 8px;
                  margin-bottom: 8px; font-family: monospace; font-size: 16px; }
+        .entry .num { word-break: break-all; }
+        .actions { display: flex; align-items: center; gap: 8px; }
+        .actions form { margin: 0; }
+        .edit-form { display: none; gap: 8px; flex-wrap: wrap; align-items: center;
+                     background: #0a2540; padding: 10px 14px; border-radius: 8px;
+                     margin: -4px 0 8px; border-left: 3px solid #e94560; }
+        .edit-form.open { display: flex; }
+        .edit-form input[type="text"] { flex: 1 1 200px; min-width: 0; width: auto; }
+        .edit-form button { white-space: nowrap; }
 
         /* Navigation */
         .nav { background: #16213e; border-bottom: 1px solid #333;
@@ -79,6 +89,7 @@
             table { display: block; overflow-x: auto; white-space: nowrap; }
         }
         .entry form { margin: 0; }
+        .edit-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; width: 100%; }
         .wildcards { color: #666; font-size: 12px; margin-top: 6px; }
         .empty { color: #666; text-align: center; padding: 24px; }
         .hint { color: #888; font-size: 13px; margin-bottom: 8px; }
@@ -149,14 +160,26 @@
             <div class="hint">{{ numbers|length }} Einträge:</div>
             {% for n in numbers %}
             <div class="entry">
-                <span>{{ n }}</span>
+                <span class="num">{{ n }}</span>
                 {% if can_write %}
-                <form method="POST" action="/installation/{{ inst.id }}/blocklist/remove">
-                    <input type="hidden" name="number" value="{{ n }}">
-                    <button type="submit" class="btn-danger">Entfernen</button>
-                </form>
+                <div class="actions">
+                    <button type="button" class="btn-secondary edit-toggle" data-edit="edit-{{ loop.index0 }}" title="Rufnummer ändern" aria-label="Rufnummer {{ n }} ändern">Ändern</button>
+                    <form method="POST" action="/installation/{{ inst.id }}/blocklist/remove">
+                        <input type="hidden" name="number" value="{{ n }}">
+                        <button type="submit" class="btn-danger">Entfernen</button>
+                    </form>
+                </div>
                 {% endif %}
             </div>
+            {% if can_write %}
+            <form method="POST" action="/installation/{{ inst.id }}/blocklist/update" class="edit-form" id="edit-{{ loop.index0 }}">
+                <input type="hidden" name="old_number" value="{{ n }}">
+                <label class="sr-only" for="new_number_{{ loop.index0 }}">Neue Rufnummer</label>
+                <input type="text" name="new_number" id="new_number_{{ loop.index0 }}" value="{{ n }}" autocomplete="off" style="font-size:16px;" required>
+                <button type="submit" class="btn-primary">Speichern</button>
+                <button type="button" class="btn-secondary edit-cancel">Abbrechen</button>
+            </form>
+            {% endif %}
             {% endfor %}
         {% else %}
             <div class="empty">Liste ist leer.</div>
@@ -174,6 +197,27 @@
                 .then(r => r.json())
                 .then(d => alert(d.ok ? 'Verbindung OK (' + d.entries + ' Einträge)' : 'Fehler: ' + d.error))
                 .catch(err => alert('Fehler: ' + err));
+        });
+
+        // Ändern-Formulare: ein- und ausblenden
+        document.querySelectorAll('.edit-toggle').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var form = document.getElementById(btn.getAttribute('data-edit'));
+                if (!form) { return; }
+                var open = form.classList.contains('open');
+                document.querySelectorAll('.edit-form.open').forEach(function (f) { f.classList.remove('open'); });
+                if (!open) {
+                    form.classList.add('open');
+                    var inp = form.querySelector('input[type="text"]');
+                    if (inp) { inp.focus(); inp.select(); }
+                }
+            });
+        });
+        document.querySelectorAll('.edit-cancel').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var f = btn.closest('.edit-form');
+                if (f) { f.classList.remove('open'); }
+            });
         });
     </script>
 
