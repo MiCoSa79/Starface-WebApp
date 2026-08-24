@@ -300,7 +300,8 @@ def starface_token(url: str, auth_id: str, auth_pass: str, client_secret: str,
     v10 (is_starface10=True): OAuth2 Password Grant gegen
       /auth/realms/pbx/oauth2/token (client_id=rest-client-headless).
       KEIN Legacy-Fallback (v9-Auth verschwindet mit Version 11)!
-      Erst Basic-Auth-Header, dann Form-Fields (Keycloak-Varianten).
+      Erst Basic-Auth-Header (Secret NUR im Header, client_id NICHT im Body),
+      dann Form-Fields (client_id + client_secret im Body).
       Refresh-Token wird bei Ablauf automatisch verwendet.
     ≤9 (is_starface10=False): Legacy-Token Login:sha512(Login+"*"+sha512(PW)).
     """
@@ -336,36 +337,48 @@ def starface_token(url: str, auth_id: str, auth_pass: str, client_secret: str,
         except Exception:
             pass  # Refresh fehlgeschlagen → neu einloggen
     # 3) Frischer Password Grant
+    if not client_secret:
+        raise RuntimeError(
+            "Client-Secret fehlt in der WebApp! Unter Admin → Anlage bearbeiten "
+            "das Client-Secret aus Admin-UI → Server → Status → REST-API eintragen.")
     errors = []
-    bases = [
-        ("Basic-Auth", {"Authorization": "Basic " + base64.b64encode(
-            f"rest-client-headless:{client_secret}".encode()).decode()}, True),
-        ("Form-Fields", {}, False),  # Secret im Body statt Header
-    ]
-    for label, headers, secret_in_header in bases:
-        try:
-            data = {
-                "client_id": "rest-client-headless",
-                "grant_type": "password",
-                "scope": "login",
-                "username": auth_id,
-                "password": auth_pass,
-            }
-            if not secret_in_header:
-                data["client_secret"] = client_secret
-            j = _oauth(data, headers)
-            access = j.get("access_token", "")
-            if not access:
-                raise RuntimeError("kein access_token in Antwort")
-            return access, j.get("refresh_token", ""), now + int(j.get("expires_in", 300))
-        except Exception as e:
-            errors.append(f"{label}: {e}")
+    # Variante A: Basic-Auth-Header (client_id NUR im Header, NICHT im Body)
+    try:
+        j = _oauth({
+            "grant_type": "password",
+            "scope": "login",
+            "username": auth_id,
+            "password": auth_pass,
+        }, {"Authorization": "Basic " + base64.b64encode(
+            f"rest-client-headless:{client_secret}".encode()).decode()})
+        access = j.get("access_token", "")
+        if not access:
+            raise RuntimeError("kein access_token in Antwort")
+        return access, j.get("refresh_token", ""), now + int(j.get("expires_in", 300))
+    except Exception as e:
+        errors.append(f"Basic-Auth: {e}")
+    # Variante B: Form-Fields (client_id + client_secret im Body)
+    try:
+        j = _oauth({
+            "client_id": "rest-client-headless",
+            "client_secret": client_secret,
+            "grant_type": "password",
+            "scope": "login",
+            "username": auth_id,
+            "password": auth_pass,
+        }, {})
+        access = j.get("access_token", "")
+        if not access:
+            raise RuntimeError("kein access_token in Antwort")
+        return access, j.get("refresh_token", ""), now + int(j.get("expires_in", 300))
+    except Exception as e:
+        errors.append(f"Form-Fields: {e}")
     raise RuntimeError(
-        "OAuth2-Login fehlgeschlagen (401). Prüfen: "
+        "OAuth2-Login fehlgeschlagen. Prüfen auf der Anlage: "
         "(1) Benutzer hat das Recht „API Zugriff mit OAuth Password Grant“ "
         "(Admin-UI → Benutzer → Rechte), "
-        "(2) Client-Secret korrekt (Admin-UI → Server → Status → REST-API), "
-        "(3) Auth-ID ist die Login-ID (z. B. 0001). "
+        "(2) Client-Secret ist das AKTUELLE aus Admin-UI → Server → Status → REST-API, "
+        "(3) Auth-ID ist die Login-ID (z. B. 0001) und Passwort korrekt. "
         + " | ".join(errors))
 
 
