@@ -50,7 +50,7 @@ def _encrypt(plain: str) -> str:
 
 
 def _decrypt(stored: str) -> str:
-    if not _FERNET or not stored.startswith("enc:"):
+    if not _FERNET or not stored or not stored.startswith("enc:"):
         return stored
     return _FERNET.decrypt(stored[4:].encode()).decode()
 
@@ -409,12 +409,18 @@ def _get_token(inst) -> str:
 
 
 def _xmlrpc(url: str, token: str, method: str, params: dict = None,
-             instance_name: str = None) -> dict:
+            instance_name: str = None) -> dict:
     """Führt einen XML-RPC-Call gegen die STARFACE aus.
 
     Wenn instance_name gesetzt ist, wird das Präfix
     ``[instance_name].`` vor den method-Namen gesetzt.
+
+    Antwort: {"raw": ..., "values": [...]} — values enthält alle
+    sichtbaren Werte (string/int/i4/boolean) in Antwort-Reihenfolge.
+    XML-RPC-Faults werden als RuntimeError mit faultString geworfen —
+    vorher wurden sie verschluckt (fälschliche „erfolgreich“-Meldungen).
     """
+    import xml.etree.ElementTree as ET
     url = _ensure_url(url)
     # RPC-Präfix für Module: [Instanzname].[EntryPoint]
     if instance_name:
@@ -439,10 +445,38 @@ def _xmlrpc(url: str, token: str, method: str, params: dict = None,
         timeout=20,
     )
     r.raise_for_status()
-    # Ergebnis: letztes <string> im Response (einfache Antworten)
-    import re
-    strings = re.findall(r"<string>(.*?)</string>", r.text, re.S)
-    return {"raw": r.text, "values": strings}
+    # Antwort robust parsen (STARFACE liefert <string>, <int>, Faults oder HTML)
+    try:
+        root = ET.fromstring(r.text)
+    except ET.ParseError as e:
+        raise RuntimeError(f"Keine gültige XML-RPC-Antwort von STARFACE: {e} — Roh: {r.text[:300]}")
+    if root.tag != "methodResponse":
+        raise RuntimeError(f"Keine XML-RPC-Antwort von STARFACE (Root <{root.tag}>) — Roh: {r.text[:300]}")
+    fault = root.find(".//fault")
+    if fault is not None:
+        fs = fault.find(".//string")
+        msg = fs.text if fs is not None and fs.text else "XML-RPC-Fault (Details fehlen)"
+        raise RuntimeError(f"STARFACE-Fehler: {msg} — Roh: {r.text[:300]}")
+    values = []
+    for v in root.iter():
+        if v.tag in ("string", "int", "i4", "boolean") and v.text and v.text.strip():
+            values.append(v.text)
+    return {"raw": r.text, "values": values}
+
+
+def _split_numbers(values: list) -> list:
+    """Splittet STARFACE-Listenantworten in einzelne Nummern.
+
+    Das CallBlocker-Modul liefert die Einträge kommasepariert in EINEM
+    String (OUTPUT_NUMMERN) — z. B. [\"+491512345678,+491512345679\"].
+    """
+    out = []
+    for v in values:
+        for part in v.split(","):
+            part = part.strip()
+            if part:
+                out.append(part)
+    return out
 
 
 # ─────────────────────────────────────────────────────────────
@@ -886,7 +920,7 @@ async def admin_installation_test_conn(request: Request, inst_id: int):
         url = inst["url"]
         token = _get_token(inst)
         result = _xmlrpc(url, token, "ListGet", instance_name=inst["module_instance_name"])
-        count = len(result.get("values", []))
+        count = len(_split_numbers(result.get("values", [])))
         return JSONResponse({"ok": True, "message": f"Verbunden, {count} Nummern in der Blocklist"})
     except Exception as e:
         return JSONResponse({"ok": False, "message": f"Verbindung fehlgeschlagen: {e}"})
@@ -1202,7 +1236,7 @@ async def blocklist_page(request: Request, inst_id: int):
     try:
         token = _get_token(inst)
         result = _xmlrpc(inst["url"], token, "ListGet", instance_name=inst["module_instance_name"])
-        numbers = [v for v in result["values"] if v.strip()]
+        numbers = _split_numbers(result["values"])
     except Exception as e:
         error = f"Verbindung fehlgeschlagen: {e}"
 
@@ -1232,12 +1266,17 @@ async def blocklist_add(request: Request, inst_id: int, numbers: str = Form(...)
     cleaned = [n.strip() for n in numbers.replace("\r", "").split("\n") if n.strip()]
     try:
         token = _get_token(inst)
+        last = None
         for n in cleaned:
-            _xmlrpc(inst["url"], token, "ListAdd", {"INPUT_NUMMERN": n}, instance_name=inst["module_instance_name"])
+            last = _xmlrpc(inst["url"], token, "ListAdd", {"INPUT_NUMMERN": n}, instance_name=inst["module_instance_name"])
         _log_event(inst_id, user["user_id"], "blocklist_add", f"{len(cleaned)} Nummern")
     except Exception as e:
         return RedirectResponse(f"/installation/{inst_id}/blocklist?error={quote(str(e))}",
                                 status_code=303)
+    if last is not None and last["values"] and last["values"][-1] == "0":
+        return RedirectResponse(
+            f"/installation/{inst_id}/blocklist?error={quote('STARFACE hat die letzte Nummer nicht übernommen (Bestätigung 0) — blocklist.txt-Pfad im Modul prüfen')}",
+            status_code=303)
     return RedirectResponse(f"/installation/{inst_id}/blocklist?ok={len(cleaned)}",
                             status_code=303)
 
@@ -1259,11 +1298,15 @@ async def blocklist_remove(request: Request, inst_id: int, number: str = Form(..
 
     try:
         token = _get_token(inst)
-        _xmlrpc(inst["url"], token, "ListRemove", {"INPUT_NUMMERN": number}, instance_name=inst["module_instance_name"])
+        last = _xmlrpc(inst["url"], token, "ListRemove", {"INPUT_NUMMERN": number}, instance_name=inst["module_instance_name"])
         _log_event(inst_id, user["user_id"], "blocklist_remove", number)
     except Exception as e:
         return RedirectResponse(f"/installation/{inst_id}/blocklist?error={quote(str(e))}",
                                 status_code=303)
+    if last is not None and last["values"] and last["values"][-1] == "0":
+        return RedirectResponse(
+            f"/installation/{inst_id}/blocklist?error={quote('STARFACE hat die Nummer nicht entfernt (Bestätigung 0)')}",
+            status_code=303)
     return RedirectResponse(f"/installation/{inst_id}/blocklist?ok=1", status_code=303)
 
 
@@ -1285,7 +1328,7 @@ async def installation_test(request: Request, inst_id: int):
     try:
         token = _get_token(inst)
         result = _xmlrpc(inst["url"], token, "ListGet", instance_name=inst["module_instance_name"])
-        n = len([v for v in result["values"] if v.strip()])
+        n = len(_split_numbers(result["values"]))
         return JSONResponse({"ok": True, "token_len": len(token), "entries": n})
     except Exception as e:
         return JSONResponse({"ok": False, "error": str(e)})
