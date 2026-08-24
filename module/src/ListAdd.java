@@ -49,8 +49,29 @@ public class ListAdd implements IBaseExecutable
             }
         }
 
-        ListManager.saveBlocklist(valid, context, log);
+        // v23-Fix: bestehende Liste LADEN und neue Nummern ANHÄNGEN.
+        // Vorher wurde nur `valid` übergeben und saveBlocklist() setzte die
+        // komplette ListResource auf diese Werte ⇒ alle vorhandenen Einträge
+        // wurden überschrieben („nur der letzte bleibt behalten“).
+        List<String> existing = ListManager.loadBlocklist(context, log);
+        int added = 0;
+        for (String n : valid)
+        {
+            if (existing.contains(n))
+            {
+                log.info("ListAdd: Nummer '" + n + "' bereits in der Liste — übersprungen");
+            }
+            else
+            {
+                existing.add(n);
+                added++;
+            }
+        }
+        ListManager.saveBlocklist(existing, context, log);
+        // OUTPUT_ANZAHL = Anzahl verarbeiteter Eingaben (nicht nur neuer),
+        // damit die WebApp keine Fehlanzeige „Bestätigung 0“ bei Duplikaten meldet.
         OUTPUT_ANZAHL = valid.size();
-        log.info("ListAdd: " + valid.size() + " Nummern übernommen (roh: " + nummern.length + ")");
+        log.info("ListAdd: " + valid.size() + " Nummern verarbeitet, "
+                 + added + " neu angehängt (Liste gesamt: " + existing.size() + ")");
     }
 }
