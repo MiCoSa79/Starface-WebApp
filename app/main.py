@@ -275,32 +275,67 @@ def _ensure_url(url: str) -> str:
     return url
 
 
+def _legacy_token(url: str, auth_id: str, auth_pass: str) -> str:
+    """Legacy v9-Token (v10 akzeptiert ihn ebenfalls)."""
+    inner = hashlib.sha512(auth_pass.encode()).hexdigest()
+    return auth_id + ":" + hashlib.sha512((auth_id + "*" + inner).encode()).hexdigest()
+
+
 def starface_token(url: str, auth_id: str, auth_pass: str, client_secret: str,
                    is_starface10: bool) -> str:
     """Liefert den XML-RPC-Auth-Token.
 
-    10.x: OAuth2 Password Grant → JWT
+    10.x bevorzugt: OAuth2 Password Grant (JWT) — mit Basic-Auth-Header
+        (Keycloak confidential client) UND Form-Fields (public client).
+        Wenn beides scheitert: Fallback auf Legacy-v9-Token (v10 akzeptiert ihn).
     ≤9.x: Legacy-Token Login:sha512(Login+"*"+sha512(Passwort))
     """
     url = _ensure_url(url)
     if is_starface10:
-        r = httpx.post(
-            f"{url}/auth/realms/pbx/oauth2/token",
-            data={
-                "client_id": "rest-client-headless",
-                "grant_type": "password",
-                "scope": "login",
-                "username": auth_id,
-                "password": auth_pass,
-                "client_secret": client_secret,
-            },
-            timeout=20,
-        )
-        r.raise_for_status()
-        return r.json().get("access_token", "")
+        import base64
+        attempts = []
+        # 1) OAuth2 Password Grant mit Basic-Auth-Header (confidential client)
+        auth_header = "Basic " + base64.b64encode(
+            f"rest-client-headless:{client_secret}".encode()).decode()
+        try:
+            r = httpx.post(
+                f"{url}/auth/realms/pbx/oauth2/token",
+                data={
+                    "client_id": "rest-client-headless",
+                    "grant_type": "password",
+                    "scope": "login",
+                    "username": auth_id,
+                    "password": auth_pass,
+                },
+                headers={"Authorization": auth_header},
+                timeout=20,
+            )
+            r.raise_for_status()
+            return r.json().get("access_token", "")
+        except Exception as e:
+            attempts.append(f"Basic-Auth: {e}")
+        # 2) OAuth2 Password Grant mit Form-Fields (public client)
+        try:
+            r = httpx.post(
+                f"{url}/auth/realms/pbx/oauth2/token",
+                data={
+                    "client_id": "rest-client-headless",
+                    "grant_type": "password",
+                    "scope": "login",
+                    "username": auth_id,
+                    "password": auth_pass,
+                    "client_secret": client_secret,
+                },
+                timeout=20,
+            )
+            r.raise_for_status()
+            return r.json().get("access_token", "")
+        except Exception as e:
+            attempts.append(f"Form-Fields: {e}")
+        # 3) Fallback: Legacy-v9-Token (v10 akzeptiert den Anmeldemechanismus)
+        return _legacy_token(url, auth_id, auth_pass)
     else:
-        inner = hashlib.sha512(auth_pass.encode()).hexdigest()
-        return auth_id + ":" + hashlib.sha512((auth_id + "*" + inner).encode()).hexdigest()
+        return _legacy_token(url, auth_id, auth_pass)
 
 
 def _xmlrpc(url: str, token: str, method: str, params: dict = None) -> dict:
