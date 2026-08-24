@@ -332,9 +332,18 @@ def starface_token(url: str, auth_id: str, auth_pass: str, client_secret: str,
     import time
     import hashlib as hl
 
-    def _oauth_post(data: dict, headers: dict) -> dict:
-        r = httpx.post(f"{url}/auth/realms/pbx/oauth2/token", data=data,
-                       headers=headers, timeout=20)
+    def _oauth_post(data: dict, headers: dict, oidc_url: str = None) -> dict:
+        """POST an Token-Endpoint. Holt Endpoint aus OIDC-Discovery wenn oidc_url gesetzt."""
+        # Prüfen ob OIDC-Config im Cache ist (von _get_oidc_config)
+        if oidc_url:
+            try:
+                cfg = _get_oidc_config(oidc_url)
+                token_ep = cfg.get("token_endpoint", f"{oidc_url}/auth/realms/pbx/oauth2/token")
+            except Exception:
+                token_ep = f"{oidc_url}/auth/realms/pbx/oauth2/token"
+        else:
+            token_ep = f"{url}/auth/realms/pbx/oauth2/token"
+        r = httpx.post(token_ep, data=data, headers=headers, timeout=20)
         r.raise_for_status()
         return r.json()
 
@@ -342,19 +351,19 @@ def starface_token(url: str, auth_id: str, auth_pass: str, client_secret: str,
     # 1) Gültiges Access-Token (5 min) wiederverwenden
     if oauth_access and oauth_expires and now < oauth_expires - 30:
         return oauth_access, oauth_refresh, oauth_expires
-    # 2) Refresh-Token (6 h) → neuen Access holen
+    # 2) Refresh-Token (6 h) → neuen Access holen (mit rest-client-headless)
     if oauth_refresh:
         try:
             j = _oauth_post({
                 "grant_type": "refresh_token",
                 "refresh_token": oauth_refresh,
-                "client_id": "rest-client",
-            }, {})
+                "client_id": "rest-client-headless",
+            }, {}, oidc_url)
             return j.get("access_token", ""), j.get("refresh_token", oauth_refresh), \
                 now + int(j.get("expires_in", 300))
         except Exception:
             pass  # Refresh fehlgeschlagen → neu einloggen
-    # 3) Frischer Password Grant mit rest-client-headless
+    # 3) Frischer Password Grant mit rest-client-headless (Primärweg, funktioniert)
     if client_secret:
         try:
             j = _oauth_post({
@@ -364,16 +373,15 @@ def starface_token(url: str, auth_id: str, auth_pass: str, client_secret: str,
                 "scope": "login",
                 "username": auth_id,
                 "password": auth_pass,
-            }, {})
+            }, {}, url)
             access = j.get("access_token", "")
             if access:
                 return access, j.get("refresh_token", ""), now + int(j.get("expires_in", 300))
         except Exception:
             pass  # Password Grant nicht verfügbar
     raise RuntimeError(
-        "Kein gültiger Token verfügbar. Um einen Access-Token zu erhalten, "
-        "muss ein OAuth-Login über die Browser-Anmeldung durchgeführt werden. "
-        "Klicke auf " + chr(8220) + "OAuth starten" + chr(8221) + " unter Admin.")
+        "Kein gültiger Token verfügbar. Prüfe: Benutzerrecht „API Zugriff mit OAuth Password Grant\" "
+        "und Client-Secret (Admin-UI → Server → Status → REST-API → Secret von rest-client-headless).")
 
 
 def _get_token(inst) -> str:
