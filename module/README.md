@@ -8,10 +8,18 @@ Rufnummern ab. Die Blocklist liegt **auf der Anlage** als Datei
 
 ```
 module/
-├── CallBlocker.sfm      # Fertiges Modul (Zip: module-descriptor.xml + Klassen)
+├── CallBlocker.sfm      # Fertiges Modul (JAR: META-INF/MANIFEST.MF + module-descriptor.xml + Klassen)
+├── module-descriptor.xml # Modul-Beschreibung (Quelle für build_sfm.py)
+├── build_sfm.py         # Baut die .sfm im STARFACE-10-JAR-Format
 ├── classes/             # Einzelne .class-Dateien (Fallback: GUI-Upload als Ressourcen)
 └── src/                 # Java-Quellen (Kompilierung gegen STARFACE-10-Klassen)
 ```
+
+> ⚠️ **WICHTIG (STARFACE 10.x):** Die `.sfm` ist ein **JAR**, kein nackter Zip!
+> STARFACE öffnet sie als `JarFile` und verlangt `META-INF/MANIFEST.MF` mit
+> `ObjectId=<Modul-UUID>` und `StarfaceModule_SpecVersion: 5`. Fehlt das Manifest,
+> bricht der Import mit **„Modul konnte nicht importiert werden: Manifest fehlt!“** ab
+> (auch wenn `module-descriptor.xml` korrekt im Root liegt).
 
 | Datei | Zweck |
 |---|---|
@@ -72,3 +80,19 @@ javac -proc:none -cp "WEB-INF/classes:WEB-INF/lib/*" -d out src/*.java
 STARFACE 10.x läuft mit **Java 21** (Klassen-Version 65) — ein JDK 8
 reicht nicht aus. Die kompilierten Klassen ohne `package` (Default-Package),
 damit der Modul-Editor sie als `Klassenname.class` direkt lädt.
+
+## .sfm neu packen (nach src/-Änderungen)
+
+```bash
+# 1) kompilieren (oben), Ergebnis nach classes/ kopieren
+# 2) Modul neu bauen (JAR-Format mit Manifest):
+python3 build_sfm.py
+# erzeugt module/CallBlocker.sfm und spiegelt nach ../app/modules/CallBlocker.sfm
+```
+
+Verifikation (Import-Pfad von STARFACE 10.x, mit JDK 21):
+
+```bash
+java -cp /tmp SfmCheck module/CallBlocker.sfm   # JarFile.getManifest() != null; SpecVersion<=5; ObjectId!
+```
+

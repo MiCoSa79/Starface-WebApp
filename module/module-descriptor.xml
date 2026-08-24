@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<module lastChangedTime="1784793600000" moduleType="EXTENDED" createTime="1784793600000"
+        id="a3c1b4e5-8f2d-4a7b-9c1e-2d4f6a8b0c1e" name="CallBlocker" specVersion="5"
+        vendor="MiCoSa79" version="1">
+    <description>Weist Anrufe von Rufnummern aus der Blocklist ab.</description>
+    <descriptionURL></descriptionURL>
+    <disabled>false</disabled>
+    <inputVars/>
+    <outputVars/>
+    <resources/>
+    <children/>
+    <createdWith>STARFACE 10.0.2.5</createdWith>
+    <defaultLocale>de</defaultLocale>
+    <editable>true</editable>
+    <entryPoints/>
+    <resourceKeys>
+        <entries>
+            <key>en</key>
+            <value>CallBlocker</value>
+        </entries>
+        <entries>
+            <key>de</key>
+            <value>Anrufblocker</value>
+        </entries>
+        <key>module.name{a3c1b4e5-8f2d-4a7b-9c1e-2d4f6a8b0c1e}</key>
+        <propertyName>NAME</propertyName>
+    </resourceKeys>
+    <shortDescription>Rufnummern-Blacklist zum Abweisen unerwünschter Anrufe</shortDescription>
+    <writeHash>0000000000000000000000000000000000000000</writeHash>
+</module>
