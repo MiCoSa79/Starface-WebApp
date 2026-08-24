@@ -817,6 +817,20 @@ async def admin_module_download(request: Request, module_id: int):
         })
 
 
+@app.get("/admin/api-doku", response_class=HTMLResponse)
+async def admin_api_doku(request: Request):
+    """STARFACE-API-Dokumentation (standalone HTML, nur Admins)."""
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user or not user["is_admin"]:
+        return RedirectResponse("/dashboard")
+
+    doc_path = Path(__file__).parent / "static" / "api-doku" / "starface-api-doku.html"
+    if not doc_path.is_file():
+        return RedirectResponse("/admin?err=doc-missing", status_code=303)
+    return FileResponse(doc_path, media_type="text/html",
+                        headers={"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0"})
+
+
 @app.post("/admin/installations")
 async def admin_installation_create(request: Request,
                                     name: str = Form(...),
