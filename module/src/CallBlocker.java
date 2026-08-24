@@ -12,6 +12,7 @@ import de.vertico.starface.module.core.runtime.IAGIRuntimeEnvironment;
 import de.vertico.starface.module.core.runtime.annotations.Function;
 import de.vertico.starface.module.core.runtime.annotations.OutputVar;
 import de.vertico.starface.module.core.runtime.functions.callHandling.call.GetCaller2;
+import de.vertico.starface.module.core.runtime.functions.lang.string.regexp.SimpleMatch;
 
 /**
  * CallBlocker — weist Anrufe unerwünschter Rufnummern ab.
@@ -73,11 +74,15 @@ public class CallBlocker implements IAGIJavaExecutable
         // 2) Blocklist laden (ListResource der Instanz, seit v22)
         List<String> patterns = loadBlocklist(context, log);
 
-        // 3) Prüfen
+        // 3) Prüfen — exakt die STARFACE-SimpleMatch-Semantik (wie Referenzmodul
+        //    "Blacklist v64"): Wildcard '*' = beliebig viele Zeichen, '?' = genau
+        //    eines, kompletter String-Match. Verglichen wird gegen die RAW-
+        //    Anrufernummer (callerSignallingNumber) und als Fallback gegen die
+        //    normalisierte Form (deckt 0…/0049…-Lieferungen der Anlage ab).
         log.info("CallBlocker: prüfe Anruf von " + callerNumber
                  + " (normalisiert: " + normalized + ") gegen "
                  + patterns.size() + " Muster");
-        if (matchesAny(normalized, patterns))
+        if (matchesAny(context, log, callerNumber, normalized, patterns))
         {
             // 4) Abweisen + Log
             ModuleBusinessObject MBO = (ModuleBusinessObject)
@@ -146,72 +151,58 @@ public class CallBlocker implements IAGIJavaExecutable
         return num;
     }
 
-    /** Prüft, ob eine Zahl mit einem der Wildcard-Muster übereinstimmt. */
-    private boolean matchesAny(String number, List<String> patterns)
+    /**
+     * Prüft, ob die Anrufernummer mit einem der Wildcard-Muster übereinstimmt.
+     *
+     * Verwendet den ORIGINALEN STARFACE-SimpleMatch-Baustein (wie das
+     * Referenzmodul "Blacklist v64"): Ein Muster wird per
+     * RegExpUtil.convertSimpleRegexpToJava() in ein Java-Regex übersetzt,
+     * dann text.matches() — '*'-Wildcard steht für 0..n Zeichen, '?' für
+     * genau ein Zeichen, der GESAMTE Text muss matchen.
+     *
+     * Verglichen wird 1) gegen die RAW-Anrufernummer (callerSignallingNumber)
+     * und 2) als Fallback gegen die normalisierte Form (49…-Schreibweise,
+     * deckt Anlagen ab, die nationale 0…/0049…-Formate liefern).
+     */
+    private boolean matchesAny(IAGIRuntimeEnvironment context, Logger log,
+                              String rawNumber, String normalizedNumber,
+                              List<String> patterns)
     {
         for (String p : patterns)
         {
-            // Muster ebenfalls normalisieren: +49*, 0049*, 0162*, 4916* → 49…
-            String pattern = normalize(p);
-            if (pattern.isEmpty())
+            if (p == null || p.trim().isEmpty())
             {
                 continue;
             }
-            if (matchNumber(number, pattern)) return true;
+            if (simpleMatch(context, log, rawNumber, p)
+                || (!normalizedNumber.equals(rawNumber)
+                    && simpleMatch(context, log, normalizedNumber, p)))
+            {
+                log.info("BLOCKLIST-MATCH: Muster '" + p + "' traf auf '"
+                         + rawNumber + "'");
+                return true;
+            }
         }
         return false;
     }
 
-    /**
-     * Ein Wildcard-Muster gegen eine Zahl prüfen.
-     *
-     * +41*  → beginnt mit +41
-     * 004912345678 (bzw. +4912345678, 012345678, 4912345678)  → exakte Übereinstimmung
-     * 2??  → beginnt mit 2, dann genau 2 weitere Zeichen
-     * ???  → genau 3 Zeichen, jedes beliebig
-     * *9162  → endet mit 9162 (Suffix-Wildcard, egal welche Vorwahl)
-     * +49*80 → beginnt mit +49, endet mit 80 (als Suffix: +49* → beginnt, +80 → endet)
-     */
-    private boolean matchNumber(String number, String pattern)
+    /** Führt den STARFACE-SimpleMatch-Baustein direkt aus (wie Referenzmodul). */
+    private boolean simpleMatch(IAGIRuntimeEnvironment context, Logger log,
+                                String text, String pattern)
     {
-        // 1) Exakte Übereinstimmung
-        if (number.equals(pattern)) return true;
-
-        // 2) Wildcard-Suffix (+41*, 49*)
-        if (pattern.endsWith("*") && pattern.length() > 1)
+        try
         {
-            return number.startsWith(pattern.substring(0, pattern.length() - 1));
+            SimpleMatch sm = new SimpleMatch();
+            sm.text = text;
+            sm.pattern = pattern;
+            sm.execute(context);
+            return Boolean.TRUE.equals(sm.matches);
         }
-
-        // 3) ?-Platzhalter (2??, ???)
-        if (pattern.contains("?"))
+        catch (Exception e)
         {
-            if (number.length() != pattern.length()) return false;
-            for (int i = 0; i < pattern.length(); i++)
-            {
-                if (pattern.charAt(i) != '?' && pattern.charAt(i) != number.charAt(i))
-                    return false;
-            }
-            return true;
+            log.error("SimpleMatch-Fehler bei Muster '" + pattern + "': "
+                      + e.getMessage());
+            return false;
         }
-
-        // 4) Suffix-Match mit + und * (+41*80 → endet mit 80)
-        if (pattern.startsWith("+") && pattern.contains("*"))
-        {
-            // +41*80 → prefix = +41, suffix = 80
-            int star = pattern.indexOf('*');
-            String prefix = pattern.substring(0, star);
-            String suffix = pattern.substring(star + 1);
-            if (suffix.isEmpty()) return false;
-            return number.startsWith(prefix) && number.endsWith(suffix);
-        }
-
-        // 5) Führender Stern (*9162 → endet mit 9162)
-        if (pattern.startsWith("*") && pattern.length() > 1)
-        {
-            return number.endsWith(pattern.substring(1));
-        }
-
-        return false;
     }
 }
