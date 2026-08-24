@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>STARFACE API-Referenz — STARFACE WebApp</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: #12122a; color: #e0e0e0; }
+.topbar { display: flex; align-items: center; justify-content: space-between;
+          background: #16213e; border-bottom: 1px solid #333; padding: 10px 18px; }
+.topbar h1 { font-size: 17px; color: #fff; display: flex; align-items: center; gap: 10px; }
+.topbar h1 img { height: 26px; }
+.badge-admin { background: #2d6a4f; color: #95d5b2; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+.topbar .user { color: #aaa; font-size: 13px; }
+.nav { display: flex; background: #16213e; border-bottom: 1px solid #333; flex-wrap: wrap; }
+.nav a { color: #aaa; text-decoration: none; padding: 10px 14px; font-size: 14px; }
+.nav a:hover { background: #0f3460; color: #fff; }
+.nav a.active { background: #e94560; color: #fff; font-weight: 600; }
+.nav .spacer { flex: 1; }
+.container { max-width: 1100px; margin: 0 auto; padding: 20px 16px 60px; }
+h2 { color: #fff; font-size: 20px; margin-bottom: 4px; }
+.sub { color: #888; font-size: 13px; margin-bottom: 18px; }
+.searchwrap { position: relative; margin: 14px 0 10px; }
+.searchwrap input { width: 100%; padding: 10px 14px; background: #16213e; border: 1px solid #333;
+                    color: #e0e0e0; border-radius: 8px; font-size: 14px; }
+.groups { position: sticky; top: 0; z-index: 5; background: #12122a;
+          display: flex; gap: 6px; padding: 8px 0 10px; overflow-x: auto; }
+.groups button { flex: 0 0 auto; background: #16213e; color: #aaa; border: 1px solid #333;
+                 padding: 6px 12px; border-radius: 14px; font-size: 12px; cursor: pointer; white-space: nowrap; }
+.groups button:hover { background: #0f3460; color: #fff; }
+.groups button.on { background: #e94560; color: #fff; border-color: #e94560; font-weight: 600; }
+.count { color: #666; font-size: 12px; padding: 0 2px 10px; }
+.card { background: #16213e; border: 1px solid #2a2a4a; border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; }
+.card h3 { color: #fff; font-size: 15px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.card .desc { color: #c8c8d8; font-size: 13px; margin: 6px 0 8px; line-height: 1.45; }
+.pill { background: #0f3460; color: #7db4e9; font-size: 11px; padding: 2px 8px; border-radius: 10px;
+        font-family: ui-monospace, monospace; }
+.pill.exp { background: #3d1e1e; color: #ff9b9b; }
+.params { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 6px; }
+.params th { text-align: left; color: #888; font-weight: 500; padding: 4px 6px; border-bottom: 1px solid #2a2a4a;
+             font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+.params td { padding: 4px 6px; border-bottom: 1px solid #1e1e3a; vertical-align: top; }
+.params td code { color: #7db4e9; font-family: ui-monospace, monospace; font-size: 11px; }
+.params .kd { color: #ffb86c; font-size: 10px; text-transform: uppercase; letter-spacing: .05em; }
+.nop { color: #777; font-size: 12px; padding: 6px; }
+details.par { margin-top: 8px; }
+details.par summary { color: #7db4e9; font-size: 12px; cursor: pointer; user-select: none; }
+footer { text-align: center; color: #555; font-size: 12px; padding: 20px 0 30px; }
+.legend { color: #777; font-size: 12px; margin-bottom: 12px; }
+@media (max-width: 641px) {
+  .topbar { padding: 8px 12px; }
+  .topbar h1 { font-size: 15px; }
+  .nav { flex-direction: column; }
+  .nav a { padding: 13px 12px; font-size: 15px; border-bottom: 1px solid #222; }
+  .card { padding: 10px 12px; }
+  h2 { font-size: 17px; }
+}
+</style>
+</head>
+<body>
+    <div class="topbar">
+        <h1><img src="/static/kits-logo.png" alt="Logo"><span>STARFACE WebApp</span></h1>
+        <div style="display:flex;align-items:center;gap:12px;">
+            {% if user.is_admin %}<span class="badge-admin">Admin</span>{% endif %}
+            <span class="user">{{ user.username }}</span>
+        </div>
+    </div>
+    <nav class="nav">
+        <a href="/dashboard" class="{% if active=='dashboard' %}active{% endif %}">Dashboard</a>
+        {% if user.is_admin %}<a href="/admin" class="{% if active=='admin' %}active{% endif %}">Admin</a>{% endif %}
+        {% if user.is_admin %}<a href="/admin/modules" class="{% if active=='modules' %}active{% endif %}">Module</a>{% endif %}
+        {% if user.is_admin %}<a href="/admin/api-doku" class="{% if active=='api-doku' %}active{% endif %}">API-Doku</a>{% endif %}
+        <a href="/password" class="{% if active=='password' %}active{% endif %}">Passwort</a>
+        <span class="spacer"></span>
+        <a href="/logout">Abmelden</a>
+    </nav>
+
+    <div class="container">
+        <h2>STARFACE API-Referenz</h2>
+        <div class="sub">Alle {{ api_data|length if api_data else 0 }} Funktionen der Modul-Runtime — direkt aus den Funktions-Annotationen der Anlage extrahiert.</div>
+
+        <div class="searchwrap">
+            <input id="q" type="text" placeholder="🔍 Funktion suchen (Name, Beschreibung, Parameter)…" autocomplete="off">
+        </div>
+        <div class="count" id="count"></div>
+        <div class="groups" id="groups"></div>
+        <div class="legend">Gruppen anklicken, um nur eine Kategorie zu sehen. <span style="color:#ff9b9b;">■</span> = experimentell (experimentalFunctions).</div>
+        <div id="cards"></div>
+        <footer>STARFACE WebApp · API-Katalog aus Bytecode-Annotationen (v{{ version }})</footer>
+    </div>
+
+<script>
+const DATA = {{ api_data|tojson }};
+function catOf(cls){
+    let p = cls.replace('de.vertico.starface.module.core.runtime.', '');
+    let parts = p.split('.');
+    if (parts[0] === 'functions') parts = parts.slice(1);
+    parts.pop(); // Klassennamen entfernen
+    return parts.join('.') || '(root)';
+}
+const CATS = [...new Set(DATA.map(o => catOf(o['class'])))]
+    .filter(c => c !== '(root)').sort()
+    .concat(DATA.some(o => catOf(o['class']) === '(root)') ? ['(root)'] : []);
+function esc(s){ return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function render(cat, query){
+    query = (query || '').toLowerCase().trim();
+    let list = DATA;
+    if (cat && cat !== 'Alle') list = list.filter(o => catOf(o['class']) === cat);
+    if (query) list = list.filter(o => {
+        const f = o.function || {};
+        const hay = [o['class'], f.name, f.id, f.description].join(' ').toLowerCase() +
+            (o.params || []).map(p => [p.field, p.label, p.description].join(' ')).join(' ').toLowerCase();
+        return hay.includes(query);
+    });
+    const groupEls = document.getElementById('groups');
+    if (!groupEls.dataset.built) {
+        groupEls.dataset.built = '1';
+        ['Alle'].concat(CATS).forEach(g => {
+            const b = document.createElement('button');
+            b.textContent = g;
+            b.dataset.g = g;
+            b.onclick = () => { cat = (g === 'Alle') ? 'Alle' : g; };
+            groupEls.appendChild(b);
+        });
+    }
+    [...groupEls.children].forEach(b => b.classList.toggle('on', cat === b.dataset.g || (cat === 'Alle' && b.dataset.g === 'Alle')));
+    document.getElementById('count').textContent = list.length + ' Funktionen' + (cat !== 'Alle' ? ' · Gruppe ' + cat : '');
+    const cards = document.getElementById('cards');
+    cards.innerHTML = '';
+    if (!list.length) { cards.innerHTML = '<div class="nop">Keine Funktionen gefunden.</div>'; return; }
+    list.sort((a, b) => (a.function?.name || a['class']).localeCompare(b.function?.name || b['class']));
+    for (const o of list) {
+        const f = o.function || {};
+        const p = o.params || [];
+        const isExp = o['class'].includes('experimentalFunctions');
+        const paramsHtml = p.length ? '<details class="par"><summary>Parameter (' + p.length + ')</summary><table class="params"><tr><th>Richtung</th><th>Feld</th><th>Typ</th><th>Label</th><th>Beschreibung</th></tr>' +
+            p.map(x => '<tr><td><span class="kd">' + esc(x.kind || '') + '</span></td><td><code>' + esc(x.field) + '</code></td><td>' + esc(x.type || '') + '</td><td>' + esc(x.label || '') + '</td><td>' + esc(x.description || '') + '</td></tr>').join('') +
+            '</table></details>' : '<div class="nop">Keine Parameter.</div>';
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = '<div class="row"><h3>' + esc(f.name || o['class'].split('.').pop()) +
+            (isExp ? ' <span class="pill exp">experimentell</span>' : '') +
+            (f.id ? ' <span class="pill">' + esc(f.id) + '</span>' : '') + '</h3></div>' +
+            (f.description ? '<div class="desc">' + esc(f.description) + '</div>' : '') +
+            paramsHtml;
+        cards.appendChild(card);
+    }
+}
+const q = document.getElementById('q');
+let curCat = 'Alle';
+q.addEventListener('input', () => render(curCat, q.value));
+document.getElementById('groups').addEventListener('click', e => {
+    if (e.target.tagName === 'BUTTON') { curCat = e.target.dataset.g; render(curCat, q.value); }
+});
+render('Alle', '');
+</script>
+</body>
+</html>

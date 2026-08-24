@@ -99,6 +99,7 @@
         <a href="/dashboard" class="{% if active=='blocklist' or active=='dashboard' %}active{% endif %}">Dashboard</a>
         <a href="/admin" class="{% if active=='admin' %}active{% endif %}">Admin</a>
         <a href="/admin/modules" class="{% if active=='modules' %}active{% endif %}">Module</a>
+        {% if user.is_admin %}<a href="/admin/api-doku" class="{% if active=='api-doku' %}active{% endif %}">API-Doku</a>{% endif %}
         <a href="/password" class="{% if active=='password' %}active{% endif %}">Passwort</a>
         <span class="spacer"></span>
         <a href="/logout">Abmelden</a>

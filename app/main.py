@@ -8,10 +8,12 @@ Port: 8000 (Docker, Container-intern) → Host: 8895
 """
 
 import hashlib
+import json
 import os
 import re
 import secrets
 import sqlite3
+from functools import lru_cache
 import time
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
@@ -819,16 +821,28 @@ async def admin_module_download(request: Request, module_id: int):
 
 @app.get("/admin/api-doku", response_class=HTMLResponse)
 async def admin_api_doku(request: Request):
-    """STARFACE-API-Dokumentation (standalone HTML, nur Admins)."""
+    """STARFACE-API-Dokumentation (in WebApp-Layout, nur Admins)."""
     user = verify_session(request.cookies.get(SESSION_COOKIE))
     if not user or not user["is_admin"]:
         return RedirectResponse("/dashboard")
 
-    doc_path = Path(__file__).parent / "static" / "api-doku" / "starface-api-doku.html"
-    if not doc_path.is_file():
-        return RedirectResponse("/admin?err=doc-missing", status_code=303)
-    return FileResponse(doc_path, media_type="text/html",
-                        headers={"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0"})
+    return TEMPLATES.TemplateResponse("api_doku.html",
+        {"request": request, "user": user, "active": "api-doku",
+         "version": os.environ.get("APP_VERSION", "dev"),
+         "api_data": _load_api_katalog()})
+
+
+@lru_cache(maxsize=1)
+def _load_api_katalog():
+    """Starface-API-Funktionskatalog (aus Bytecode-Annotationen extrahiert)."""
+    p = Path(__file__).parent / "api_katalog.json"
+    if not p.is_file():
+        return []
+    try:
+        with p.open(encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return []
 
 
 @app.post("/admin/installations")
