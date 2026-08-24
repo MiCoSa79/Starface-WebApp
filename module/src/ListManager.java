@@ -129,29 +129,35 @@ public class ListManager
             context.getScope(VariableScope.Instance)
                    .put(GUI_BLOCKED_NUMBERS_VAR_ID, entries);
 
-            String csv = String.join(",", entries);
             try
             {
                 ModuleInstance mi = context.getInvocationInfo().getModuleInstance();
                 if (mi != null)
                 {
                     // 1) Kanonischer Instanz-Weg: Variable in den inputVars
-                    //    der Instanz setzen (STARFACE-intern: getInputVar ->
-                    //    setValueByReference -> setValue). Die Sichtliste
-                    //    (findVisibleVariable) ist leer, weil die GUI-Variable
-                    //    accessRights=Read hat und dort nicht auftaucht.
-                    mi.setInputValue(GUI_BLOCKED_NUMBERS_VAR_NAME, csv, false);
+                    //    der Instanz als LISTE setzen. Das textList-Widget im
+                    //    Instanz-Editor rendert den Wert einer LIST-Variablen —
+                    //    java.util.List<Object>, NICHT String! (setInputValue
+                    //    setzt String und blieb deshalb unsichtbar.)
                     Variable var = mi.getInputVar(GUI_BLOCKED_NUMBERS_VAR_NAME);
                     if (var != null)
                     {
+                        java.util.List<Object> listValue =
+                            new java.util.ArrayList<Object>();
+                        for (String e : entries)
+                        {
+                            listValue.add(e);
+                        }
+                        var.setValue(listValue);
                         ModuleRuntime runtime =
                             context.springApplicationContext()
                                    .getBean(ModuleRuntime.class);
                         ModuleInstanceProject project = new ModuleInstanceProject(mi);
                         runtime.updateModuleInstance(project);
                         log.info("ListManager: Instanz-Konfig aktualisiert — GUI-Variable '"
-                                 + GUI_BLOCKED_NUMBERS_VAR_NAME + "' = '" + csv
-                                 + "' (zurückgelesen: '" + var.getValue() + "')");
+                                 + GUI_BLOCKED_NUMBERS_VAR_NAME + "' = "
+                                 + var.getValue() + " (List, " + listValue.size()
+                                 + " Einträge)");
                     }
                     else
                     {
