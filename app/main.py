@@ -112,33 +112,78 @@ def init_db():
             filename TEXT NOT NULL,
             version TEXT DEFAULT '',
             description TEXT DEFAULT '',
+            file_hash TEXT DEFAULT '',
+            file_size INTEGER DEFAULT 0,
+            file_mtime TEXT DEFAULT '',
+            app_version TEXT DEFAULT '',
+            build_date TEXT DEFAULT '',
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
         );
     """)
+    # Migration (v0.0.34+): bestehende DBs um Modul-Versionierungs-Spalten erweitern
+    cols = [r[1] for r in conn.execute("PRAGMA table_info(modules)").fetchall()]
+    for col, ddl in (("file_hash", "TEXT DEFAULT ''"),
+                     ("file_size", "INTEGER DEFAULT 0"),
+                     ("file_mtime", "TEXT DEFAULT ''"),
+                     ("app_version", "TEXT DEFAULT ''"),
+                     ("build_date", "TEXT DEFAULT ''")):
+        if col not in cols:
+            conn.execute(f"ALTER TABLE modules ADD COLUMN {col} {ddl}")
     conn.commit()
     conn.close()
     _scan_modules()
 
 
 def _scan_modules():
-    """Scannt app/modules/*.sfm und traegt neue Module in die DB ein.
-    Version/Beschreibung werden aus module-descriptor.xml gelesen."""
+    """Scannt app/modules/*.sfm und pflegt die DB (INSERT + UPDATE).
+
+    Pro Datei werden Version/Beschreibung aus module-descriptor.xml sowie
+    Datei-Hash, Größe, mtime und die ausliefernde WebApp-Version gespeichert —
+    so ist auf der Modul-Seite erkennbar, wann/womit eine .sfm aktualisiert
+    wurde (bestehende Zeilen werden bei Änderung GEUPDATED, nicht nur initial
+    angelegt)."""
     modules_dir = os.path.join(os.path.dirname(__file__), "modules")
     if not os.path.isdir(modules_dir):
         return
+    app_version = os.environ.get("APP_VERSION", "dev")
+    build_date = os.environ.get("BUILD_DATE", "")
     conn = _db()
     for fname in sorted(os.listdir(modules_dir)):
         if not fname.endswith(".sfm"):
             continue
         name = os.path.splitext(fname)[0]
-        version, description = _module_meta(os.path.join(modules_dir, fname))
+        path = os.path.join(modules_dir, fname)
+        version, description = _module_meta(path)
+        st = os.stat(path)
+        file_hash = _file_md5(path)
+        file_mtime = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(st.st_mtime))
         row = conn.execute("SELECT id FROM modules WHERE name = ?", (name,)).fetchone()
         if not row:
             conn.execute(
-                "INSERT INTO modules (name, filename, version, description) VALUES (?,?,?,?)",
-                (name, fname, version, description))
+                "INSERT INTO modules (name, filename, version, description, "
+                "file_hash, file_size, file_mtime, app_version, build_date) "
+                "VALUES (?,?,?,?,?,?,?,?,?)",
+                (name, fname, version, description, file_hash, st.st_size,
+                 file_mtime, app_version, build_date))
+        else:
+            conn.execute(
+                "UPDATE modules SET filename=?, version=?, description=?, "
+                "file_hash=?, file_size=?, file_mtime=?, app_version=?, "
+                "build_date=? WHERE name=?",
+                (fname, version, description, file_hash, st.st_size,
+                 file_mtime, app_version, build_date, name))
     conn.commit()
     conn.close()
+
+
+def _file_md5(path: str) -> str:
+    """MD5-Hash einer Datei (stabil, ohne die Datei komplett in den RAM zu laden)."""
+    import hashlib as _hl
+    h = _hl.md5()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(65536), b""):
+            h.update(chunk)
+    return h.hexdigest()
 
 
 def _module_meta(path: str) -> tuple:
@@ -595,7 +640,10 @@ async def admin_module_download(request: Request, module_id: int):
     return FileResponse(
         file_path,
         media_type="application/octet-stream",
-        filename=mod["filename"])
+        filename=mod["filename"],
+        # no-store: iOS Safari cached sonst heuristisch (RFC 7234) und liefert
+        # beim erneuten Download derselben URL eine veraltete Datei (v0.0.34)
+        headers={"Cache-Control": "no-store"})
 
 
 @app.post("/admin/installations")
