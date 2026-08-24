@@ -50,29 +50,36 @@ public class CallBlocker implements IAGIJavaExecutable
         Logger log = context.getLog();
         String channel = context.getCallerChannelName();
 
+        log.info("CallBlocker: EINTRITT (channel=" + (channel == null ? "null" : channel) + ")");
+
         // Kein aktiver Kanal? → nichts tun
         if (channel == null || channel.isEmpty())
         {
+            log.info("CallBlocker: kein aktiver Kanal -> Abbruch");
             return;
         }
 
         // 1) Anrufernummer auflösen
         String callerNumber = resolveCallerNumber(context);
+        log.info("CallBlocker: callerSignallingNumber RAW = '" + callerNumber + "'");
         if (callerNumber == null)
         {
-            log.debug("CallBlocker: keine Anrufernummer gefunden");
+            log.warn("CallBlocker: keine Anrufernummer gefunden -> Abbruch");
             return;
         }
 
         String normalized = normalize(callerNumber);
+        log.info("CallBlocker: normalisiert = '" + normalized + "'");
         if (normalized.isEmpty())
         {
-            log.debug("CallBlocker: nummer nach Normalisierung leer");
+            log.warn("CallBlocker: nummer nach Normalisierung leer -> Abbruch");
             return;
         }
 
         // 2) Blocklist laden (ListResource der Instanz, seit v22)
         List<String> patterns = loadBlocklist(context, log);
+        log.info("CallBlocker: Blocklist geladen -> " + patterns.size()
+                 + " Muster: " + patterns);
 
         // 3) Prüfen — exakt die STARFACE-SimpleMatch-Semantik (wie Referenzmodul
         //    "Blacklist v64"): Wildcard '*' = beliebig viele Zeichen, '?' = genau
@@ -94,6 +101,7 @@ public class CallBlocker implements IAGIJavaExecutable
             return;
         }
         // Kein Treffer: nichts weiter tun — Route läuft normal weiter
+        log.info("CallBlocker: kein Treffer -> Anruf läuft normal weiter");
         BlockStatus = false;
     }
 
@@ -182,6 +190,11 @@ public class CallBlocker implements IAGIJavaExecutable
                          + rawNumber + "'");
                 return true;
             }
+            else
+            {
+                log.info("CallBlocker: Muster '" + p + "' -> kein Match"
+                         + " (RAW='" + rawNumber + "', norm='" + normalizedNumber + "')");
+            }
         }
         return false;
     }
@@ -200,8 +213,8 @@ public class CallBlocker implements IAGIJavaExecutable
         }
         catch (Exception e)
         {
-            log.error("SimpleMatch-Fehler bei Muster '" + pattern + "': "
-                      + e.getMessage());
+            log.error("SimpleMatch-Fehler bei Muster '" + pattern + "' gegen '"
+                      + text + "': " + e.getClass().getName() + ": " + e.getMessage(), e);
             return false;
         }
     }
