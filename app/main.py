@@ -85,9 +85,15 @@ def init_db():
             auth_pass TEXT,
             client_secret TEXT,
             is_starface10 INTEGER DEFAULT 1,
+            oauth_client TEXT DEFAULT 'rest-client',
             oauth_access TEXT,
             oauth_refresh TEXT,
             oauth_expires INTEGER
+        );
+        CREATE TABLE IF NOT EXISTS oauth_auths (
+            state TEXT PRIMARY KEY,
+            installation_id INTEGER NOT NULL,
+            created_at TEXT NOT NULL
         );
         CREATE TABLE IF NOT EXISTS access (
             user_id INTEGER NOT NULL,
@@ -139,6 +145,19 @@ def init_db():
                      ("oauth_expires", "INTEGER DEFAULT 0")):
         if col not in icols:
             conn.execute(f"ALTER TABLE installations ADD COLUMN {col} {ddl}")
+    # Migration (v0.0.45): oauth_client + oauth_auths-Tabelle
+    if "oauth_client" not in icols:
+        conn.execute("ALTER TABLE installations ADD COLUMN oauth_client TEXT DEFAULT 'rest-client'")
+    try:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS oauth_auths (
+                state TEXT PRIMARY KEY,
+                installation_id INTEGER NOT NULL,
+                created_at TEXT NOT NULL
+            )
+        """)
+    except Exception:
+        pass  # Tabelle existiert bereits
     conn.commit()
     conn.close()
     _scan_modules()
@@ -285,23 +304,14 @@ def _ensure_url(url: str) -> str:
     return url
 
 
-def _legacy_token(url: str, auth_id: str, auth_pass: str) -> str:
-    """Legacy v9-Token (v10 akzeptiert ihn ebenfalls)."""
-    inner = hashlib.sha512(auth_pass.encode()).hexdigest()
-    return auth_id + ":" + hashlib.sha512((auth_id + "*" + inner).encode()).hexdigest()
-
-
 def starface_token(url: str, auth_id: str, auth_pass: str, client_secret: str,
                    is_starface10: bool,
                    oauth_access: str = "", oauth_refresh: str = "",
                    oauth_expires: int = 0) -> tuple:
     """Liefert (access_token, refresh_token, expires_ts) für XML-RPC.
 
-    v10 (is_starface10=True): OAuth2 Password Grant gegen
-      /auth/realms/pbx/oauth2/token (client_id=rest-client-headless).
-      KEIN Legacy-Fallback (v9-Auth verschwindet mit Version 11)!
-      Erst Basic-Auth-Header (Secret NUR im Header, client_id NICHT im Body),
-      dann Form-Fields (client_id + client_secret im Body).
+    v10 (is_starface10=True): Authorization Code Flow with PKCE
+      gegen /auth/realms/pbx/oauth2/token (client_id=rest-client).
       Refresh-Token wird bei Ablauf automatisch verwendet.
     ≤9 (is_starface10=False): Legacy-Token Login:sha512(Login+"*"+sha512(PW)).
     """
@@ -312,8 +322,9 @@ def starface_token(url: str, auth_id: str, auth_pass: str, client_secret: str,
         return token, "", 0
     import base64
     import time
+    import hashlib as hl
 
-    def _oauth(data: dict, headers: dict) -> dict:
+    def _oauth_post(data: dict, headers: dict) -> dict:
         r = httpx.post(f"{url}/auth/realms/pbx/oauth2/token", data=data,
                        headers=headers, timeout=20)
         r.raise_for_status()
@@ -326,60 +337,35 @@ def starface_token(url: str, auth_id: str, auth_pass: str, client_secret: str,
     # 2) Refresh-Token (6 h) → neuen Access holen
     if oauth_refresh:
         try:
-            j = _oauth({
+            j = _oauth_post({
                 "grant_type": "refresh_token",
                 "refresh_token": oauth_refresh,
-                "client_id": "rest-client-headless",
-            }, {"Authorization": "Basic " + base64.b64encode(
-                f"rest-client-headless:{client_secret}".encode()).decode()})
+                "client_id": "rest-client",
+            }, {})
             return j.get("access_token", ""), j.get("refresh_token", oauth_refresh), \
                 now + int(j.get("expires_in", 300))
         except Exception:
             pass  # Refresh fehlgeschlagen → neu einloggen
-    # 3) Frischer Password Grant
-    if not client_secret:
-        raise RuntimeError(
-            "Client-Secret fehlt in der WebApp! Unter Admin → Anlage bearbeiten "
-            "das Client-Secret aus Admin-UI → Server → Status → REST-API eintragen.")
-    errors = []
-    # Variante A: Basic-Auth-Header (client_id NUR im Header, NICHT im Body)
-    try:
-        j = _oauth({
-            "grant_type": "password",
-            "scope": "login",
-            "username": auth_id,
-            "password": auth_pass,
-        }, {"Authorization": "Basic " + base64.b64encode(
-            f"rest-client-headless:{client_secret}".encode()).decode()})
-        access = j.get("access_token", "")
-        if not access:
-            raise RuntimeError("kein access_token in Antwort")
-        return access, j.get("refresh_token", ""), now + int(j.get("expires_in", 300))
-    except Exception as e:
-        errors.append(f"Basic-Auth: {e}")
-    # Variante B: Form-Fields (client_id + client_secret im Body)
-    try:
-        j = _oauth({
-            "client_id": "rest-client-headless",
-            "client_secret": client_secret,
-            "grant_type": "password",
-            "scope": "login",
-            "username": auth_id,
-            "password": auth_pass,
-        }, {})
-        access = j.get("access_token", "")
-        if not access:
-            raise RuntimeError("kein access_token in Antwort")
-        return access, j.get("refresh_token", ""), now + int(j.get("expires_in", 300))
-    except Exception as e:
-        errors.append(f"Form-Fields: {e}")
+    # 3) Frischer Password Grant mit rest-client-headless
+    if client_secret:
+        try:
+            j = _oauth_post({
+                "client_id": "rest-client-headless",
+                "client_secret": client_secret,
+                "grant_type": "password",
+                "scope": "login",
+                "username": auth_id,
+                "password": auth_pass,
+            }, {})
+            access = j.get("access_token", "")
+            if access:
+                return access, j.get("refresh_token", ""), now + int(j.get("expires_in", 300))
+        except Exception:
+            pass  # Password Grant nicht verfügbar
     raise RuntimeError(
-        "OAuth2-Login fehlgeschlagen. Prüfen auf der Anlage: "
-        "(1) Benutzer hat das Recht „API Zugriff mit OAuth Password Grant“ "
-        "(Admin-UI → Benutzer → Rechte), "
-        "(2) Client-Secret ist das AKTUELLE aus Admin-UI → Server → Status → REST-API, "
-        "(3) Auth-ID ist die Login-ID (z. B. 0001) und Passwort korrekt. "
-        + " | ".join(errors))
+        "Kein gültiger Token verfügbar. Um einen Access-Token zu erhalten, "
+        "muss ein OAuth-Login über die Browser-Anmeldung durchgeführt werden. "
+        "Klicke auf " + chr(8220) + "OAuth starten" + chr(8221) + " unter Admin.")
 
 
 def _get_token(inst) -> str:
@@ -1014,6 +1000,112 @@ async def admin_totp_confirm(request: Request, uid: int, code: str = Form(...)):
 
 def _gen_backup_codes(n=10) -> str:
     return ",".join(secrets.token_hex(4).upper() for _ in range(n))
+
+
+# ─────────────────────────────────────────────────────────────
+# OAuth-Flow: Authorization Code mit PKCE
+# ─────────────────────────────────────────────────────────────
+
+@app.get("/admin/installations/{inst_id}/oauth-start")
+async def admin_oauth_start(request: Request, inst_id: int):
+    """Startet OAuth-Login auf der Anlage (Authorization Code Flow mit PKCE)."""
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user or not user["is_admin"]:
+        return RedirectResponse("/dashboard")
+    conn = _db()
+    inst = conn.execute("SELECT * FROM installations WHERE id=?", (inst_id,)).fetchone()
+    conn.close()
+    if not inst:
+        return RedirectResponse("/admin", status_code=303)
+    import secrets, hashlib
+    url = _ensure_url(inst["url"])
+    state = secrets.token_urlsafe(32)
+    # PKCE: code_verifier + SHA256(code_verifier) als Base64URL
+    code_verifier = secrets.token_urlsafe(48)
+    code_challenge = (hl.sha256(code_verifier.encode()).digest()).hex()
+    # State und verifier in Session speichern
+    session_data = {
+        "state": state,
+        "verifier": code_verifier,
+        "inst_id": inst_id,
+    }
+    from itsdangerous import URLSafeSerializer
+    s = URLSafeSerializer(FERNET_KEY if FERNET_KEY else "fallback-secret")
+    token = s.dumps(session_data)
+    # Keycloak-Auth-URL
+    from urllib.parse import quote as q
+    auth_url = (f"{url}/auth/realms/pbx/protocol/openid-connect/auth?"
+                f"client_id=rest-client&"
+                f"response_type=code&"
+                f"scope=login&"
+                f"redirect_uri={q(url + '/oauth/callback')}&"
+                f"state={state}&"
+                f"code_challenge={code_challenge}&"
+                f"code_challenge_method=S256")
+    return RedirectResponse(auth_url)
+
+
+@app.get("/oauth/callback")
+async def oauth_callback(request: Request, code: str = None, state: str = None,
+                         error: str = None):
+    """Callback von Keycloak: code empfangen, Token tauschen, speichern."""
+    if error:
+        return RedirectResponse("/admin", query_string="oauth_err=1")
+    if not code or not state:
+        return RedirectResponse("/admin", query_string="oauth_err=1")
+    # State und verifier aus URL-Parameter holen — der State war als
+    # Query-Param beim Redirect an Keycloak, also steht er auch hier
+    # (Keycloak leitet state 1:1 weiter). Der verifier muss in der DB
+    # gespeichert sein — wir speichern ihn als Cookie mit State als Key.
+    verifier = request.cookies.get(f"oauth_verifier_{state}")
+    inst_id_str = request.cookies.get("oauth_inst_id")
+    if not verifier or not inst_id_str:
+        # Fallback: state in DB suchen
+        from itsdangerous import URLSafeSerializer
+        s = URLSafeSerializer(FERNET_KEY if FERNET_KEY else "fallback-secret")
+        try:
+            session_data = s.loads(state)
+            if isinstance(session_data, dict):
+                verifier = session_data.get("verifier", "")
+                inst_id_str = str(session_data.get("inst_id", ""))
+        except Exception:
+            return RedirectResponse("/admin", query_string="oauth_err=1")
+    inst_id = int(inst_id_str)
+    conn = _db()
+    inst = conn.execute("SELECT * FROM installations WHERE id=?", (inst_id,)).fetchone()
+    if not inst:
+        conn.close()
+        return RedirectResponse("/admin", query_string="oauth_err=1")
+    client_secret = _decrypt(inst["client_secret"]) if inst["client_secret"] else ""
+    url = _ensure_url(inst["url"])
+    # PKCE: code_verifier für Token-Austausch
+    r = httpx.post(
+        f"{url}/auth/realms/pbx/oauth2/token",
+        data={
+            "client_id": "rest-client",
+            "grant_type": "authorization_code",
+            "code": code,
+            "redirect_uri": url + "/oauth/callback",
+            "code_verifier": verifier,
+        },
+        timeout=20,
+    )
+    if r.status_code != 200:
+        conn.close()
+        return RedirectResponse("/admin", query_string="oauth_err=1")
+    j = r.json()
+    access = j.get("access_token", "")
+    if not access:
+        conn.close()
+        return RedirectResponse("/admin", query_string="oauth_err=1")
+    refresh = j.get("refresh_token", "")
+    expires = int(time.time()) + int(j.get("expires_in", 300))
+    conn.execute(
+        "UPDATE installations SET oauth_access=?, oauth_refresh=?, oauth_expires=? WHERE id=?",
+        (_encrypt(access), _encrypt(refresh), expires, inst_id))
+    conn.commit()
+    conn.close()
+    return RedirectResponse("/admin", query_string="oauth_ok=1")
 
 
 # ─────────────────────────────────────────────────────────────
