@@ -33,7 +33,8 @@ input[type="checkbox"]{margin-right:6px;transform:scale(1.2)}
             </div>
             <div>
                 <label for="url">URL</label>
-                <input type="text" id="url" name="url" value="{{ inst.url }}" required autocomplete="off" placeholder="https://starface.intern">
+                <input type="text" id="url" name="url" value="{{ inst.url }}" required autocomplete="off" placeholder="starface.intern">
+                <div class="hint">Protokoll wird automatisch ergänzt (zuerst https://, dann http://)</div>
             </div>
         </div>
         <div class="form-row">

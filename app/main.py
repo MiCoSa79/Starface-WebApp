@@ -267,6 +267,14 @@ def _log_event(installation_id: Optional[int], user_id: int, action: str, detail
 # STARFACE-Zugriff (XML-RPC)
 # ─────────────────────────────────────────────────────────────
 
+def _ensure_url(url: str) -> str:
+    """Sichert Protokoll: falls ohne http(s), versuche https:// zuerst."""
+    url = url.strip().rstrip("/")
+    if not url.startswith("http://") and not url.startswith("https://"):
+        url = "https://" + url
+    return url
+
+
 def starface_token(url: str, auth_id: str, auth_pass: str, client_secret: str,
                    is_starface10: bool) -> str:
     """Liefert den XML-RPC-Auth-Token.
@@ -274,9 +282,10 @@ def starface_token(url: str, auth_id: str, auth_pass: str, client_secret: str,
     10.x: OAuth2 Password Grant → JWT
     ≤9.x: Legacy-Token Login:sha512(Login+"*"+sha512(Passwort))
     """
+    url = _ensure_url(url)
     if is_starface10:
         r = httpx.post(
-            f"{url.rstrip('/')}/auth/realms/pbx/oauth2/token",
+            f"{url}/auth/realms/pbx/oauth2/token",
             data={
                 "client_id": "rest-client-headless",
                 "grant_type": "password",
@@ -295,11 +304,8 @@ def starface_token(url: str, auth_id: str, auth_pass: str, client_secret: str,
 
 
 def _xmlrpc(url: str, token: str, method: str, params: dict = None) -> dict:
-    """Führt einen XML-RPC-Call gegen die STARFACE aus.
-
-    methodName = [Entrypoint-Name] (der Instanzname wird von STARFACE
-    aus dem Session-Kontext der API aufgelöst).
-    """
+    """Führt einen XML-RPC-Call gegen die STARFACE aus."""
+    url = _ensure_url(url)
     params = params or {}
     members = "".join(
         f"<member><name>{k}</name><value><string>{v}</string></value></member>"
@@ -312,7 +318,7 @@ def _xmlrpc(url: str, token: str, method: str, params: dict = None) -> dict:
         "</methodCall>"
     )
     r = httpx.post(
-        f"{url.rstrip('/')}/xml-rpc?de.vertico.starface.jwt={quote(token)}",
+        f"{url}/xml-rpc?de.vertico.starface.jwt={quote(token)}",
         content=body,
         headers={"Content-Type": "text/xml"},
         timeout=20,
