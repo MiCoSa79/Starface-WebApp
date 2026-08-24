@@ -135,15 +135,15 @@ public class ListManager
                 ModuleInstance mi = context.getInvocationInfo().getModuleInstance();
                 if (mi != null)
                 {
-                    Variable var = mi.findVisibleVariable(GUI_BLOCKED_NUMBERS_VAR_NAME);
-                    if (var == null
-                            && !GUI_BLOCKED_NUMBERS_VAR_NAME.equals(GUI_BLOCKED_NUMBERS_VAR_ID))
-                    {
-                        var = mi.findVisibleVariable(GUI_BLOCKED_NUMBERS_VAR_ID);
-                    }
+                    // 1) Kanonischer Instanz-Weg: Variable in den inputVars
+                    //    der Instanz setzen (STARFACE-intern: getInputVar ->
+                    //    setValueByReference -> setValue). Die Sichtliste
+                    //    (findVisibleVariable) ist leer, weil die GUI-Variable
+                    //    accessRights=Read hat und dort nicht auftaucht.
+                    mi.setInputValue(GUI_BLOCKED_NUMBERS_VAR_NAME, csv, false);
+                    Variable var = mi.getInputVar(GUI_BLOCKED_NUMBERS_VAR_NAME);
                     if (var != null)
                     {
-                        var.setValue(csv);
                         ModuleRuntime runtime =
                             context.springApplicationContext()
                                    .getBean(ModuleRuntime.class);
@@ -155,14 +155,17 @@ public class ListManager
                     }
                     else
                     {
+                        java.util.List<Variable> ivs = mi.getInputVars();
                         log.warn("ListManager: GUI-Variable '" + GUI_BLOCKED_NUMBERS_VAR_NAME
-                                 + "' / ID '" + GUI_BLOCKED_NUMBERS_VAR_ID
-                                 + "' nicht im Instanz-Modell gefunden — sichtbare Variablen ("
-                                 + mi.getAllVisibleVariables().size() + "):");
-                        for (Variable v : mi.getAllVisibleVariables())
+                                 + "' nicht in den inputVars des Instanz-Modells — inputVars ("
+                                 + (ivs == null ? 0 : ivs.size()) + "):");
+                        if (ivs != null)
                         {
-                            log.warn("  name='" + v.getName() + "' id='" + v.getId()
-                                     + "' type=" + v.getType());
+                            for (Variable v : ivs)
+                            {
+                                log.warn("  name='" + v.getName() + "' id='" + v.getId()
+                                         + "' type=" + v.getType());
+                            }
                         }
                     }
                 }
