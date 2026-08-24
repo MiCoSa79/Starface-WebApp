@@ -446,7 +446,7 @@ def _xmlrpc(url: str, token: str, method: str, params: dict = None,
     )
     r.raise_for_status()
     # Debug: rohe XML-Antwort im Docker-Log
-    print(f"[DEBUG _xmlrpc] {method} inst={instance_name} status={r.status_code} len={len(r.text)}")
+    print(f"[DEBUG _xmlrpc] {method} inst={instance_name} status={r.status_code} len={len(r.text)} raw={r.text[:600]}")
     # Antwort robust parsen (STARFACE liefert <string>, <int>, Faults oder HTML)
     try:
         root = ET.fromstring(r.text)
