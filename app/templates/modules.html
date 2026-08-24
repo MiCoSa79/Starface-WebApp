@@ -74,9 +74,12 @@
                   text-align: center; padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
                   color: #555; font-size: 12px;
                   background: #16213e; border-top: 1px solid #222; z-index: 100; }
-    </style>
+    .header-wrap { position: sticky; top: 0; left: 0; right: 0;
+          z-index: 30; background: #16213e; box-shadow: 0 2px 8px rgba(0,0,0,.35); }
+</style>
 </head>
 <body>
+    <div class="header-wrap">
     <input type="checkbox" id="nav-open" style="display:none;">
     <div class="topbar">
         <h1><img src="/static/kits-logo.png" alt="Logo"><span>STARFACE WebApp</span></h1>
@@ -95,6 +98,7 @@
         <span class="spacer"></span>
         <a href="/logout">Abmelden</a>
     </nav>
+    </div>
 
     <div class="container">
         {% if request.query_params.get('pw_ok') %}
