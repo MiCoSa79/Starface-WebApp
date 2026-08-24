@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<module lastChangedTime="1787594400000" moduleType="EXTENDED" createTime="1784793600000" id="a3c1b4e5-8f2d-4a7b-9c1e-2d4f6a8b0c1e" name="CallBlocker" specVersion="5" vendor="MiCoSa79" version="9">
+<module lastChangedTime="1787598000000" moduleType="EXTENDED" createTime="1784793600000" id="a3c1b4e5-8f2d-4a7b-9c1e-2d4f6a8b0c1e" name="CallBlocker" specVersion="5" vendor="MiCoSa79" version="10">
     <description>Weist Anrufe von Rufnummern aus der Blocklist ab.</description>
     <descriptionURL />
     <disabled>false</disabled>
@@ -88,7 +88,7 @@
             <disabled>false</disabled>
             <inputVars />
             <outputVars>
-                <variable id="4bd7b754-4b32-4ce2-86e6-1169fb76ed8c" label="Nummern" name="NUMMERN" type="STRING" valueByReference="true" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="true">
+                <variable id="4bd7b754-4b32-4ce2-86e6-1169fb76ed8c" label="Nummern" name="OUTPUT_NUMMERN" type="STRING" valueByReference="true" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="true">
                     <description>Komma-getrennte Liste aller Nummern</description>
                     <value />
                 </variable>
@@ -121,13 +121,13 @@
             <descriptionURL />
             <disabled>false</disabled>
             <inputVars>
-                <variable id="2c9163a8-2d11-417a-91f6-05750e8347ef" label="Nummern" name="NUMMERN" type="STRING" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="true" visible="true">
+                <variable id="2c9163a8-2d11-417a-91f6-05750e8347ef" label="Nummern" name="INPUT_NUMMERN" type="STRING" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="true" visible="true">
                     <description>Komma-getrennte Liste der hinzuzufuegenden Nummern</description>
                     <value />
                 </variable>
             </inputVars>
             <outputVars>
-                <variable id="a833e520-1a3d-448d-a111-5a14f5fa9d19" label="Hinzugefuegt" name="ANZAHL" type="NUMBER" valueByReference="true" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="true">
+                <variable id="a833e520-1a3d-448d-a111-5a14f5fa9d19" label="Hinzugefuegt" name="OUTPUT_ANZAHL" type="NUMBER" valueByReference="true" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="true">
                     <description>Anzahl erfolgreich hinzugefuegter Nummern</description>
                     <value>0</value>
                 </variable>
@@ -160,13 +160,13 @@
             <descriptionURL />
             <disabled>false</disabled>
             <inputVars>
-                <variable id="cacbe8ec-c17a-42be-b661-b1cc125b280d" label="Nummern" name="NUMMERN" type="STRING" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="true" visible="true">
+                <variable id="cacbe8ec-c17a-42be-b661-b1cc125b280d" label="Nummern" name="INPUT_NUMMERN" type="STRING" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="true" visible="true">
                     <description>Komma-getrennte Liste der zu entfernenden Nummern</description>
                     <value />
                 </variable>
             </inputVars>
             <outputVars>
-                <variable id="6770013e-017f-4506-a233-14058e129156" label="Entfernt" name="ANZAHL" type="NUMBER" valueByReference="true" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="true">
+                <variable id="6770013e-017f-4506-a233-14058e129156" label="Entfernt" name="OUTPUT_ANZAHL" type="NUMBER" valueByReference="true" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="true">
                     <description>Anzahl erfolgreich entfernter Nummern</description>
                     <value>0</value>
                 </variable>
@@ -228,6 +228,6 @@
         <propertyName>NAME</propertyName>
     </resourceKeys>
     <shortDescription>Rufnummern-Blacklist zum Abweisen unerwuenschter Anrufe</shortDescription>
-    <noLicenseId>62269f50583e00ee1da3205c1cbcf2c972fb8211</noLicenseId>
+    <noLicenseId>a984c5b0f2d1f8560182e6cf440b522b42c32f47</noLicenseId>
     <writeHash>181fe5eff8babfd0dad648993038a3d67ad19ba4</writeHash>
 </module>
