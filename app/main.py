@@ -637,10 +637,19 @@ async def admin_module_download(request: Request, module_id: int):
     if not file_path.is_file() or modules_dir.resolve() not in file_path.parents:
         return RedirectResponse("/admin/modules?err=missing", status_code=303)
 
+    # Eindeutiger Download-Name mit Datei-Hash (v0.0.35): verhindert, dass im
+    # Download-Ordner eine gleichnamige alte .sfm importiert wird (iOS Safari
+    # ergänzt sonst " (1)" oder behält die alte Datei gleichen Namens).
+    dl_name = mod["filename"]
+    file_hash = mod["file_hash"] or ""
+    if file_hash:
+        base = os.path.splitext(mod["filename"])[0]
+        dl_name = f"{base}_{file_hash[:8]}.sfm"
+
     return FileResponse(
         file_path,
         media_type="application/octet-stream",
-        filename=mod["filename"],
+        filename=dl_name,
         # no-store: iOS Safari cached sonst heuristisch (RFC 7234) und liefert
         # beim erneuten Download derselben URL eine veraltete Datei (v0.0.34)
         headers={"Cache-Control": "no-store"})
