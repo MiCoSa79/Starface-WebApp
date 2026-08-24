@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<module lastChangedTime="1787587200000" moduleType="EXTENDED" createTime="1784793600000" id="a3c1b4e5-8f2d-4a7b-9c1e-2d4f6a8b0c1e" name="CallBlocker" specVersion="5" vendor="MiCoSa79" version="5">
+<module lastChangedTime="1787590800000" moduleType="EXTENDED" createTime="1784793600000" id="a3c1b4e5-8f2d-4a7b-9c1e-2d4f6a8b0c1e" name="CallBlocker" specVersion="5" vendor="MiCoSa79" version="6">
     <description>Weist Anrufe von Rufnummern aus der Blocklist ab.</description>
     <descriptionURL />
     <disabled>false</disabled>
@@ -90,6 +90,18 @@
         <agiKernelEntryPoint stage="PostTargetDeterminationIncoming" id="81086651-cfeb-4412-b7bc-49533dfc5725" name="">
             <functionReference targetDomainId="a3c1b4e5-8f2d-4a7b-9c1e-2d4f6a8b0c1e" targetId="CallBlocker" targetName="CallBlocker" targetVersion="0" />
         </agiKernelEntryPoint>
+        <rpcEntryPoint id="0185c25c-b9fc-4740-93aa-1117f0c02483" name="ListGet">
+            <functionReference targetDomainId="a3c1b4e5-8f2d-4a7b-9c1e-2d4f6a8b0c1e" targetId="ListGet" targetName="ListGet" targetVersion="0" />
+            <type>XMLRPC_auth</type>
+        </rpcEntryPoint>
+        <rpcEntryPoint id="d6a92668-9e58-413f-af5c-173a3b9c1557" name="ListAdd">
+            <functionReference targetDomainId="a3c1b4e5-8f2d-4a7b-9c1e-2d4f6a8b0c1e" targetId="ListAdd" targetName="ListAdd" targetVersion="0" />
+            <type>XMLRPC_auth</type>
+        </rpcEntryPoint>
+        <rpcEntryPoint id="0e1fbbe7-6154-4cb5-891a-c706a0b9f9b1" name="ListRemove">
+            <functionReference targetDomainId="a3c1b4e5-8f2d-4a7b-9c1e-2d4f6a8b0c1e" targetId="ListRemove" targetName="ListRemove" targetVersion="0" />
+            <type>XMLRPC_auth</type>
+        </rpcEntryPoint>
     </entryPoints>
     <resourceKeys>
         <entries>
@@ -104,6 +116,6 @@
         <propertyName>NAME</propertyName>
     </resourceKeys>
     <shortDescription>Rufnummern-Blacklist zum Abweisen unerwuenschter Anrufe</shortDescription>
-    <noLicenseId>fd9a6ae8ca8a2e9b53211736f529f6802025b908</noLicenseId>
+    <noLicenseId>ec2ddcc75bf0c5a4890da42dab78d69f6e1e6892</noLicenseId>
     <writeHash>181fe5eff8babfd0dad648993038a3d67ad19ba4</writeHash>
 </module>
