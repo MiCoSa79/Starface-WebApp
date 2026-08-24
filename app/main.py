@@ -697,6 +697,80 @@ async def admin_installation_delete(request: Request, inst_id: int):
     return RedirectResponse("/admin", status_code=303)
 
 
+@app.get("/admin/installations/{inst_id}/edit", response_class=HTMLResponse)
+async def admin_installation_edit_page(request: Request, inst_id: int):
+    """Bearbeitungsseite für eine Anlage."""
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user or not user["is_admin"]:
+        return RedirectResponse("/dashboard")
+    conn = _db()
+    inst = conn.execute("SELECT * FROM installations WHERE id=?", (inst_id,)).fetchone()
+    if not inst:
+        conn.close()
+        return RedirectResponse("/admin", status_code=303)
+    # Daten entschlüsseln für die Form (zum Bearbeiten)
+    inst_data = dict(inst)
+    inst_data["auth_id"] = _decrypt(inst["auth_id"])
+    inst_data["auth_pass"] = _decrypt(inst["auth_pass"])
+    inst_data["client_secret"] = _decrypt(inst["client_secret"])
+    conn.close()
+    return TEMPLATES.TemplateResponse("edit_installation.html",
+        {"request": request, "user": user, "inst": inst_data,
+         "active": "admin", "version": os.environ.get("APP_VERSION", "dev")})
+
+
+@app.post("/admin/installations/{inst_id}")
+async def admin_installation_update(request: Request, inst_id: int,
+                                    name: str = Form(...),
+                                    url: str = Form(...),
+                                    auth_id: str = Form(""),
+                                    auth_pass: str = Form(""),
+                                    client_secret: str = Form(""),
+                                    is_starface10: int = Form(1)):
+    """Update einer bestehenden Anlage."""
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user or not user["is_admin"]:
+        return RedirectResponse("/dashboard")
+    conn = _db()
+    inst = conn.execute("SELECT * FROM installations WHERE id=?", (inst_id,)).fetchone()
+    if not inst:
+        conn.close()
+        return RedirectResponse("/admin", status_code=303)
+    # Nur aktualisieren wenn Feld nicht leer
+    new_auth_id = _encrypt(auth_id) if auth_id else inst["auth_id"]
+    new_auth_pass = _encrypt(auth_pass) if auth_pass else inst["auth_pass"]
+    new_client_secret = _encrypt(client_secret) if client_secret else inst["client_secret"]
+    conn.execute(
+        "UPDATE installations SET name=?, url=?, auth_id=?, auth_pass=?, client_secret=?, is_starface10=? WHERE id=?",
+        (name, url, new_auth_id, new_auth_pass, new_client_secret, bool(is_starface10), inst_id))
+    conn.commit()
+    conn.close()
+    _log_event(inst_id, user["user_id"], "installation_update", name)
+    return RedirectResponse("/admin", status_code=303)
+
+
+@app.get("/admin/installations/{inst_id}/test-conn")
+async def admin_installation_test_conn(request: Request, inst_id: int):
+    """Testet Verbindung + Token zu einer STARFACE-Anlage (AJAX, JSON)."""
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user or not user["is_admin"]:
+        return JSONResponse({"ok": False, "message": "Nicht autorisiert"}, status_code=403)
+    conn = _db()
+    inst = conn.execute("SELECT * FROM installations WHERE id=?", (inst_id,)).fetchone()
+    conn.close()
+    if not inst:
+        return JSONResponse({"ok": False, "message": "Installation nicht gefunden"})
+    try:
+        url = inst["url"]
+        token = starface_token(url, _decrypt(inst["auth_id"]), _decrypt(inst["auth_pass"]),
+                               _decrypt(inst["client_secret"]), bool(inst["is_starface10"]))
+        result = _xmlrpc(url, token, "ListGet")
+        count = len(result.get("values", []))
+        return JSONResponse({"ok": True, "message": f"Verbunden, {count} Nummern in der Blocklist"})
+    except Exception as e:
+        return JSONResponse({"ok": False, "message": f"Verbindung fehlgeschlagen: {e}"})
+
+
 @app.post("/admin/access")
 async def admin_access_set(request: Request,
                            user_id: int = Form(...),

@@ -162,8 +162,20 @@
                 <td>{{ inst.name }}</td>
                 <td>{{ inst.url }}</td>
                 <td>{% if inst.is_starface10 %}10.x{% else %}≤9.x{% endif %}</td>
-                <td>
-                    <form method="POST" action="/admin/installations/{{ inst.id }}/delete" style="display:inline"
+                <td style="text-align:right; white-space:nowrap;">
+                    <button onclick="testConn({{ inst.id }}, '{{ inst.name }}')"
+                            class="btn-secondary" style="font-size:13px; padding:6px 12px;
+                            border:1px solid var(--color-border); border-radius:6px;
+                            background:none; color:var(--color-text); cursor:pointer;"
+                            title="Verbindung testen (STARFACE-WebApp → Anlage)">
+                        ⚡ Test
+                    </button>
+                    <a href="/admin/installations/{{ inst.id }}/edit"
+                       class="btn-secondary" style="font-size:13px; padding:6px 12px;
+                       margin-left:4px; text-decoration:none; display:inline-block;"
+                       title="Anlage bearbeiten">✎ Edit</a>
+                    <form method="POST" action="/admin/installations/{{ inst.id }}/delete"
+                          style="display:inline; margin-left:4px;"
                           onsubmit="return confirm('Anlage {{ inst.name }} wirklich löschen?');">
                         <button type="submit" class="btn-danger">Löschen</button>
                     </form>
@@ -256,5 +268,22 @@
         <div class="footer">STARFACE WebApp {{ version }}</div>
     </div>
     <script src="/static/pwa.js" defer></script>
+    <script>
+    function testConn(instId, name) {
+        const btn = event.target;
+        btn.textContent = "⏳ Prüfe..."; btn.disabled = true;
+        fetch("/admin/installations/" + instId + "/test-conn")
+            .then(r => r.json())
+            .then(d => {
+                alert((d.ok ? "✅ " : "❌ ") + name + "\n" + (d.message || ""));
+            })
+            .catch(err => {
+                alert("❌ " + name + "\nNetzwerkfehler: " + err);
+            })
+            .finally(() => {
+                btn.textContent = "⚡ Test"; btn.disabled = false;
+            });
+    }
+    </script>
 </body>
 </html>
