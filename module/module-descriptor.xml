@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<module lastChangedTime="1787612400000" moduleType="EXTENDED" createTime="1784793600000" id="a3c1b4e5-8f2d-4a7b-9c1e-2d4f6a8b0c1e" name="CallBlocker" specVersion="5" vendor="MiCoSa79" version="27">
+<module lastChangedTime="1787612400000" moduleType="EXTENDED" createTime="1784793600000" id="a3c1b4e5-8f2d-4a7b-9c1e-2d4f6a8b0c1e" name="CallBlocker" specVersion="5" vendor="MiCoSa79" version="28">
     <description>Weist Anrufe von Rufnummern aus der Blocklist ab.</description>
     <descriptionURL />
     <disabled>false</disabled>
@@ -16,7 +16,12 @@
             <description>Weist Anrufe von Rufnummern in der Blocklist ab.</description>
             <descriptionURL />
             <disabled>false</disabled>
-            <inputVars />
+            <inputVars>
+                <variable id="Blocklist" label="Blocklist" name="Blocklist" type="LIST" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="true" visible="true">
+                    <description>Liste der geblockten Rufnummern</description>
+                    <value />
+                </variable>
+            </inputVars>
             <outputVars>
                 <variable id="BlockStatus" label="BlockStatus" name="BlockStatus" type="BOOLEAN" valueByReference="false" valueByReferenceAllowed="false" valueByValueAllowed="true" visible="true">
                     <description>BlockStatus ist true wenn der Anruf blockiert wurde, false sonst</description>
@@ -26,6 +31,36 @@
             <resources />
             <children />
             <implementationFile>CallBlocker.class</implementationFile>
+        </function>
+
+        <function visibility="Private" createTime="1787572800000" id="7a45f473-1af2-4814-bc45-7cf91d2d7eae" name="CallBlockerEntry" specVersion="0" vendor="MiCoSa79" version="0">
+            <description>Entrypoint-Wrapper: ruft CallBlocker mit der Modul-Liste GUI_GEBLOCKTE_RUFNUMMERN auf (Blacklist-v64-Muster).</description>
+            <descriptionURL />
+            <disabled>false</disabled>
+            <inputVars />
+            <outputVars />
+            <resources />
+            <children>
+                <functionCall createTime="1787572800000" id="514b63c0-88e7-4986-9f7d-c357120f9bd0" name="Call --&gt; CallBlocker" specVersion="0" vendor="MiCoSa79" version="0">
+                    <description />
+                    <descriptionURL />
+                    <disabled>false</disabled>
+                    <inputVars>
+                        <variable id="Blocklist" label="" name="Blocklist" type="LIST" valueByReference="true" valueByReferenceAllowed="true" valueByValueAllowed="true" visible="false">
+                            <description />
+                            <value>c42f4bb5-dfa4-42bb-b907-1aae15471d1d</value>
+                        </variable>
+                    </inputVars>
+                    <outputVars>
+                        <variable id="BlockStatus" label="" name="BlockStatus" type="BOOLEAN" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
+                            <description />
+                            <value />
+                        </variable>
+                    </outputVars>
+                    <resources />
+                    <target targetDomainId="a3c1b4e5-8f2d-4a7b-9c1e-2d4f6a8b0c1e" targetId="CallBlocker" targetName="CallBlocker" targetVersion="0" />
+                </functionCall>
+            </children>
         </function>
         <function visibility="Public" createTime="1787572800000" id="ListGet" name="ListGet" specVersion="0" vendor="MiCoSa79" version="0">
             <description>Gibt alle Nummern der Blocklist zurueck.</description>
@@ -205,7 +240,7 @@
     <editable>true</editable>
     <entryPoints>
         <agiKernelEntryPoint stage="PostTargetDeterminationIncoming" id="81086651-cfeb-4412-b7bc-49533dfc5725" name="">
-            <functionReference targetDomainId="a3c1b4e5-8f2d-4a7b-9c1e-2d4f6a8b0c1e" targetId="CallBlocker" targetName="CallBlocker" targetVersion="0" />
+            <functionReference targetDomainId="a3c1b4e5-8f2d-4a7b-9c1e-2d4f6a8b0c1e" targetId="7a45f473-1af2-4814-bc45-7cf91d2d7eae" targetName="CallBlockerEntry" targetVersion="0" />
         </agiKernelEntryPoint>
         <rpcEntryPoint id="0185c25c-b9fc-4740-93aa-1117f0c02483" name="ListGet">
             <functionReference targetDomainId="a3c1b4e5-8f2d-4a7b-9c1e-2d4f6a8b0c1e" targetId="5092badc-525d-492e-b57a-e30cf86c0fe9" targetName="ListGetRpc" targetVersion="0" />

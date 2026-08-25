@@ -56,6 +56,8 @@ def main(path):
     root = tree.getroot()
     errors = []
     funcs = root.findall('.//function')
+    # ElementTree-find unterstützt KEIN '..' — Parent über echte Baum-Map lösen.
+    parent_map = {c: p for p in root.iter() for c in p}
     for fn in funcs:
         fname = fn.get('name')
         is_wrapper = fn.find('children/functionCall') is not None
@@ -69,17 +71,15 @@ def main(path):
         inputs = fn.find('inputVars').findall('variable') if fn.find('inputVars') is not None else []
         outputs = fn.find('outputVars').findall('variable') if fn.find('outputVars') is not None else []
         visible = collect_vars(inputs, outputs)
-        # Parent (Modul bzw. Eltern-Funktion) input/output
-        parent = fn.find('..')
-        # fn's parent is <children> which is parent of <function> or <module>
-        # root of function is <module> or <children> of another function
+        # Parent (Modul bzw. Eltern-Funktion) input/output —
+        # Referenzen können per id/name auf Variablen der Modulebene zeigen
+        # (Blacklist-v64-Beweis: forEachInList list-value = UUID der
+        # Modul-<inputVars>-Variable, accessRights=Read).
         pnode = None
-        cnode = fn.find('..')
-        if cnode is not None:
-            gnode = cnode.find('..')
-            if gnode is not None:
-                pnode = gnode
-        if pnode is not None and pnode.tag in ('module', 'function'):
+        cnode = parent_map.get(fn)  # fn's parent ist <children> des Moduls/der Funktion
+        gnode = parent_map.get(cnode) if cnode is not None else None
+        pnode = gnode if gnode is not None and gnode.tag in ('module', 'function') else None
+        if pnode is not None:
             pi = pnode.find('inputVars').findall('variable') if pnode.find('inputVars') is not None else []
             po = pnode.find('outputVars').findall('variable') if pnode.find('outputVars') is not None else []
             visible = visible + pi + po

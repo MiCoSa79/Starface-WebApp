@@ -1,29 +1,34 @@
-import java.io.*;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Collections;
 
-import org.apache.logging.log4j.Logger;
-
-import de.starface.bo.callhandling.actions.ModuleBusinessObject;
-import de.starface.callhandling.enums.HangupCause;
 import de.vertico.starface.module.core.model.VariableType;
 import de.vertico.starface.module.core.model.Visibility;
 import de.vertico.starface.module.core.runtime.IAGIJavaExecutable;
 import de.vertico.starface.module.core.runtime.IAGIRuntimeEnvironment;
 import de.vertico.starface.module.core.runtime.annotations.Function;
+import de.vertico.starface.module.core.runtime.annotations.InputVar;
 import de.vertico.starface.module.core.runtime.annotations.OutputVar;
 import de.vertico.starface.module.core.runtime.functions.callHandling.call.GetCaller2;
+import de.vertico.starface.module.core.runtime.functions.callHandling.call.Hangup;
 import de.vertico.starface.module.core.runtime.functions.lang.string.regexp.SimpleMatch;
 import de.vertico.starface.module.core.runtime.functions.system.Log2;
 
 /**
  * CallBlocker — weist Anrufe unerwünschter Rufnummern ab.
  *
- * Wird als IAGIJavaExecutable-Baustein in die Anrufroute der Ziel-Gruppe
- * eingehängt. Blockiert nur bei Treffer — bei keinem Treffer wird der Anruf
- * unangetastet weitergeleitet (niemals answer()/parkCall()).
+ * Ablauf (Blacklist-v64-Muster, v28):
+ *   1. Caller-ID ermitteln: GetCaller2 → callerSignallingNumber
+ *   2. foreach über alle Listeneinträge der Modul-Liste (GUI_GEBLOCKTE_RUFNUMMERN,
+ *      wird vom Modul-Editor an den @InputVar Blocklist verdrahtet)
+ *   3. Vergleich per originalem STARFACE-SimpleMatch (Wildcard '*' = 0..n Zeichen,
+ *      '?' = genau 1, kompletter String-Match)
+ *   4. Beim ersten Treffer: Schleife beenden, hangup (Hangup-Baustein, nutzt den
+ *      aktiven Call des Threads — Doku: hangup ohne Channel), Log2-Eintrag.
+ *   5. Kein Treffer: Anruf läuft unangetastet weiter.
  *
- * Kompilieren:
- *   javac -cp "classes:lib/starface-callhandling-10.0.2.5.jar:..." CallBlocker.java
+ * Kompilieren (JDK21, Klassen der VM-Edition 10.0.2.5 = Version 65.0):
+ *   javac -cp "classes:<PATH>/WEB-INF/classes:<PATH>/WEB-INF/lib/*" CallBlocker.java
  *
  * @author si.module
  */
@@ -31,81 +36,79 @@ import de.vertico.starface.module.core.runtime.functions.system.Log2;
           description = "Weist Anrufe von Rufnummern in der Blocklist ab.")
 public class CallBlocker implements IAGIJavaExecutable
 {
-    // ##########################################################################################
-    // Variablen: werden vom Modul-Editor befüllt
-    // KEIN @InputVar mehr (seit v5): Ein Call-Processing-Entrypoint kann die
-    // Eingabevariable beim automatischen Aufruf nicht befüllen — STARFACE warnt
-    // dann beim Speichern im Designer „An entry point uses a function with input
-    // variables“. Der Blocklist-Pfad ist fix = Instanz-Datenverzeichnis.
+    // Liste der geblockten Rufnummern — kommt aus dem Modul:
+    // Modul-Variable GUI_GEBLOCKTE_RUFNUMMERN (LIST, an die ListResource gebunden)
+    @InputVar(label = "Blocklist",
+              description = "Liste der geblockten Rufnummern",
+              type = VariableType.LIST)
+    public List<String> Blocklist = new ArrayList<String>();
 
-    @OutputVar(label = "BlockStatus", description =
-               "BlockStatus ist true wenn der Anruf blockiert wurde, false sonst",
+    @OutputVar(label = "BlockStatus",
+               description = "BlockStatus ist true wenn der Anruf blockiert wurde, false sonst",
                type = VariableType.BOOLEAN)
     public boolean BlockStatus = false;
-
-    // ##########################################################################################
 
     @Override
     public void execute(IAGIRuntimeEnvironment context) throws Exception
     {
-        Logger log = context.getLog();
-        String channel = context.getCallerChannelName();
+        logAll(context, "INFO", "CallBlocker: EINTRITT");
 
-        logAll(context, "INFO", "CallBlocker: EINTRITT (channel="
-               + (channel == null ? "null" : channel) + ")");
-
-        // Kein aktiver Kanal? → nichts tun
-        if (channel == null || channel.isEmpty())
-        {
-            logAll(context, "INFO", "CallBlocker: kein aktiver Kanal -> Abbruch");
-            return;
-        }
-
-        // 1) Anrufernummer auflösen
+        // 1) Caller-ID ermitteln (integrierter GetCaller2-Baustein)
         String callerNumber = resolveCallerNumber(context);
-        logAll(context, "INFO", "CallBlocker: callerSignallingNumber RAW = '"
+        logAll(context, "INFO", "CallBlocker: callerSignallingNumber = '"
                + callerNumber + "'");
-        if (callerNumber == null)
+        if (callerNumber == null || callerNumber.isEmpty())
         {
-            logAll(context, "WARN", "CallBlocker: keine Anrufernummer gefunden -> Abbruch");
+            logAll(context, "WARN", "CallBlocker: keine Anrufernummer -> Abbruch");
+            BlockStatus = false;
             return;
         }
 
-        String normalized = normalize(callerNumber);
-        logAll(context, "INFO", "CallBlocker: normalisiert = '" + normalized + "'");
-        if (normalized.isEmpty())
+        // 2) foreach über alle Listeneinträge — SimpleMatch gegen die RAW-Nummer
+        if (Blocklist == null)
         {
-            logAll(context, "WARN", "CallBlocker: nummer nach Normalisierung leer -> Abbruch");
+            logAll(context, "WARN", "CallBlocker: Blocklist ist null -> Abbruch");
+            BlockStatus = false;
             return;
         }
+        logAll(context, "INFO", "CallBlocker: Blocklist hat " + Blocklist.size()
+               + " Eintraege: " + Blocklist);
 
-        // 2) Blocklist laden (ListResource der Instanz, seit v22)
-        List<String> patterns = loadBlocklist(context, log);
-        logAll(context, "INFO", "CallBlocker: Blocklist geladen -> "
-               + patterns.size() + " Muster: " + patterns);
-
-        // 3) Prüfen — exakt die STARFACE-SimpleMatch-Semantik (wie Referenzmodul
-        //    "Blacklist v64"): Wildcard '*' = beliebig viele Zeichen, '?' = genau
-        //    eines, kompletter String-Match. Verglichen wird gegen die RAW-
-        //    Anrufernummer (callerSignallingNumber) und als Fallback gegen die
-        //    normalisierte Form (deckt 0…/0049…-Lieferungen der Anlage ab).
-        logAll(context, "INFO", "CallBlocker: prüfe Anruf von " + callerNumber
-               + " (normalisiert: " + normalized + ") gegen "
-               + patterns.size() + " Muster");
-        if (matchesAny(context, callerNumber, normalized, patterns))
+        for (String pattern : Blocklist)
         {
-            // 4) Abweisen + Log — BLOCKED-Meldung nur über den dokumentierten
-            //    Log2-Baustein (Modul-Log); getLog() ist kein Schreib-Baustein!
-            ModuleBusinessObject MBO = (ModuleBusinessObject)
-                context.springApplicationContext().getBean(ModuleBusinessObject.class);
-            MBO.hangup(channel, HangupCause.NORMAL_CLEARING);
-            logAll(context, "INFO", "BLOCKED: Anruf von " + callerNumber
-                   + " (normalisiert: " + normalized + ") abgewiesen (Blocklist)");
-            BlockStatus = true;
-            return;
+            if (pattern == null || pattern.trim().isEmpty())
+            {
+                continue;
+            }
+            if (simpleMatch(context, callerNumber, pattern))
+            {
+                // 3) Treffer: aufhören weiter zu prüfen → hangup + Log
+                logAll(context, "INFO", "BLOCKLIST-MATCH: Muster '" + pattern
+                       + "' traf auf '" + callerNumber + "'");
+                try
+                {
+                    Hangup hangup = new Hangup();
+                    hangup.execute(context);
+                    logAll(context, "INFO", "BLOCKED: Anruf von " + callerNumber
+                           + " abgewiesen (Blocklist)");
+                    BlockStatus = true;
+                    return;
+                }
+                catch (Exception e)
+                {
+                    logAll(context, "ERROR", "CallBlocker: Hangup fehlgeschlagen: "
+                           + e.getClass().getName() + ": " + e.getMessage());
+                }
+            }
+            else
+            {
+                logAll(context, "INFO", "CallBlocker: Muster '" + pattern
+                       + "' -> kein Match (Anrufer: '" + callerNumber + "')");
+            }
         }
-        // Kein Treffer: nichts weiter tun — Route läuft normal weiter
-        logAll(context, "INFO", "CallBlocker: kein Treffer -> Anruf läuft normal weiter");
+
+        // 4) Kein Treffer: nichts tun — Anruf läuft normal weiter
+        logAll(context, "INFO", "CallBlocker: kein Treffer -> Anruf laeuft normal weiter");
         BlockStatus = false;
     }
 
@@ -123,112 +126,19 @@ public class CallBlocker implements IAGIJavaExecutable
         }
         catch (Exception e)
         {
+            logAll(context, "ERROR", "CallBlocker: GetCaller2 fehlgeschlagen: "
+                   + e.getClass().getName() + ": " + e.getMessage());
             return null;
         }
     }
 
     /**
-     * Liest die Blocklist aus der ListResource der Instanz (seit v22,
-     * keine blocklist.txt mehr). Der Zugriff nutzt denselben Weg wie der
-     * Instanz-Editor: variable.getValue() = ListResource-ID.
+     * Führt den ORIGINALEN STARFACE-SimpleMatch-Baustein direkt aus (wie das
+     * Referenzmodul "Blacklist v64"): pattern wird per
+     * RegExpUtil.convertSimpleRegexpToJava() in ein Java-Regex übersetzt, dann
+     * text.matches() — '*'-Wildcard = 0..n Zeichen, '?' = genau ein Zeichen,
+     * der GESAMTE Text muss matchen.
      */
-    private List<String> loadBlocklist(IAGIRuntimeEnvironment context, Logger log)
-    {
-        return ListManager.loadBlocklist(context, log);
-    }
-
-    /**
-     * Normalisiert die Nummer für den Vergleich: Leerzeichen, Bindestriche,
-     * Klammern raus; internationale Schreibweisen vereinheitlicht —
-     * 0049… / +49… / 0… (national) / 49… (Landesvorwahl ohne +) werden
-     * gleichwertig als 49… verglichen. Nicht-DE-Vorwahlen (+41…) bleiben
-     * unangetastet (nur 00→+).
-     */
-    private String normalize(String num)
-    {
-        if (num == null) return "";
-        num = num.replaceAll("[\\s\\-()]+", "");
-        if (num.startsWith("00") && num.length() > 2)
-        {
-            num = "+" + num.substring(2);
-        }
-        if (num.startsWith("0") && num.length() > 1)
-        {
-            num = "49" + num.substring(1);
-        }
-        if (num.startsWith("+49"))
-        {
-            num = num.substring(1);
-        }
-        return num;
-    }
-
-    /**
-     * Prüft, ob die Anrufernummer mit einem der Wildcard-Muster übereinstimmt.
-     *
-     * Verwendet den ORIGINALEN STARFACE-SimpleMatch-Baustein (wie das
-     * Referenzmodul "Blacklist v64"): Ein Muster wird per
-     * RegExpUtil.convertSimpleRegexpToJava() in ein Java-Regex übersetzt,
-     * dann text.matches() — '*'-Wildcard steht für 0..n Zeichen, '?' für
-     * genau ein Zeichen, der GESAMTE Text muss matchen.
-     *
-     * Verglichen wird 1) gegen die RAW-Anrufernummer (callerSignallingNumber)
-     * und 2) als Fallback gegen die normalisierte Form (49…-Schreibweise,
-     * deckt Anlagen ab, die nationale 0…/0049…-Formate liefern).
-     */
-    private boolean matchesAny(IAGIRuntimeEnvironment context,
-                              String rawNumber, String normalizedNumber,
-                              List<String> patterns)
-    {
-        for (String p : patterns)
-        {
-            if (p == null || p.trim().isEmpty())
-            {
-                continue;
-            }
-            if (simpleMatch(context, rawNumber, p)
-                || (!normalizedNumber.equals(rawNumber)
-                    && simpleMatch(context, normalizedNumber, p)))
-            {
-                logAll(context, "INFO", "BLOCKLIST-MATCH: Muster '" + p
-                       + "' traf auf '" + rawNumber + "'");
-                return true;
-            }
-            else
-            {
-                logAll(context, "INFO", "CallBlocker: Muster '" + p
-                       + "' -> kein Match (RAW='" + rawNumber
-                       + "', norm='" + normalizedNumber + "')");
-            }
-        }
-        return false;
-    }
-
-    /**
-     * Schreibt eine Meldung in das MODUL-Log über den dokumentierten
-     * Log2-Baustein (API-Doku: „Logs a message to the module log file.
-     * Additionally, error messages will be appended to the STARFACE error
-     * log." — exakt wie das Referenzmodul "Blacklist v64"). Erscheint im
-     * Modul-/Instanz-Log der Admin-UI. HINWEIS: context.getLog() ist KEIN
-     * Schreib-Baustein (nur ein Getter) — alle Ausgaben laufen hier
-     * ausschließlich über Log2. level: DEBUG, INFO, WARN, ERROR.
-     */
-    private void logAll(IAGIRuntimeEnvironment context, String level, String msg)
-    {
-        try
-        {
-            Log2 l = new Log2();
-            l.logLevel = level;
-            l.messages = Collections.singletonList(msg);
-            l.execute(context);
-        }
-        catch (Exception e1)
-        {
-            // Log-Fehler darf den Anrufpfad nie stören — bewusst still
-        }
-    }
-
-    /** Führt den STARFACE-SimpleMatch-Baustein direkt aus (wie Referenzmodul). */
     private boolean simpleMatch(IAGIRuntimeEnvironment context,
                                 String text, String pattern)
     {
@@ -246,6 +156,28 @@ public class CallBlocker implements IAGIJavaExecutable
                    + pattern + "' gegen '" + text + "': "
                    + e.getClass().getName() + ": " + e.getMessage());
             return false;
+        }
+    }
+
+    /**
+     * Schreibt eine Meldung in das MODUL-Log über den dokumentierten
+     * Log2-Baustein (API-Doku: „Logs a message to the module log file.").
+     * Hinweis: context.getLog() ist KEIN Schreib-Baustein (nur Getter) —
+     * alle Ausgaben laufen ausschließlich über Log2. level: DEBUG, INFO,
+     * WARN, ERROR.
+     */
+    private void logAll(IAGIRuntimeEnvironment context, String level, String msg)
+    {
+        try
+        {
+            Log2 l = new Log2();
+            l.logLevel = level;
+            l.messages = Collections.singletonList(msg);
+            l.execute(context);
+        }
+        catch (Exception e1)
+        {
+            // Log-Fehler darf den Anrufpfad nie stören — bewusst still
         }
     }
 }
