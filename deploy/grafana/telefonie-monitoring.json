@@ -414,7 +414,7 @@
                   "type": "link",
                   "link": {
                     "title": "Anlage öffnen",
-                    "url": "/d/starface-anlage-detail/anlage-detail?var-installation=${__value.raw}&from=now-6h&to=now&kiosk=tv",
+                    "url": "/d/starface-anlage-detail/anlage-detail?var-installation=${__value.raw}&from=now-6h&to=now&kiosk=1",
                     "targetBlank": true
                   }
                 }
