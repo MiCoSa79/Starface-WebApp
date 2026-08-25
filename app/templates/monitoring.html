@@ -90,7 +90,18 @@
                     <td>{{ name }}</td>
                     <td class="codes">{{ vals.systemName or '—' }}</td>
                     <td>{{ vals.systemVersion or '—' }}</td>
-                    <td title="{{ vals.providers or '' }}">{{ (vals.providers or '—')|truncate(40, True) }}</td>
+                    <td>
+                        {% set ps = vals.provider_summary %}
+                        {% if ps and ps.has_data %}
+                            {% if ps.all_ok %}
+                            <span class="badge badge-green" title="{{ ps.count }} Provider verbunden">Alle Provider verbunden</span>
+                            {% else %}
+                            <span class="badge badge-red" title="{{ ps.disconnected|join('; ') }}">Provider getrennt ({{ ps.connected }}/{{ ps.count }})</span>
+                            {% endif %}
+                        {% else %}
+                            <span class="badge badge-gray" title="Noch keine Provider-Daten vom Modul">Keine Provider</span>
+                        {% endif %}
+                    </td>
                     <td>{{ vals.points }}</td>
                     <td data-ts="{{ vals.ts or 0 }}">—</td>
                 </tr>

@@ -120,6 +120,7 @@ Modul-Historie v4–v28 vollständig (inkl. UUIDs und Commit-Hashes) im Repo
 
 | Version | Inhalt |
 |---|---|
+| v0.0.115 | **Monitoring-Seite: Provider-Status-Badges** — statt kryptischer Zeilen je Anlage ein grünes „Alle Provider verbunden" (alle `Registered`), rotes „Provider getrennt (x/y)" mit Details im Tooltip, graues „Keine Provider" ohne Daten; Auswertung zentral in `monitoring._provider_summary` (auch in der Status-API). |
 | v0.0.111 | base.html: Wiki-Link nur für Admins (Route `/wiki` ist Admin-only — Nicht-Admins sehen keine toten Links). |
 | v0.0.110 | **Gemeinsames Base-Layout `base.html`:** Header/Nav/Fußzeile zentral, alle 11 Seiten auf `{% extends "base.html" %}` umgestellt (Monitoring-Link jetzt auf ALLEN Seiten); login/otp ohne Nav, Anlagen-Bearbeiten mit vollem Gerüst. |
 | v0.0.109 | **Monitoring-Statusseite `/admin/monitoring`:** Sammler-Status (Läufe, Points, Intervall, Fehler rot) + letzte Werte je Installation; Auto-Refresh 15 s; Nav-Link (vorher nur JSON-API). |

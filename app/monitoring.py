@@ -152,6 +152,31 @@ async def run_loop():
         await asyncio.sleep(INTERVAL)
 
 
+def _provider_summary(raw: str) -> dict:
+    """Parsed providerStatus-Zeilen ('Name=Status') zu einem Anzeige-Summary.
+
+    Verbunden = Status exakt 'Registered' (wie bei build_points fürs providers-Measurement).
+    """
+    providers, disconnected = [], []
+    for line in (raw or "").splitlines():
+        line = line.strip()
+        if not line or "=" not in line:
+            continue
+        name, status = line.split("=", 1)
+        name_s = name.strip()
+        status_s = status.strip()
+        providers.append(name_s)
+        if status_s != "Registered":
+            disconnected.append(f"{name_s} ({status_s})")
+    return {
+        "count": len(providers),
+        "connected": len(providers) - len(disconnected),
+        "disconnected": disconnected,
+        "all_ok": bool(providers) and not disconnected,
+        "has_data": bool(providers),
+    }
+
+
 def status() -> dict:
     """Status für die API-Route /api/monitoring/status."""
     return {
@@ -164,5 +189,8 @@ def status() -> dict:
         "last_error": _state["last_error"],
         "total_runs": _state["total_runs"],
         "total_writes": _state["total_writes"],
-        "installations": _state["last_values"],
+        "installations": {
+            name: {**vals, "provider_summary": _provider_summary(vals.get("providers", ""))}
+            for name, vals in _state["last_values"].items()
+        },
     }
