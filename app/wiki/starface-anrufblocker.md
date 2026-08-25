@@ -120,6 +120,12 @@ Modul-Historie v4–v28 vollständig (inkl. UUIDs und Commit-Hashes) im Repo
 
 | Version | Inhalt |
 |---|---|
+| v0.0.111 | base.html: Wiki-Link nur für Admins (Route `/wiki` ist Admin-only — Nicht-Admins sehen keine toten Links). |
+| v0.0.110 | **Gemeinsames Base-Layout `base.html`:** Header/Nav/Fußzeile zentral, alle 11 Seiten auf `{% extends "base.html" %}` umgestellt (Monitoring-Link jetzt auf ALLEN Seiten); login/otp ohne Nav, Anlagen-Bearbeiten mit vollem Gerüst. |
+| v0.0.109 | **Monitoring-Statusseite `/admin/monitoring`:** Sammler-Status (Läufe, Points, Intervall, Fehler rot) + letzte Werte je Installation; Auto-Refresh 15 s; Nav-Link (vorher nur JSON-API). |
+| v0.0.108 | TelefonieMonitoring v2: Modul-Import-Fix (Call-Output-Variablen ohne `OUT_`-Präfix — exakt Java-Feldnamen). |
+| v0.0.107 | Feld **Monitoring-Modul-Instanz** (`monitoring_instance_name`, getrennt vom CallBlocker-Feld) in den Anlagen-Stammdaten. |
+| v0.0.105 | **Telefonie-Monitoring:** STARFACE-Modul + WebApp-Sammler → InfluxDB (Grafana), Status in WebApp/API. |
 | v0.0.97 | **Comboboxen mit Suchfeld** in den Rechte-Dropdowns (User + Anlage: keine Vorauswahl, gleich breit & breiter; Filter-Anlage suchbar, behält „Alle Anlagen“); Tabellen **standardmäßig eingeklappt**; Guard: Recht ohne Auswahl → Meldung statt 422. |
 | v0.0.96 | **Admin-Listen filterbar + einklappbar:** Anlagen (Name + URL ab 3 Zeichen, Version-Dropdown), Benutzer (Name), Rechte (Benutzer + Anlage); „N von M“-Zähler; Zustand pro Tabelle gespeichert. |
 | v0.0.95 | Scrollbar-Stil (Dark Design) app-weit vereinheitlicht. |
