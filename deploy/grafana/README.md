@@ -5,7 +5,9 @@ Versionierte Quelle für das Grafana-Dashboard **`starface-telefonie-monitoring`
 
 ## Enthalten
 
-- `telefonie-monitoring.json` — komplettes Dashboard (11 Panels/Zeilen), UID `starface-telefonie-monitoring`.
+- `telefonie-monitoring.json` — **Global-Dashboard** „STARFACE Telefonie-Monitoring“ (UID `starface-telefonie-monitoring`): Übersicht je Anlage, Provider-Status-Table **mit Datalinks** (Spalte `installation` klickbar → Detail-Dashboard), Zeitverläufe.
+- `anlage-detail.json` — **Detail-Dashboard je Anlage** (UID `starface-anlage-detail`, Titel „STARFACE Anlage: ${installation}"): RAM %, Load 1/5, CPU-Kerne, Provider verbunden + Provider-Detail-Table, Verläufe — alles für die per URL gewählte Anlage (`?var-installation=<Name>`).
+- `admin-uebersicht.json` — **Admin-Dashboard** (UID `starface-admin-uebersicht`): alle Anlagen — Stat „Anlagen gesamt“, „Anlagen mit Provider-Ausfall“ (FLUX-reduce über letzte `registered`-Werte je Anlage), „Provider getrennt gesamt“, Tabellen (Ausfälle je Anlage rot, RAM %, Load 1) + Verläufe. **Nur für Grafana-Admins gedacht** (Folder-Rechte; aktuell hat ohnehin nur der Admin Zugang).
 
 ## Datenquellen (InfluxDB-Bucket `telefonie`, org `starface`)
 
@@ -54,6 +56,23 @@ anschließend ALLE Panel-Queries gegen `/api/ds/query`).
 3. Grafana-Container neu starten (`docker restart grafana` bzw. über ZimaOS).
    → Achtung: Provisioning überschreibt das API-deployed Dashboard (Version wird von
    der Datei übernommen; API-Änderungen danach gehen verloren, solange die Datei liegt).
+
+## Dashboards im Überblick
+
+| Dashboard | UID | Zweck | Link |
+|---|---|---|---|
+| Global | `starface-telefonie-monitoring` | Übersicht + Provider-Status + Verläufe, klickbare Anlagen-Zeilen | `/d/starface-telefonie-monitoring/` |
+| Anlage (Detail) | `starface-anlage-detail` | Eine Anlage im Detail (Variable `installation`) | `/d/starface-anlage-detail/?var-installation=<Name>` |
+| Admin-Übersicht | `starface-admin-uebersicht` | ALLE Anlagen, Ausfall-Zählung, nur Admins | `/d/starface-admin-uebersicht/` |
+
+**Datalinks:** Im Global- und Admin-Dashboard ist die Spalte `installation` als Klick-Link
+konfiguriert (Cell-Typ `link`, URL `/d/starface-anlage-detail/anlage-detail?var-installation=${__value.raw}&from=now-6h&to=now`).
+
+**Rechte-/Sichtbarkeits-Modell (Stand 2026-08-25):** Grafana kennt die WebApp-Benutzer und
+deren `access`-Rechte (can_read/can_write) nicht. Aktuell hat nur der Grafana-Admin Zugang
+(plus Service-Account). Die rechtebasierte Link-Anzeige („nur Anlagen mit Leserecht") ist als
+**WebApp-Erweiterung** geplant (Monitoring-Seite für Benutzer mit Leserecht + gefilterte
+„Grafana öffnen"-Links) — separates Release.
 
 ## Wartungshinweise
 

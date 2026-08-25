@@ -24,7 +24,7 @@
   "panels": [
     {
       "type": "row",
-      "title": "Übersicht — Anlage: ${installation} (RAM/CPU/Provider)",
+      "title": "Anlage: ${installation} — System",
       "collapsed": false,
       "gridPos": {
         "h": 1,
@@ -32,7 +32,7 @@
         "x": 0,
         "y": 0
       },
-      "id": 1,
+      "id": 20,
       "panels": []
     },
     {
@@ -73,7 +73,7 @@
         "x": 0,
         "y": 1
       },
-      "id": 2,
+      "id": 21,
       "options": {
         "colorMode": "value",
         "graphMode": "area",
@@ -139,7 +139,7 @@
         "x": 3,
         "y": 1
       },
-      "id": 3,
+      "id": 22,
       "options": {
         "colorMode": "value",
         "graphMode": "area",
@@ -166,6 +166,143 @@
       ],
       "title": "Load 1",
       "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "${DS_INFLUXDB}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1.0
+              },
+              {
+                "color": "red",
+                "value": 2.0
+              }
+            ]
+          },
+          "unit": ""
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 3,
+        "x": 6,
+        "y": 1
+      },
+      "id": 23,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.2.0",
+      "targets": [
+        {
+          "type": "influxdb",
+          "uid": "${DS_INFLUXDB}",
+          "refId": "A",
+          "query": "from(bucket: \"telefonie\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"system\" and r.installation == \"${installation}\")\n  |> filter(fn: (r) => r._field == \"load5\")\n  |> last()"
+        }
+      ],
+      "title": "Load 5",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "${DS_INFLUXDB}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": ""
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 3,
+        "x": 9,
+        "y": 1
+      },
+      "id": 24,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.2.0",
+      "targets": [
+        {
+          "type": "influxdb",
+          "uid": "${DS_INFLUXDB}",
+          "refId": "A",
+          "query": "from(bucket: \"telefonie\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"system\" and r.installation == \"${installation}\")\n  |> filter(fn: (r) => r._field == \"cpu_cores\")\n  |> last()"
+        }
+      ],
+      "title": "CPU-Kerne",
+      "type": "stat"
+    },
+    {
+      "type": "row",
+      "title": "Anlage: ${installation} — Provider",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 9
+      },
+      "id": 25,
+      "panels": []
     },
     {
       "datasource": {
@@ -219,10 +356,10 @@
       "gridPos": {
         "h": 8,
         "w": 3,
-        "x": 6,
-        "y": 1
+        "x": 0,
+        "y": 10
       },
-      "id": 4,
+      "id": 26,
       "options": {
         "colorMode": "value",
         "graphMode": "area",
@@ -283,10 +420,10 @@
       "gridPos": {
         "h": 8,
         "w": 3,
-        "x": 9,
-        "y": 1
+        "x": 3,
+        "y": 10
       },
-      "id": 5,
+      "id": 27,
       "options": {
         "colorMode": "value",
         "graphMode": "area",
@@ -313,19 +450,6 @@
       ],
       "title": "Letzter Poll",
       "type": "stat"
-    },
-    {
-      "type": "row",
-      "title": "Provider-Status (alle Anlagen — Zeile klicken → Anlagen-Dashboard)",
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 9
-      },
-      "id": 6,
-      "panels": []
     },
     {
       "datasource": {
@@ -401,35 +525,16 @@
                 "value": "dateTimeFromNow"
               }
             ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "installation"
-            },
-            "properties": [
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "type": "link",
-                  "link": {
-                    "title": "Anlage öffnen",
-                    "url": "/d/starface-anlage-detail/anlage-detail?var-installation=${__value.raw}&from=now-6h&to=now",
-                    "targetBlank": true
-                  }
-                }
-              }
-            ]
           }
         ]
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
-        "x": 0,
+        "w": 18,
+        "x": 6,
         "y": 10
       },
-      "id": 7,
+      "id": 28,
       "options": {
         "cellHeight": "sm",
         "footer": {
@@ -452,12 +557,12 @@
           "query": "from(bucket: \"telefonie\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"providers\" and r._field == \"registered\")\n  |> group(columns: [\"installation\", \"provider\"]) |> last()\n  |> group()\n  |> rename(columns: {_value: \"registered\", _time: \"letzter Poll\"})\n  |> keep(columns: [\"installation\", \"provider\", \"registered\", \"letzter Poll\"])"
         }
       ],
-      "title": "Provider-Status (letzter Poll je Anlage/Provider)",
+      "title": "Provider im Detail",
       "type": "table"
     },
     {
       "type": "row",
-      "title": "Zeitverläufe",
+      "title": "Anlage: ${installation} — Verläufe",
       "collapsed": false,
       "gridPos": {
         "h": 1,
@@ -465,7 +570,7 @@
         "x": 0,
         "y": 18
       },
-      "id": 8,
+      "id": 29,
       "panels": []
     },
     {
@@ -528,7 +633,7 @@
         "x": 0,
         "y": 19
       },
-      "id": 9,
+      "id": 30,
       "options": {
         "legend": {
           "calcs": [],
@@ -546,10 +651,10 @@
           "type": "influxdb",
           "uid": "${DS_INFLUXDB}",
           "refId": "A",
-          "query": "from(bucket: \"telefonie\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"system\")\n  |> filter(fn: (r) => r._field == \"mem_total\" or r._field == \"mem_available\")\n  |> aggregateWindow(every: 1m, fn: last, createEmpty: false)\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> map(fn: (r) => ({r with ram_pct: 100.0 * (float(v: r.mem_total) - float(v: r.mem_available)) / float(v: r.mem_total)}))\n  |> keep(columns: [\"_time\", \"installation\", \"ram_pct\"])\n  |> rename(columns: {ram_pct: \"_value\"})"
+          "query": "from(bucket: \"telefonie\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"system\" and r.installation == \"${installation}\")\n  |> filter(fn: (r) => r._field == \"mem_total\" or r._field == \"mem_available\")\n  |> aggregateWindow(every: 1m, fn: last, createEmpty: false)\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> map(fn: (r) => ({r with _value: 100.0 * (float(v: r.mem_total) - float(v: r.mem_available)) / float(v: r.mem_total), _field: \"ram_pct\"}))\n  |> keep(columns: [\"_time\", \"_value\"])"
         }
       ],
-      "title": "RAM-Auslastung (%) je Anlage",
+      "title": "RAM-Auslastung (%)",
       "type": "timeseries"
     },
     {
@@ -612,7 +717,7 @@
         "x": 0,
         "y": 27
       },
-      "id": 10,
+      "id": 31,
       "options": {
         "legend": {
           "calcs": [],
@@ -630,10 +735,10 @@
           "type": "influxdb",
           "uid": "${DS_INFLUXDB}",
           "refId": "A",
-          "query": "from(bucket: \"telefonie\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"system\")\n  |> filter(fn: (r) => r._field == \"load1\" or r._field == \"load5\" or r._field == \"load15\")"
+          "query": "from(bucket: \"telefonie\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"system\" and r.installation == \"${installation}\")\n  |> filter(fn: (r) => r._field == \"load1\" or r._field == \"load5\" or r._field == \"load15\")"
         }
       ],
-      "title": "Load 1/5/15 je Anlage",
+      "title": "Load 1/5/15",
       "type": "timeseries"
     },
     {
@@ -700,7 +805,7 @@
         "x": 0,
         "y": 35
       },
-      "id": 11,
+      "id": 32,
       "options": {
         "legend": {
           "calcs": [],
@@ -718,7 +823,7 @@
           "type": "influxdb",
           "uid": "${DS_INFLUXDB}",
           "refId": "A",
-          "query": "from(bucket: \"telefonie\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"providers\" and r._field == \"registered\")"
+          "query": "from(bucket: \"telefonie\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"providers\" and r._field == \"registered\" and r.installation == \"${installation}\")"
         }
       ],
       "title": "Provider-Status (1=registriert, 0=getrennt)",
@@ -762,8 +867,8 @@
   },
   "timepicker": {},
   "timezone": "browser",
-  "title": "STARFACE Telefonie-Monitoring",
-  "uid": "starface-telefonie-monitoring",
+  "title": "STARFACE Anlage: ${installation}",
+  "uid": "starface-anlage-detail",
   "version": 1,
   "weekStart": ""
 }

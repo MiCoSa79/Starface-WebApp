@@ -36,10 +36,14 @@ Entscheidungen: **ein docker-compose-Stack** (ein `up -d`, geteilte Volumes), **
 
 ## Grafana-Dashboard (deployed 2026-08-25)
 
-- **Aufbau** (UID `starface-telefonie-monitoring`, Schema 39): Row „Übersicht“ (Stat: RAM-Auslastung %, Load 1, Provider verbunden, Letzter Poll — je Template-Variable `installation`), Row „Provider-Status (alle Anlagen)“ (Table: Installation/Provider/registered/letzter Poll, grün/rot hinterlegt) und Row „Zeitverläufe“ (Time-Series: RAM % je Anlage, Load 1/5/15 je Anlage, Provider 0/1-Step-Series).
-- **Queries:** FLUX gegen Bucket `telefonie` (`system`: mem_* in kB → %, load1/5/15; `providers`: `registered` 1/0, Tag `provider` = `user@host`). Variable `installation` = `schema.tagValues(bucket: "telefonie", tag: "installation")`, Default per API gesetzt.
-- **Einspielung** (Stand 2026-08-25): per Admin-Service-Account-Token (Editor-Rolle) → `/api/dashboards/db`, überwrite; alle Panel-Queries gegen `/api/ds/query` validiert (8/8 OK, Live-Daten vorhanden). Detail-Anleitung in `deploy/grafana/README.md`.
-- **`float(v: …)`-Regel:** FLUX-Typkonvertierung nur mit benanntem Argument (`float(v: r.mem_total)`); `float(r.mem_total)` ist ein Kompilierfehler.
+- **Drei Dashboards** (Quell-JSONs in `deploy/grafana/`, alle per API deployed & Query-validiert):
+  1. **Global** — „STARFACE Telefonie-Monitoring“ (UID `starface-telefonie-monitoring`): Übersicht je Anlage (RAM %, Load 1, Provider registriert, Letzter Poll), Provider-Status-Table **mit Datalinks** (Anlagen-Zeile klickbar → Detail), Zeitverläufe (RAM %/Load/Provider 0/1).
+  2. **Detail je Anlage** — „STARFACE Anlage: ${installation}“ (UID `starface-anlage-detail`): RAM %, Load 1/5, CPU-Kerne, Provider verbunden + Provider-Detail-Table, Verläufe; öffnet per Link `?var-installation=<Name>` — **ein** Dashboard für alle Anlagen (skaliert automatisch).
+  3. **Admin-Übersicht** — „STARFACE Admin-Übersicht (alle Anlagen)“ (UID `starface-admin-uebersicht`, **nur Admins**): Stat „Anlagen gesamt“, **„Anlagen mit Provider-Ausfall“** (FLUX-reduce: letzte `registered`-Werte je Anlage, Summe < Anzahl ⇒ Ausfall) und „Provider getrennt gesamt“, Tabellen „Ausfälle je Anlage“ (rot markiert, klickbar), RAM %/Load 1 je Anlage + Verläufe.
+- **Datalinks:** Cell-Link auf `installation` → `/d/starface-anlage-detail/anlage-detail?var-installation=${__value.raw}&from=now-6h&to=now` (Global + Admin).
+- **Einspielung:** per Service-Account-Token (Editor) → `/api/dashboards/db`; **alle 30 Panel-Queries gegen /api/ds/query validiert** (9+11+10 OK). Anleitung: `deploy/grafana/README.md`.
+- **FLUX-Pitfalls (dokumentiert):** `float(v: …)` statt `float(…)`; **nie `group()` über alle Felder eines Measurements** (int/float-Schema-Kollision) — vorher auf EIN `_field` filtern (z. B. `load1`).
+- **Rechtefilter folgt als WebApp-Release:** Grafana kennt `access`-Rechte nicht; Link-Anzeige „nur mit Leserecht“ kommt über die WebApp (Monitoring-Seite + gefilterte Grafana-Links).
 
 ## ZimaOS-Hinweis (Deploy-Vorbereitung)
 

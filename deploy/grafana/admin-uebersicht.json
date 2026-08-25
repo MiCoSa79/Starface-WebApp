@@ -24,7 +24,7 @@
   "panels": [
     {
       "type": "row",
-      "title": "Übersicht — Anlage: ${installation} (RAM/CPU/Provider)",
+      "title": "Gesamtübersicht (alle Anlagen)",
       "collapsed": false,
       "gridPos": {
         "h": 1,
@@ -32,7 +32,7 @@
         "x": 0,
         "y": 0
       },
-      "id": 1,
+      "id": 40,
       "panels": []
     },
     {
@@ -52,18 +52,10 @@
               {
                 "color": "green",
                 "value": null
-              },
-              {
-                "color": "orange",
-                "value": 70
-              },
-              {
-                "color": "red",
-                "value": 90
               }
             ]
           },
-          "unit": "percent"
+          "unit": ""
         },
         "overrides": []
       },
@@ -73,7 +65,7 @@
         "x": 0,
         "y": 1
       },
-      "id": 2,
+      "id": 41,
       "options": {
         "colorMode": "value",
         "graphMode": "area",
@@ -95,10 +87,10 @@
           "type": "influxdb",
           "uid": "${DS_INFLUXDB}",
           "refId": "A",
-          "query": "from(bucket: \"telefonie\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"system\" and r.installation == \"${installation}\")\n  |> filter(fn: (r) => r._field == \"mem_total\" or r._field == \"mem_available\")\n  |> aggregateWindow(every: 1m, fn: last, createEmpty: false)\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> map(fn: (r) => ({r with _value: 100.0 * (float(v: r.mem_total) - float(v: r.mem_available)) / float(v: r.mem_total), _field: \"ram_pct\"}))\n  |> keep(columns: [\"_time\", \"_value\"])"
+          "query": "from(bucket: \"telefonie\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"system\" and r._field == \"load1\")\n  |> group(columns: [\"installation\"]) |> last()\n  |> group() |> count(column: \"_value\")"
         }
       ],
-      "title": "RAM-Auslastung",
+      "title": "Anlagen gesamt",
       "type": "stat"
     },
     {
@@ -120,12 +112,8 @@
                 "value": null
               },
               {
-                "color": "orange",
-                "value": 1.0
-              },
-              {
                 "color": "red",
-                "value": 2.0
+                "value": 1
               }
             ]
           },
@@ -139,7 +127,7 @@
         "x": 3,
         "y": 1
       },
-      "id": 3,
+      "id": 42,
       "options": {
         "colorMode": "value",
         "graphMode": "area",
@@ -161,10 +149,10 @@
           "type": "influxdb",
           "uid": "${DS_INFLUXDB}",
           "refId": "A",
-          "query": "from(bucket: \"telefonie\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"system\" and r.installation == \"${installation}\")\n  |> filter(fn: (r) => r._field == \"load1\")\n  |> last()"
+          "query": "from(bucket: \"telefonie\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"providers\" and r._field == \"registered\")\n  |> group(columns: [\"installation\", \"provider\"]) |> last()\n  |> group(columns: [\"installation\"])\n  |> reduce(fn: (r, accumulator) => ({sum: accumulator.sum + r._value, n: accumulator.n + 1}), identity: {sum: 0, n: 0})\n  |> map(fn: (r) => ({r with ok: r.sum == r.n}))\n  |> group()\n  |> reduce(fn: (r, accumulator) => ({ausfaelle: accumulator.ausfaelle + (if r.ok then 0 else 1), total: accumulator.total + 1}), identity: {ausfaelle: 0, total: 0})\n  |> map(fn: (r) => ({r with _value: float(v: r.ausfaelle)}))"
         }
       ],
-      "title": "Load 1",
+      "title": "Anlagen mit Provider-Ausfall",
       "type": "stat"
     },
     {
@@ -184,37 +172,16 @@
               {
                 "color": "green",
                 "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
               }
             ]
           },
           "unit": ""
         },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "registriert"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "registriert"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "gesamt"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "gesamt"
-              }
-            ]
-          }
-        ]
+        "overrides": []
       },
       "gridPos": {
         "h": 8,
@@ -222,7 +189,7 @@
         "x": 6,
         "y": 1
       },
-      "id": 4,
+      "id": 43,
       "options": {
         "colorMode": "value",
         "graphMode": "area",
@@ -244,17 +211,112 @@
           "type": "influxdb",
           "uid": "${DS_INFLUXDB}",
           "refId": "A",
-          "query": "from(bucket: \"telefonie\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"providers\" and r._field == \"registered\" and r.installation == \"${installation}\")\n  |> group(columns: [\"installation\", \"provider\"]) |> last()\n  |> group() |> sum(column: \"_value\")"
+          "query": "from(bucket: \"telefonie\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"providers\" and r._field == \"registered\")\n  |> group(columns: [\"installation\", \"provider\"]) |> last()\n  |> filter(fn: (r) => r._value == 0)\n  |> group() |> count(column: \"_value\")"
+        }
+      ],
+      "title": "Provider getrennt (gesamt)",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "${DS_INFLUXDB}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "steps",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "unit": ""
         },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 15,
+        "x": 9,
+        "y": 1
+      },
+      "id": 44,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
         {
           "type": "influxdb",
           "uid": "${DS_INFLUXDB}",
-          "refId": "B",
-          "query": "from(bucket: \"telefonie\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"providers\" and r._field == \"registered\" and r.installation == \"${installation}\")\n  |> group(columns: [\"installation\", \"provider\"]) |> last()\n  |> group() |> count(column: \"_value\")"
+          "refId": "A",
+          "query": "from(bucket: \"telefonie\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"providers\" and r._field == \"registered\")"
         }
       ],
-      "title": "Provider registriert",
-      "type": "stat"
+      "title": "Provider-Status 0/1 (alle Anlagen, letzte 6h)",
+      "type": "timeseries"
+    },
+    {
+      "type": "row",
+      "title": "Anlagen im Detail (letzter Stand)",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 9
+      },
+      "id": 45,
+      "panels": []
     },
     {
       "datasource": {
@@ -266,66 +328,154 @@
           "color": {
             "mode": "thresholds"
           },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false,
+            "minWidth": 80,
+            "showCellInspectModal": false,
+            "wrapText": false
+          },
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "red",
                 "value": null
               }
             ]
-          },
-          "unit": "dateTimeFromNow"
+          }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "registered"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text",
+                  "mode": "background"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "red",
+                      "value": null
+                    },
+                    {
+                      "color": "green",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "letzter Poll"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "dateTimeFromNow"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "ok"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text",
+                  "mode": "background"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "red",
+                      "value": null
+                    },
+                    {
+                      "color": "green",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "installation"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "link",
+                  "link": {
+                    "title": "Anlage öffnen",
+                    "url": "/d/starface-anlage-detail/anlage-detail?var-installation=${__value.raw}&from=now-6h&to=now",
+                    "targetBlank": true
+                  }
+                }
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
-        "h": 8,
-        "w": 3,
-        "x": 9,
-        "y": 1
+        "h": 10,
+        "w": 8,
+        "x": 0,
+        "y": 10
       },
-      "id": 5,
+      "id": 46,
       "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "enablePagination": false,
           "fields": "",
-          "values": false
+          "reducer": [
+            "sum"
+          ],
+          "show": false
         },
-        "textMode": "auto",
-        "wideLayout": true
+        "showHeader": true,
+        "sortBy": []
       },
-      "pluginVersion": "11.2.0",
       "targets": [
         {
           "type": "influxdb",
           "uid": "${DS_INFLUXDB}",
           "refId": "A",
-          "query": "from(bucket: \"telefonie\")\n  |> range(start: -24h)\n  |> filter(fn: (r) => r._measurement == \"system\" and r.installation == \"${installation}\")\n  |> last()\n  |> keep(columns: [\"_time\"])"
+          "query": "from(bucket: \"telefonie\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"providers\" and r._field == \"registered\")\n  |> group(columns: [\"installation\", \"provider\"]) |> last()\n  |> group(columns: [\"installation\"])\n  |> reduce(fn: (r, accumulator) => ({sum: accumulator.sum + r._value, n: accumulator.n + 1}), identity: {sum: 0, n: 0})\n  |> map(fn: (r) => ({r with ok: r.sum == r.n}))\n  |> keep(columns: [\"installation\", \"sum\", \"n\", \"ok\"])\n  |> rename(columns: {sum: \"registriert\", n: \"gesamt\"})"
         }
       ],
-      "title": "Letzter Poll",
-      "type": "stat"
-    },
-    {
-      "type": "row",
-      "title": "Provider-Status (alle Anlagen — Zeile klicken → Anlagen-Dashboard)",
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 9
-      },
-      "id": 6,
-      "panels": []
+      "title": "Ausfälle je Anlage (rot = Ausfall)",
+      "type": "table"
     },
     {
       "datasource": {
@@ -424,12 +574,12 @@
         ]
       },
       "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
+        "h": 10,
+        "w": 8,
+        "x": 8,
         "y": 10
       },
-      "id": 7,
+      "id": 47,
       "options": {
         "cellHeight": "sm",
         "footer": {
@@ -449,23 +599,151 @@
           "type": "influxdb",
           "uid": "${DS_INFLUXDB}",
           "refId": "A",
-          "query": "from(bucket: \"telefonie\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"providers\" and r._field == \"registered\")\n  |> group(columns: [\"installation\", \"provider\"]) |> last()\n  |> group()\n  |> rename(columns: {_value: \"registered\", _time: \"letzter Poll\"})\n  |> keep(columns: [\"installation\", \"provider\", \"registered\", \"letzter Poll\"])"
+          "query": "from(bucket: \"telefonie\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"system\")\n  |> filter(fn: (r) => r._field == \"mem_total\" or r._field == \"mem_available\")\n  |> group(columns: [\"installation\"])\n  |> last()\n  |> pivot(rowKey: [\"_time\", \"installation\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> map(fn: (r) => ({r with ram_pct: 100.0 * (float(v: r.mem_total) - float(v: r.mem_available)) / float(v: r.mem_total)}))\n  |> group()\n  |> keep(columns: [\"installation\", \"ram_pct\"])\n  |> rename(columns: {ram_pct: \"RAM %\"})"
         }
       ],
-      "title": "Provider-Status (letzter Poll je Anlage/Provider)",
+      "title": "RAM-Auslastung je Anlage",
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "${DS_INFLUXDB}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false,
+            "minWidth": 80,
+            "showCellInspectModal": false,
+            "wrapText": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "registered"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text",
+                  "mode": "background"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "red",
+                      "value": null
+                    },
+                    {
+                      "color": "green",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "letzter Poll"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "dateTimeFromNow"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "installation"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "link",
+                  "link": {
+                    "title": "Anlage öffnen",
+                    "url": "/d/starface-anlage-detail/anlage-detail?var-installation=${__value.raw}&from=now-6h&to=now",
+                    "targetBlank": true
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 8,
+        "x": 16,
+        "y": 10
+      },
+      "id": 48,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "enablePagination": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": []
+      },
+      "targets": [
+        {
+          "type": "influxdb",
+          "uid": "${DS_INFLUXDB}",
+          "refId": "A",
+          "query": "from(bucket: \"telefonie\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"system\")\n  |> filter(fn: (r) => r._field == \"load1\")\n  |> group(columns: [\"installation\"])\n  |> last()\n  |> group()\n  |> keep(columns: [\"installation\", \"_value\"])\n  |> rename(columns: {_value: \"Load 1\"})"
+        }
+      ],
+      "title": "Load 1 je Anlage",
       "type": "table"
     },
     {
       "type": "row",
-      "title": "Zeitverläufe",
+      "title": "Zeitverläufe (alle Anlagen)",
       "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 18
+        "y": 20
       },
-      "id": 8,
+      "id": 49,
       "panels": []
     },
     {
@@ -526,9 +804,9 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 19
+        "y": 21
       },
-      "id": 9,
+      "id": 50,
       "options": {
         "legend": {
           "calcs": [],
@@ -610,9 +888,9 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 27
+        "y": 29
       },
-      "id": 10,
+      "id": 51,
       "options": {
         "legend": {
           "calcs": [],
@@ -698,9 +976,9 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 35
+        "y": 37
       },
-      "id": 11,
+      "id": 52,
       "options": {
         "legend": {
           "calcs": [],
@@ -730,6 +1008,7 @@
   "tags": [
     "starface",
     "telefonie",
+    "admin",
     "monitoring"
   ],
   "templating": {
@@ -762,8 +1041,8 @@
   },
   "timepicker": {},
   "timezone": "browser",
-  "title": "STARFACE Telefonie-Monitoring",
-  "uid": "starface-telefonie-monitoring",
+  "title": "STARFACE Admin-Übersicht (alle Anlagen)",
+  "uid": "starface-admin-uebersicht",
   "version": 1,
   "weekStart": ""
 }
