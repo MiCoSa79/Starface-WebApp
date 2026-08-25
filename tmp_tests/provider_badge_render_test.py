@@ -38,7 +38,7 @@ status = {
 }
 html = TEMPLATES.env.get_template("monitoring.html").render(
     user={"username": "admin", "is_admin": True}, active="monitoring", status=status)
-for marker in ["Alle Provider verbunden", "Provider getrennt (0/1)", "Keine Provider"]:
+for marker in ["Alle Provider verbunden (2)", "Provider getrennt (1 von 1)", "Keine Provider"]:
     print(f"{'OK ' if marker in html else 'FAIL'} enthaelt: {marker}")
     assert marker in html
 print("Badge-count:", html.count('class="badge badge-green"'), "gruen /",

@@ -94,9 +94,9 @@
                         {% set ps = vals.provider_summary %}
                         {% if ps and ps.has_data %}
                             {% if ps.all_ok %}
-                            <span class="badge badge-green" title="{{ ps.count }} Provider verbunden">Alle Provider verbunden</span>
+                            <span class="badge badge-green" title="{{ ps.count }} Provider registriert">Alle Provider verbunden ({{ ps.count }})</span>
                             {% else %}
-                            <span class="badge badge-red" title="{{ ps.disconnected|join('; ') }}">Provider getrennt ({{ ps.connected }}/{{ ps.count }})</span>
+                            <span class="badge badge-red" title="{{ ps.disconnected|join('; ') }}">Provider getrennt ({{ ps.count - ps.connected }} von {{ ps.count }})</span>
                             {% endif %}
                         {% else %}
                             <span class="badge badge-gray" title="Noch keine Provider-Daten vom Modul">Keine Provider</span>
