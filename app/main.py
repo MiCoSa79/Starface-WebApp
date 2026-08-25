@@ -847,6 +847,8 @@ async def admin_page(request: Request):
                                        "active": "admin",
                                        "OTP_ISSUER": "STARFACE-WebApp",
                                        "version": os.environ.get("APP_VERSION", "dev"),
+                                       "grafana_base": _grafana_base(),
+                                       "grafana_admin_uid": "starface-admin-uebersicht",
                                        "grafana_base_url_value": _get_setting("grafana_base_url"),
                                        "grafana_base_fallback": os.environ.get("GRAFANA_BASE_URL", "http://10.0.25.60:8894")})
 
@@ -1617,7 +1619,8 @@ async def monitoring_page(request: Request):
         {"request": request, "user": user, "active": "monitoring",
          "status": {**mstatus, "installations": installations},
          "grafana_base": _grafana_base(),
-         "grafana_uid": "starface-anlage-detail"})
+         "grafana_uid": "starface-anlage-detail",
+         "grafana_admin_uid": "starface-admin-uebersicht"})
 
 
 @app.get("/admin/monitoring", response_class=HTMLResponse)

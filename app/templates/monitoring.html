@@ -54,6 +54,12 @@
         <h2>Telefonie-Monitoring</h2>
         <div style="margin-bottom:12px;">
             <a href="{% if user.is_admin %}/admin{% else %}/dashboard{% endif %}" class="btn-secondary" style="padding:8px 14px;border-radius:6px;text-decoration:none;background:#333;color:#ccc;font-size:13px;">{% if user.is_admin %}← Zurück zum Admin{% else %}← Zurück zum Dashboard{% endif %}</a>
+            {% if user.is_admin %}
+            <a href="{{ grafana_base }}/d/{{ grafana_admin_uid }}/" target="_blank" rel="noopener" class="btn-secondary" style="margin-left:8px;padding:8px 14px;border-radius:6px;text-decoration:none;background:#333;color:#ccc;font-size:13px;display:inline-flex;align-items:center;gap:6px;" title="Grafana-Admin-Übersicht (alle Anlagen) öffnen">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>
+                Admin-Übersicht
+            </a>
+            {% endif %}
             <span style="color:#666;font-size:12px;margin-left:10px;">Seite aktualisiert sich alle 15 s</span>
         </div>
 

@@ -190,5 +190,24 @@ assert "10.0.25.60:8894/d/starface-anlage-detail/" in body, "Leerer Wert muss au
 ok += 1
 print("12. Leerer Wert -> Fallback-URL  OK")
 
+# 13) Admin-Übersicht-Link: NUR Admin auf /monitoring, Bob nicht
+login("admin")
+r = c.get("/monitoring")
+assert "starface-admin-uebersicht" in r.text, "Admin sieht den Admin-Übersicht-Link nicht auf /monitoring"
+login("bob")
+r = c.get("/monitoring")
+body = r.text
+assert "starface-admin-uebersicht" not in body, "Bob darf den Admin-Übersicht-Link NICHT sehen"
+ok += 1
+print("13. Admin-Übersicht-Link nur für Admins (Monitoring)  OK")
+
+# 14) Admin-Seite: Einstellungen-Karte enthält den Admin-Übersicht-Link
+login("admin")
+r = c.get("/admin")
+body = r.text
+assert "starface-admin-uebersicht" in body and "Grafana Admin-Übersicht öffnen" in body, "Admin-Seite: Admin-Übersicht-Link fehlt"
+ok += 1
+print("14. Admin-Seite: Admin-Übersicht-Link in Einstellungen  OK")
+
 print(f"\nALLE {ok} TESTS OK")
 os.remove(DB) if os.path.exists(DB) else None
