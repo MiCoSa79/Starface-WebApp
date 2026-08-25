@@ -45,7 +45,16 @@
         .footer { position: fixed; bottom: 0; left: 0; right: 0;
                   text-align: center; padding: 8px 16px; color: #555; font-size: 12px;
                   background: #16213e; border-top: 1px solid #222; z-index: 100; }
-    </style>
+    
+        /* ── Scrollbars an das Dark-Design anpassen (app-weit) ──── */
+        ::-webkit-scrollbar { width: 10px; height: 10px; }
+        ::-webkit-scrollbar-track { background: rgba(255,255,255,.05); border-radius: 8px; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,.20); border-radius: 8px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.34); }
+        ::-webkit-scrollbar-corner { background: transparent; }
+        * { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.25) transparent; }
+
+</style>
 </head>
 <body>
     <div class="card">

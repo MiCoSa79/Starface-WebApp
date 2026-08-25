@@ -33,7 +33,16 @@
         .logo { text-align: center; margin-bottom: 16px; }
         .logo img { max-height: 48px; width: auto; }
         .hidden { display: none; }
-    </style>
+    
+        /* ── Scrollbars an das Dark-Design anpassen (app-weit) ──── */
+        ::-webkit-scrollbar { width: 10px; height: 10px; }
+        ::-webkit-scrollbar-track { background: rgba(255,255,255,.05); border-radius: 8px; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,.20); border-radius: 8px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.34); }
+        ::-webkit-scrollbar-corner { background: transparent; }
+        * { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.25) transparent; }
+
+</style>
 </head>
 <body>
     <div class="card">

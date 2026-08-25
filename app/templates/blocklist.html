@@ -96,6 +96,15 @@
         .back { display: inline-block; color: #888; text-decoration: none; margin-bottom: 16px; font-size: 14px; }
     .header-wrap { position: sticky; top: 0; left: 0; right: 0;
           z-index: 30; background: #16213e; box-shadow: 0 2px 8px rgba(0,0,0,.35); }
+
+        /* ── Scrollbars an das Dark-Design anpassen (app-weit) ──── */
+        ::-webkit-scrollbar { width: 10px; height: 10px; }
+        ::-webkit-scrollbar-track { background: rgba(255,255,255,.05); border-radius: 8px; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,.20); border-radius: 8px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.34); }
+        ::-webkit-scrollbar-corner { background: transparent; }
+        * { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.25) transparent; }
+
 </style>
 </head>
 <body>
