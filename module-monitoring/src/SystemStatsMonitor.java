@@ -2,7 +2,9 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import de.vertico.starface.module.core.model.VariableType;
 import de.vertico.starface.module.core.model.Visibility;
@@ -255,65 +257,156 @@ public class SystemStatsMonitor implements IBaseExecutable
 		log(context, "SystemStats: sip show registry (rc=" + rc + "):\n" + regOut);
 
 		StringBuilder status = new StringBuilder();
+		java.util.List<String[]> registryLines = parseRegistryLines(regOut);
+		Map<String, String> consumed = new HashMap<String, String>();
+
+		// Pass 1: exakter Abgleich configName -> Registry-Zeile (User/Host)
+		StringBuilder unmapped = new StringBuilder();
 		for (String c : configNames) {
-			String state = matchRegistryState(c, regOut);
+			String state = matchRegistryState(c, registryLines, consumed);
 			if (state == null) {
-				state = "Not registered";
+				if (unmapped.length() > 0) {
+					unmapped.append("\n");
+				}
+				unmapped.append(c);
+				continue;
 			}
-			if (status.length() > 0) {
-				status.append("\n");
-			}
-			status.append(c).append("=").append(state);
+			appendStatus(status, c, state);
 		}
-		if (status.length() == 0) {
-			// Fallback: Registry-Zeilen direkt (falls keine Konfig-Namen kamen)
-			for (String line : regOut.split("\n")) {
-				String lt = line.trim();
-				if (lt.isEmpty() || lt.startsWith("Host") || lt.startsWith("-") || lt.startsWith("sip registrations")) {
-					continue;
-				}
-				String[] t = lt.split("\\s+");
-				if (t.length < 4) {
-					continue;
-				}
-				String name = t[1] + "@" + t[0];
-				if (status.length() > 0) {
-					status.append("\n");
-				}
-				status.append(name).append("=").append(t[3]);
+
+		// Pass 2: verbleibende Registry-Zeilen der Reihenfolge nach ungemappten
+		// configNames zuordnen (deckt Namens-Abweichungen der Cloud ab)
+		String[] unmapArr = unmapped.toString().split("\n");
+		int ri = 0;
+		for (String[] line : registryLines) {
+			if (consumed.containsKey(lineKey(line))) {
+				continue;
 			}
+			if (ri < unmapArr.length) {
+				String c = unmapArr[ri++].trim();
+				if (c.length() > 0) {
+					appendStatus(status, c, extractState(line));
+					consumed.put(lineKey(line), extractState(line));
+				}
+			}
+		}
+
+		// Pass 3: uebrige Registry-Zeilen direkt uebernehmen (Format "user@host=State")
+		for (String[] line : registryLines) {
+			if (consumed.containsKey(lineKey(line))) {
+				continue;
+			}
+			appendStatus(status, registryUser(line) + "@" + registryHost(line), extractState(line));
+		}
+
+		// Fallback, wenn gar nichts parsebar war
+		if (status.length() == 0) {
+			appendStatus(status, "unknown", "Not registered");
 		}
 		providerStatus = status.toString();
-	}
+		}
 
-	private String matchRegistryState(String configName, String regOut)
-	{
+		private String lineKey(String[] t)
+		{
+		return (t.length >= 2) ? t[0] + "|" + t[1] : t[0];
+		}
+
+		private void appendStatus(StringBuilder status, String name, String state)
+		{
+		if (status.length() > 0) {
+			status.append("\n");
+		}
+		status.append(name).append("=").append(state);
+		}
+
+		private java.util.List<String[]> parseRegistryLines(String regOut)
+		{
+		java.util.List<String[]> result = new ArrayList<String[]>();
+		if (regOut == null) {
+			return result;
+		}
+		for (String line : regOut.split("\n")) {
+			String lt = line.trim();
+			if (lt.isEmpty() || lt.startsWith("Host") || lt.startsWith("-")
+					|| lt.startsWith("sip registrations") || lt.startsWith("No registrations")) {
+				continue;
+			}
+			String[] t = lt.split("\\s+");
+			if (t.length >= 4) {
+				result.add(t);
+			}
+		}
+		return result;
+		}
+
+		private String matchRegistryState(String configName, java.util.List<String[]> lines, Map<String, String> consumed)
+		{
 		String cfgUser = configName;
 		int at = configName.indexOf('@');
 		if (at >= 0) {
 			cfgUser = configName.substring(0, at);
 		}
-		String best = null;
-		for (String line : regOut.split("\n")) {
-			String lt = line.trim();
-			if (lt.isEmpty() || lt.startsWith("Host") || lt.startsWith("-") || lt.startsWith("sip registrations")) {
+		String[] bestLine = null;
+		for (String[] t : lines) {
+			if (consumed.containsKey(lineKey(t))) {
 				continue;
 			}
-			String[] t = lt.split("\\s+");
-			if (t.length < 4) {
-				continue;
-			}
-			String user = t[1];
-			String host = t[0];
-			if (cfgUser.equals(user) || configName.contains(host) || user.contains(cfgUser)) {
-				String st = t[3];
-				if ("Registered".equals(st)) {
-					return "Registered";
+			String user = registryUser(t);
+			String host = registryHost(t);
+			if (cfgUser.equals(user) || configName.contains(host)
+					|| user.contains(cfgUser) || t[2].contains(configName)) {
+				if (extractState(t).startsWith("Registered")) {
+					bestLine = t;
+					break;
 				}
-				best = st;
+				if (bestLine == null) {
+					bestLine = t;
+				}
 			}
 		}
-		return best;
+		if (bestLine != null) {
+			consumed.put(lineKey(bestLine), extractState(bestLine));
+			return extractState(bestLine);
+		}
+		return null;
+	}
+
+	private String extractState(String[] t)
+	{
+		// State-Spalte ist NICHT garantiert t[3]: STARFACE kann eine dnsmgr-Spalte
+		// einschieben ("Host dnsmgr Username Refresh State ..." -> State in t[4]).
+		if (t[3].startsWith("Registered")) {
+			return t[3];
+		}
+		for (String tok : t) {
+			if (tok.startsWith("Registered")) {
+				return tok;
+			}
+		}
+		return t[3];
+	}
+
+	private String registryUser(String[] t)
+	{
+		// Username steht i. d. R. in t[2] (ohne '@...'-Suffix); mit dnsmgr-Spalte
+		// ist t[1]="N" und NIE der Username.
+		if (t.length >= 3) {
+			String u = t[2];
+			int at = u.indexOf('@');
+			return (at >= 0) ? u.substring(0, at) : u;
+		}
+		return "";
+	}
+
+	private String registryHost(String[] t)
+	{
+		// Port-Suffix (":5060") entfernen, damit "configName.contains(host)" matcht
+		return t[0].replaceFirst(":\\d+$", "");
+	}
+
+	private boolean isRegistered(String[] t)
+	{
+		return extractState(t).startsWith("Registered");
 	}
 
 	private int parseIntSafe(String s)

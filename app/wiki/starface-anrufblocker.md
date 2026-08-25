@@ -120,6 +120,7 @@ Modul-Historie v4–v28 vollständig (inkl. UUIDs und Commit-Hashes) im Repo
 
 | Version | Inhalt |
 |---|---|
+| v0.0.118 | **Modul TelefonieMonitoring v3 + WebApp-Status-Fix:** STARFACE setzt eine `dnsmgr`-Spalte in `sip show registry` → Status stand in Spalte 5 statt 4, Username in Spalte 3 — Modul erkennt State/User jetzt spalten-unabhängig (`extractState`/`registryUser`/`registryHost`, Registered-Token-Scan), ordnet nicht gematchte Zeilen per Reihenfolge zu und übernimmt Restzeilen direkt; behebt „alle Provider getrennt“ trotz verbunden (bewiesen gegen echtes Cloud-Log). WebApp wertet zusätzlich `Registered…`-Präfix-Toleranz. |
 | v0.0.117 | **Provider-Badge-Text eindeutig:** rot zählt die GETRENNTEN Provider („Provider getrennt (2 von 2)") statt „verbunden/Zähler" (0/2 war missverständlich), grün mit Anzahl („Alle Provider verbunden (2)"). |
 | v0.0.115 | **Monitoring-Seite: Provider-Status-Badges** — statt kryptischer Zeilen je Anlage ein grünes „Alle Provider verbunden" (alle `Registered`), rotes „Provider getrennt (x/y)" mit Details im Tooltip, graues „Keine Provider" ohne Daten; Auswertung zentral in `monitoring._provider_summary` (auch in der Status-API). |
 | v0.0.111 | base.html: Wiki-Link nur für Admins (Route `/wiki` ist Admin-only — Nicht-Admins sehen keine toten Links). |

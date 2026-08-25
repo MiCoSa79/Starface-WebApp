@@ -166,7 +166,7 @@ def _provider_summary(raw: str) -> dict:
         name_s = name.strip()
         status_s = status.strip()
         providers.append(name_s)
-        if status_s != "Registered":
+        if not status.strip().startswith("Registered"):
             disconnected.append(f"{name_s} ({status_s})")
     return {
         "count": len(providers),
