@@ -41,7 +41,7 @@ print("Wiki-E2E: Renderer-Ebene (wiki_render)")
 import wiki_render  # noqa: E402
 
 pages = wiki_render.list_pages()
-check("Index listet genau 3 Seiten", len(pages) == 3, f"gefunden: {[p['slug'] for p in pages]}")
+check("Index listet genau 4 Seiten", len(pages) == 4, f"gefunden: {[p['slug'] for p in pages]}")
 for p in pages:
     check(f"Frontmatter vollständig: {p['slug']}",
           bool(p["title"]) and bool(p["description"]) and bool(p["updated"]))
