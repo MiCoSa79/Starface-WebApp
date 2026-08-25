@@ -67,24 +67,24 @@
             <h2 style="margin-top:0;">Sammler</h2>
             <div class="kv">
                 <div><div class="k">Status</div>
-                    <div class="v">{% if status.running %}<span class="badge badge-green">Läuft</span>{% else %}<span class="badge badge-red">Gestoppt</span>{% endif %}</div></div>
-                <div><div class="k">Intervall</div><div class="v">{{ status.interval }} s</div></div>
-                <div><div class="k">Poll-Läufe gesamt</div><div class="v">{{ status.total_runs }}</div></div>
-                <div><div class="k">Points geschrieben</div><div class="v">{{ status.total_writes }}</div></div>
-                <div><div class="k">Letzter Poll</div><div class="v" data-ts="{{ status.last_run or 0 }}">—</div></div>
+                    <div class="v" id="kv-running">{% if status.running %}<span class="badge badge-green">Läuft</span>{% else %}<span class="badge badge-red">Gestoppt</span>{% endif %}</div></div>
+                <div><div class="k">Intervall</div><div class="v" id="kv-interval">{{ status.interval }} s</div></div>
+                <div><div class="k">Poll-Läufe gesamt</div><div class="v" id="kv-runs">{{ status.total_runs }}</div></div>
+                <div><div class="k">Points geschrieben</div><div class="v" id="kv-writes">{{ status.total_writes }}</div></div>
+                <div><div class="k">Letzter Poll</div><div class="v" id="kv-lastrun" data-ts="{{ status.last_run or 0 }}">—</div></div>
                 <div><div class="k">InfluxDB</div>
-                    <div class="v">{% if status.influx_configured %}<span class="badge badge-green">konfiguriert</span>{% else %}<span class="badge badge-red">kein Token</span>{% endif %}</div></div>
-                <div><div class="k">Bucket</div><div class="v codes">{{ status.influx_bucket }}</div></div>
+                    <div class="v" id="kv-influx">{% if status.influx_configured %}<span class="badge badge-green">konfiguriert</span>{% else %}<span class="badge badge-red">kein Token</span>{% endif %}</div></div>
+                <div><div class="k">Bucket</div><div class="v codes" id="kv-bucket">{{ status.influx_bucket }}</div></div>
             </div>
             {% if status.last_error %}
-            <div style="margin-top:12px;" class="errbox">Letzter Fehler: {{ status.last_error }}</div>
+            <div style="margin-top:12px;" class="errbox" id="kv-error">Letzter Fehler: {{ status.last_error }}</div>
             {% endif %}
         </div>
 
         <div class="card">
             <h2 style="margin-top:0;">Installationen (letzte Werte)</h2>
             {% if status.installations %}
-            <table>
+            <table id="tbl-inst">
                 <tr>
                     <th>Anlage</th>
                     <th>Hostname</th>
@@ -94,6 +94,7 @@
                     <th>Letzter Poll</th>
                     <th style="width:44px;"></th>
                 </tr>
+                <tbody id="inst-rows" data-ghref="{{ grafana_base }}/d/{{ grafana_uid }}/?var-installation=" data-gsuffix="&from=now-6h&to=now&kiosk=1&hideLogo">
                 {% for name, vals in status.installations.items() %}
                 <tr>
                     <td>{{ name }}</td>
@@ -121,13 +122,20 @@
                     </td>
                 </tr>
                 {% endfor %}
+                </tbody>
             </table>
             {% else %}
-            {% if user and user.is_admin %}
-            <p style="color:#888;font-size:14px;">Noch keine Werte. Hinweis: Der Sammler pollt nur Installationen, bei denen unter <b>Bearbeiten</b> das Feld <b>Monitoring-Modul-Instanz</b> gesetzt ist.</p>
-            {% else %}
-            <p style="color:#888;font-size:14px;">Für keine Anlage liegen Monitoring-Daten vor, oder du hast für keine Anlage Lese-Rechte. Wende dich an einen Administrator.</p>
-            {% endif %}
+            <table id="tbl-inst" style="border:0;">
+                <tbody id="inst-rows" data-ghref="{{ grafana_base }}/d/{{ grafana_uid }}/?var-installation=" data-gsuffix="&from=now-6h&to=now&kiosk=1&hideLogo">
+                <tr><td colspan="7" style="border:0;padding:0;">
+                {% if user and user.is_admin %}
+                <p style="color:#888;font-size:14px;margin:0;">Noch keine Werte. Hinweis: Der Sammler pollt nur Installationen, bei denen unter <b>Bearbeiten</b> das Feld <b>Monitoring-Modul-Instanz</b> gesetzt ist.</p>
+                {% else %}
+                <p style="color:#888;font-size:14px;margin:0;">Für keine Anlage liegen Monitoring-Daten vor, oder du hast für keine Anlage Lese-Rechte. Wende dich an einen Administrator.</p>
+                {% endif %}
+                </td></tr>
+                </tbody>
+            </table>
             {% endif %}
         </div>
     </div>
@@ -141,5 +149,97 @@
         document.querySelectorAll('[data-ts]').forEach(function (el) {
             el.textContent = fmtTs(el.dataset.ts ? parseFloat(el.dataset.ts) : 0);
         });
+
+        // --- Auto-Refresh alle 15 s (Sammler-Status + Installationen-Tabelle) ---
+        function setBadgeText(el, txt, cls, title) {
+            if (!el) return;
+            el.textContent = '';
+            var b = document.createElement('span');
+            b.className = 'badge ' + cls;
+            b.textContent = txt;
+            if (title) b.title = title;
+            el.appendChild(b);
+        }
+        function setVal(el, txt) {
+            if (el) el.textContent = (txt === null || txt === undefined) ? '—' : txt;
+        }
+        function providerBadge(ps) {
+            var b = document.createElement('span');
+            if (ps && ps.has_data) {
+                if (ps.all_ok) {
+                    b.className = 'badge badge-green';
+                    b.textContent = 'Alle Provider verbunden (' + ps.count + ')';
+                    b.title = ps.count + ' Provider registriert';
+                } else {
+                    b.className = 'badge badge-red';
+                    var off = (ps.count || 0) - (ps.connected || 0);
+                    b.textContent = 'Provider getrennt (' + off + ' von ' + ps.count + ')';
+                    b.title = (ps.disconnected || []).join('; ');
+                }
+            } else {
+                b.className = 'badge badge-gray';
+                b.textContent = 'Keine Provider';
+                b.title = 'Noch keine Provider-Daten vom Modul';
+            }
+            return b;
+        }
+        function renderRows(tbody, insts) {
+            if (!tbody) return;
+            tbody.textContent = '';
+            var ghref = tbody.getAttribute('data-ghref') || '';
+            var gsuffix = tbody.getAttribute('data-gsuffix') || '';
+            var names = Object.keys(insts || {});
+            if (names.length === 0) {
+                var tr0 = document.createElement('tr');
+                var td0 = document.createElement('td');
+                td0.colSpan = 7;
+                td0.style.border = '0';
+                td0.style.padding = '0';
+                var p = document.createElement('p');
+                p.style.color = '#888'; p.style.fontSize = '14px'; p.style.margin = '0';
+                p.textContent = 'Für keine Anlage liegen Monitoring-Daten vor, oder du hast für keine Anlage Lese-Rechte.';
+                td0.appendChild(p); tr0.appendChild(td0); tbody.appendChild(tr0);
+                return;
+            }
+            names.forEach(function (name) {
+                var v = insts[name] || {};
+                var tr = document.createElement('tr');
+                var tdName = document.createElement('td'); tdName.textContent = name;
+                var tdHost = document.createElement('td'); tdHost.className = 'codes'; tdHost.textContent = v.systemName || '—';
+                var tdVer = document.createElement('td'); tdVer.textContent = v.systemVersion || '—';
+                var tdProv = document.createElement('td'); tdProv.appendChild(providerBadge(v.provider_summary));
+                var tdPts = document.createElement('td'); tdPts.textContent = v.points != null ? v.points : '—';
+                var tdTs = document.createElement('td'); tdTs.textContent = fmtTs(v.ts || 0);
+                var tdLink = document.createElement('td');
+                var a = document.createElement('a');
+                a.className = 'grafana-dl'; a.target = '_blank'; a.rel = 'noopener';
+                a.title = 'Grafana-Dashboard der Anlage ' + name + ' öffnen';
+                a.href = ghref + encodeURIComponent(name) + gsuffix;
+                a.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 15.5l2.8-3.2 2.4 2.2L15.6 9"/><path d="M16.5 14.5h1.2"/></svg>';
+                tdLink.appendChild(a);
+                tr.appendChild(tdName); tr.appendChild(tdHost); tr.appendChild(tdVer);
+                tr.appendChild(tdProv); tr.appendChild(tdPts); tr.appendChild(tdTs); tr.appendChild(tdLink);
+                tbody.appendChild(tr);
+            });
+        }
+        function refreshMonitoring() {
+            fetch('/api/monitoring/status', { cache: 'no-store' })
+                .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+                .then(function (st) {
+                    setBadgeText(document.getElementById('kv-running'), st.running ? 'Läuft' : 'Gestoppt', st.running ? 'badge-green' : 'badge-red');
+                    setVal(document.getElementById('kv-interval'), st.interval != null ? st.interval + ' s' : '—');
+                    setVal(document.getElementById('kv-runs'), st.total_runs);
+                    setVal(document.getElementById('kv-writes'), st.total_writes);
+                    setVal(document.getElementById('kv-lastrun'), fmtTs(st.last_run || 0));
+                    setBadgeText(document.getElementById('kv-influx'), st.influx_configured ? 'konfiguriert' : 'kein Token', st.influx_configured ? 'badge-green' : 'badge-red');
+                    setVal(document.getElementById('kv-bucket'), st.influx_bucket);
+                    var err = document.getElementById('kv-error');
+                    if (err) { if (st.last_error) err.textContent = 'Letzter Fehler: ' + st.last_error; else err.remove(); }
+                    renderRows(document.getElementById('inst-rows'), st.installations);
+                })
+                .catch(function (e) { console.warn('Monitoring-Refresh fehlgeschlagen:', e); });
+        }
+        setInterval(refreshMonitoring, 15000);
+        refreshMonitoring(); // sofortiger erster Abgleich
     </script>
 {% endblock %}

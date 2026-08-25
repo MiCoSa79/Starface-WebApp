@@ -209,5 +209,18 @@ assert "starface-admin-uebersicht" in body and "Grafana Admin-Übersicht öffnen
 ok += 1
 print("14. Admin-Seite: Admin-Übersicht-Link in Einstellungen  OK")
 
+# 15) Monitoring-Auto-Refresh: JS-Marker + tbody auf der Monitoring-Seite (Admin)
+login("admin")
+r = c.get("/monitoring")
+body = r.text
+assert r.status_code == 200, r.status_code
+assert 'id="inst-rows"' in body, "tbody inst-rows fehlt (Auto-Refresh-Ziel)"
+assert 'id="kv-running"' in body, "Sammler-Status-Badge id fehlt"
+assert "setInterval(refreshMonitoring, 15000)" in body, "15s-Refresh-Timer fehlt"
+assert "/api/monitoring/status" in body, "Refresh-fetch-URL fehlt"
+assert "data-ghref=" in body and "hideLogo" in body, "Refresh-Link-Basis (Grafana + kiosk/hideLogo) fehlt"
+ok += 1
+print("15. Auto-Refresh-Marker (tbody, Timer 15s, fetch-URL, kiosk-Link)  OK")
+
 print(f"\nALLE {ok} TESTS OK")
 os.remove(DB) if os.path.exists(DB) else None

@@ -149,7 +149,7 @@
           "type": "influxdb",
           "uid": "${DS_INFLUXDB}",
           "refId": "A",
-          "query": "from(bucket: \"telefonie\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"providers\" and r._field == \"registered\")\n  |> group(columns: [\"installation\", \"provider\"]) |> last()\n  |> group(columns: [\"installation\"])\n  |> reduce(fn: (r, accumulator) => ({sum: accumulator.sum + r._value, n: accumulator.n + 1}), identity: {sum: 0, n: 0})\n  |> map(fn: (r) => ({r with ok: r.sum == r.n}))\n  |> group()\n  |> reduce(fn: (r, accumulator) => ({ausfaelle: accumulator.ausfaelle + (if r.ok then 0 else 1), total: accumulator.total + 1}), identity: {ausfaelle: 0, total: 0})\n  |> map(fn: (r) => ({r with _value: float(v: r.ausfaelle)}))"
+          "query": "from(bucket: \"telefonie\")\n  |> range(start: -10m, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"providers\" and r._field == \"registered\")\n  |> group(columns: [\"installation\", \"provider\"]) |> last()\n  |> group(columns: [\"installation\"])\n  |> reduce(fn: (r, accumulator) => ({sum: accumulator.sum + r._value, n: accumulator.n + 1}), identity: {sum: 0, n: 0})\n  |> map(fn: (r) => ({r with ok: r.sum == r.n}))\n  |> group()\n  |> reduce(fn: (r, accumulator) => ({ausfaelle: accumulator.ausfaelle + (if r.ok then 0 else 1), total: accumulator.total + 1}), identity: {ausfaelle: 0, total: 0})\n  |> map(fn: (r) => ({r with _value: float(v: r.ausfaelle)}))\n  |> keep(columns: [\"_value\"])"
         }
       ],
       "title": "Anlagen mit Provider-Ausfall",
@@ -211,7 +211,7 @@
           "type": "influxdb",
           "uid": "${DS_INFLUXDB}",
           "refId": "A",
-          "query": "from(bucket: \"telefonie\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"providers\" and r._field == \"registered\")\n  |> group(columns: [\"installation\", \"provider\"]) |> last()\n  |> filter(fn: (r) => r._value == 0)\n  |> group() |> count(column: \"_value\")"
+          "query": "from(bucket: \"telefonie\")\n  |> range(start: -10m, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"providers\" and r._field == \"registered\")\n  |> group(columns: [\"installation\", \"provider\"]) |> last()\n  |> group()\n  |> map(fn: (r) => ({r with down: if r._value == 0 then 1.0 else 0.0}))\n  |> sum(column: \"down\")\n  |> map(fn: (r) => ({r with _value: r.down}))\n  |> keep(columns: [\"_value\"])"
         }
       ],
       "title": "Provider getrennt (gesamt)",
@@ -255,7 +255,10 @@
             },
             "thresholdsStyle": {
               "mode": "off"
-            }
+            },
+            "axisMinMaxMode": "fixed",
+            "axisMin": 0,
+            "axisMax": 1
           },
           "mappings": [],
           "thresholds": {
@@ -299,7 +302,7 @@
           "type": "influxdb",
           "uid": "${DS_INFLUXDB}",
           "refId": "A",
-          "query": "from(bucket: \"telefonie\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"providers\" and r._field == \"registered\")"
+          "query": "from(bucket: \"telefonie\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"providers\" and r._field == \"registered\" and r.provider != \"register\" and not r.provider =~ /^register=>/)"
         }
       ],
       "title": "Provider-Status 0/1 (alle Anlagen, letzte 6h)",
@@ -353,7 +356,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "registered"
+              "options": "Alles ok"
             },
             "properties": [
               {
@@ -364,63 +367,22 @@
                 }
               },
               {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "red",
-                      "value": null
-                    },
-                    {
-                      "color": "green",
-                      "value": 1
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "true": {
+                        "text": "Ja",
+                        "color": "green"
+                      },
+                      "false": {
+                        "text": "Nein",
+                        "color": "red"
+                      }
                     }
-                  ]
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "letzter Poll"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "dateTimeFromNow"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "ok"
-            },
-            "properties": [
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "type": "color-text",
-                  "mode": "background"
-                }
-              },
-              {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "red",
-                      "value": null
-                    },
-                    {
-                      "color": "green",
-                      "value": 1
-                    }
-                  ]
-                }
+                  }
+                ]
               }
             ]
           },
@@ -471,10 +433,10 @@
           "type": "influxdb",
           "uid": "${DS_INFLUXDB}",
           "refId": "A",
-          "query": "from(bucket: \"telefonie\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"providers\" and r._field == \"registered\")\n  |> group(columns: [\"installation\", \"provider\"]) |> last()\n  |> group(columns: [\"installation\"])\n  |> reduce(fn: (r, accumulator) => ({sum: accumulator.sum + r._value, n: accumulator.n + 1}), identity: {sum: 0, n: 0})\n  |> map(fn: (r) => ({r with ok: r.sum == r.n}))\n  |> keep(columns: [\"installation\", \"sum\", \"n\", \"ok\"])\n  |> rename(columns: {sum: \"registriert\", n: \"gesamt\"})"
+          "query": "from(bucket: \"telefonie\")\n  |> range(start: -10m, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"providers\" and r._field == \"registered\")\n  |> group(columns: [\"installation\", \"provider\"]) |> last()\n  |> group(columns: [\"installation\"])\n  |> reduce(fn: (r, accumulator) => ({sum: accumulator.sum + r._value, n: accumulator.n + 1}), identity: {sum: 0, n: 0})\n  |> map(fn: (r) => ({r with ok: r.sum == r.n}))\n  |> keep(columns: [\"installation\", \"sum\", \"n\", \"ok\"])\n  |> group()\n  |> rename(columns: {sum: \"Provider gesamt\", n: \"Provider registriert\", ok: \"Alles ok\"})"
         }
       ],
-      "title": "Ausfälle je Anlage (rot = Ausfall)",
+      "title": "Provider-Status je Anlage (letzter Stand)",
       "type": "table"
     },
     {
@@ -512,7 +474,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "registered"
+              "options": "RAM %"
             },
             "properties": [
               {
@@ -528,27 +490,19 @@
                   "mode": "absolute",
                   "steps": [
                     {
-                      "color": "red",
+                      "color": "green",
                       "value": null
                     },
                     {
-                      "color": "green",
-                      "value": 1
+                      "color": "orange",
+                      "value": 70
+                    },
+                    {
+                      "color": "red",
+                      "value": 90
                     }
                   ]
                 }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "letzter Poll"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "dateTimeFromNow"
               }
             ]
           },
@@ -599,7 +553,7 @@
           "type": "influxdb",
           "uid": "${DS_INFLUXDB}",
           "refId": "A",
-          "query": "from(bucket: \"telefonie\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"system\")\n  |> filter(fn: (r) => r._field == \"mem_total\" or r._field == \"mem_available\")\n  |> group(columns: [\"installation\"])\n  |> last()\n  |> pivot(rowKey: [\"_time\", \"installation\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> map(fn: (r) => ({r with ram_pct: 100.0 * (float(v: r.mem_total) - float(v: r.mem_available)) / float(v: r.mem_total)}))\n  |> group()\n  |> keep(columns: [\"installation\", \"ram_pct\"])\n  |> rename(columns: {ram_pct: \"RAM %\"})"
+          "query": "from(bucket: \"telefonie\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"system\")\n  |> filter(fn: (r) => r._field == \"mem_total\" or r._field == \"mem_available\")\n  |> aggregateWindow(every: 1m, fn: last, createEmpty: false)\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> map(fn: (r) => ({r with ram_pct: 100.0 * (float(v: r.mem_total) - float(v: r.mem_available)) / float(v: r.mem_total)}))\n  |> keep(columns: [\"installation\", \"ram_pct\"])\n  |> map(fn: (r) => ({r with _value: r.ram_pct}))\n  |> last()\n  |> keep(columns: [\"installation\", \"_value\"])\n  |> rename(columns: {_value: \"RAM %\"})"
         }
       ],
       "title": "RAM-Auslastung je Anlage",
@@ -887,8 +841,8 @@
       "gridPos": {
         "h": 8,
         "w": 12,
-        "x": 0,
-        "y": 29
+        "x": 12,
+        "y": 21
       },
       "id": 51,
       "options": {
@@ -952,7 +906,10 @@
             },
             "thresholdsStyle": {
               "mode": "off"
-            }
+            },
+            "axisMinMaxMode": "fixed",
+            "axisMin": 0,
+            "axisMax": 1
           },
           "mappings": [],
           "thresholds": {
@@ -974,9 +931,9 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
+        "w": 24,
         "x": 0,
-        "y": 37
+        "y": 29
       },
       "id": 52,
       "options": {
@@ -996,7 +953,7 @@
           "type": "influxdb",
           "uid": "${DS_INFLUXDB}",
           "refId": "A",
-          "query": "from(bucket: \"telefonie\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"providers\" and r._field == \"registered\")"
+          "query": "from(bucket: \"telefonie\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"providers\" and r._field == \"registered\" and r.provider != \"register\" and not r.provider =~ /^register=>/)"
         }
       ],
       "title": "Provider-Status (1=registriert, 0=getrennt)",

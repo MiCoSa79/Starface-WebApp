@@ -24,7 +24,7 @@
   "panels": [
     {
       "type": "row",
-      "title": "Übersicht — Anlage: ${installation} (RAM/CPU/Provider)",
+      "title": "Übersicht — ${installation}",
       "collapsed": false,
       "gridPos": {
         "h": 1,
@@ -241,19 +241,16 @@
       "pluginVersion": "11.2.0",
       "targets": [
         {
-          "type": "influxdb",
-          "uid": "${DS_INFLUXDB}",
           "refId": "A",
-          "query": "from(bucket: \"telefonie\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"providers\" and r._field == \"registered\" and r.installation == \"${installation}\")\n  |> group(columns: [\"installation\", \"provider\"]) |> last()\n  |> group() |> sum(column: \"_value\")"
-        },
-        {
-          "type": "influxdb",
-          "uid": "${DS_INFLUXDB}",
-          "refId": "B",
-          "query": "from(bucket: \"telefonie\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"providers\" and r._field == \"registered\" and r.installation == \"${installation}\")\n  |> group(columns: [\"installation\", \"provider\"]) |> last()\n  |> group() |> count(column: \"_value\")"
+          "datasource": {
+            "type": "influxdb",
+            "uid": "${DS_INFLUXDB}"
+          },
+          "rawQuery": true,
+          "query": "from(bucket: \"telefonie\")\n  |> range(start: -10m, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"providers\" and r._field == \"registered\" and r.installation == \"${installation}\")\n  |> group(columns: [\"installation\", \"provider\"]) |> last()\n  |> group() |> sum(column: \"_value\")"
         }
       ],
-      "title": "Provider registriert",
+      "title": "Provider aktiv",
       "type": "stat"
     },
     {
@@ -308,7 +305,7 @@
           "type": "influxdb",
           "uid": "${DS_INFLUXDB}",
           "refId": "A",
-          "query": "from(bucket: \"telefonie\")\n  |> range(start: -24h)\n  |> filter(fn: (r) => r._measurement == \"system\" and r.installation == \"${installation}\")\n  |> last()\n  |> keep(columns: [\"_time\"])"
+          "query": "from(bucket: \"telefonie\")\n  |> range(start: -24h)\n  |> filter(fn: (r) => r._measurement == \"system\" and r.installation == \"${installation}\" and r._field == \"load1\")\n  |> last()\n  |> map(fn: (r) => ({r with _value: float(v: r._time) / 1000000.0}))\n  |> keep(columns: [\"_time\", \"_value\"])"
         }
       ],
       "title": "Letzter Poll",
@@ -362,7 +359,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "registered"
+              "options": "Status"
             },
             "properties": [
               {
@@ -387,6 +384,24 @@
                     }
                   ]
                 }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "1": {
+                        "text": "Registriert",
+                        "color": "green"
+                      },
+                      "0": {
+                        "text": "Getrennt",
+                        "color": "red"
+                      }
+                    }
+                  }
+                ]
               }
             ]
           },
@@ -420,6 +435,18 @@
                 }
               }
             ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "provider"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 480
+              }
+            ]
           }
         ]
       },
@@ -449,7 +476,7 @@
           "type": "influxdb",
           "uid": "${DS_INFLUXDB}",
           "refId": "A",
-          "query": "from(bucket: \"telefonie\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"providers\" and r._field == \"registered\")\n  |> group(columns: [\"installation\", \"provider\"]) |> last()\n  |> group()\n  |> rename(columns: {_value: \"registered\", _time: \"letzter Poll\"})\n  |> keep(columns: [\"installation\", \"provider\", \"registered\", \"letzter Poll\"])"
+          "query": "from(bucket: \"telefonie\")\n  |> range(start: -10m, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"providers\" and r._field == \"registered\")\n  |> group(columns: [\"installation\", \"provider\"]) |> last()\n  |> group()\n  |> rename(columns: {_value: \"Status\", _time: \"letzter Poll\"})\n  |> keep(columns: [\"installation\", \"provider\", \"Status\", \"letzter Poll\"])"
         }
       ],
       "title": "Provider-Status (letzter Poll je Anlage/Provider)",
@@ -524,7 +551,7 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
+        "w": 6,
         "x": 0,
         "y": 19
       },
@@ -608,9 +635,9 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 27
+        "w": 6,
+        "x": 6,
+        "y": 19
       },
       "id": 10,
       "options": {
@@ -674,7 +701,10 @@
             },
             "thresholdsStyle": {
               "mode": "off"
-            }
+            },
+            "axisMinMaxMode": "fixed",
+            "axisMin": 0,
+            "axisMax": 1
           },
           "mappings": [],
           "thresholds": {
@@ -698,7 +728,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 35
+        "y": 27
       },
       "id": 11,
       "options": {
@@ -718,7 +748,7 @@
           "type": "influxdb",
           "uid": "${DS_INFLUXDB}",
           "refId": "A",
-          "query": "from(bucket: \"telefonie\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"providers\" and r._field == \"registered\")"
+          "query": "from(bucket: \"telefonie\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"providers\" and r._field == \"registered\" and r.provider != \"register\" and not r.provider =~ /^register=>/)"
         }
       ],
       "title": "Provider-Status (1=registriert, 0=getrennt)",
