@@ -1,100 +1,75 @@
 ---
 title: Module - Reverse Engineering (XML Monitoring v152)
-description: Reverse-Engineering des STARFACE-Firmenmoduls XmlMonitoring_v152.sfm — komplett rekonstruierte Funktionsweise (Checkmk-/XML-Monitoring-Output, DI-Lebenszyklus, dynamische XML-RPC), 15 Klassen im Detail, Lessons für eigene Module.
+description: Reverse-Engineering des STARFACE-Firmenmoduls XmlMonitoring_v152.sfm — komplette Rekonstruktion (Checkmk-/XML-Output, DI-Lebenszyklus, Descriptor-Verdrahtung, dynamische XML-RPC) + Bauanleitung für eigene Monitoring-Module.
 updated: 2026-08-25
 ---
 
 # Module - Reverse Engineering: XML Monitoring v152
 
-**Zweck:** Firmenmodul `XmlMonitoring_v152.sfm` (o-byte / Hermstedt) komplett per Bytecode-Analyse (javap + CFR) rekonstruiert — um zu verstehen, wie ein echtes STARFACE-Monitoring-Modul funktioniert, und um Muster für eigene Module zu übernehmen. Rohdaten (javap/CFR aller Klassen): `/opt/data/profiles/axel/wiki/assets/xmlmonitoring/`.
+**Projektzweck:** Firmenmodule (`.sfm`) systematisch sezieren und als Vorlage für eigene Module nutzen.
 
-**Archiv:** 15 `.class`-Dateien (Designer-Funktions-Adapter) + `module-descriptor.xml` + 2 eingebettete JARs: `starface_xml-2.1.1-jar-with-dependencies.jar` (**die eigentliche Logik**: `CheckMkComponent`, `XmlComponent`, `StarfaceAccessor`, `StarfaceDbAccessor`, `ConfigurationService`, `LogServiceBean`, `MailConnectionComponent`) und `license-module-5.0.1-jar-with-dependencies.jar` (o-byte-Lizenz-API).
+**Analyse:** 2026-08-25, javap (JDK 21) + CFR 0.152. Alle 15 Root-Klassen + 15 Jar-Klassen + Descriptor-Verdrahtung rekonstruiert. Das Modul (o-byte/Hermstedt) liefert STARFACE-Monitoringdaten als **Checkmk-Text**, als **XML**, über **XML-RPC** und macht einen **täglichen Lizenz-Check** (olm.o-byte.com, Produkt `olm-10065`).
 
-## Was das Modul macht
+## Architektur (3 Ebenen)
 
-> STARFACE-Monitoringdaten **maschinenlesbar** bereitstellen: als **Checkmk-Agent-Text** (Sektionen `<<<name>>>`), als **XML-Dokument** und über **dynamisch registrierte XML-RPC-Methoden**. Überwacht: Backups, Fax-Queue, Telefon-/SIP-Peers, Log-Dateien, E-Mail-Server + Testversand, Hardware-ID-Änderungen, Modul-Instanzen, STARFACE-Version/Updates, Lizenzstand.
-
-## Lebenszyklus (Init/Clear über DependencyInjector)
-
-Jede Modul-Instanz hat einen eigenen `DependencyInjector` (Key: Instanz-UUID). Die Dienste (Spring-Bohnen + eigene Klassen) lädt `InitDI`:
-`Logger, ModuleRegistry, LicenseComponent, PersonAndAccountHandler, OAuthSessionService, MailComponent` + `di.init(new ClassFinder("/var/starface/module/modules/repo/<ModuleID>"))`.
-
-`InstanceInitialized` → Output `isInitialized = DependencyInjector.isUp(id)` · `ClearDI` → `CheckMkComponent.deleteDirAndFile()` (löscht `/usr/lib/check_mk_agent/local/localchecks`) + `di.close()` · `ClearCache` → leert alle Modul-Cache-Keys (0–5, 10–15).
-
-## Die 15 Klassen (Kurzübersicht)
-
-| Klasse | Aufgabe |
+| Ebene | Inhalt |
 |---|---|
-| `InitDI` | DependencyInjector pro Instanz hochfahren (Spring-Bohnen + ClassFinder) |
-| `ClearDI` | Abbau: Checkmk-Skripte löschen + DI schließen |
-| `InstanceInitialized` | Output `isInitialized` (DI-Status) |
-| `ClearCache` | Modul-Cache komplett leeren |
-| `ChangeConfiguration` | Log-Suchkonfiguration (`supportLogErrorString/Age`, `pbxLogErrorString/Age`) → `ConfigurationService.setConfig` |
-| `SetEmailConfiguration` | `recipientAddress`, `mailResultTimeout`, `numberOfTransmissions` → `ConfigurationService.setEmailConfiguration` |
-| `GetMonitoringOutput` | **Checkmk-Text-Generator** (Sektions-Pipeline, Cache 0–5) |
-| `GetMonitoringOutputCheckMk` | Delegiert an `CheckMkComponent` (lokale Agent-Checks, Cache 10–15) |
-| `GetMonitoringOutputXML` | Delegiert an `XmlComponent` (XML-Dokument, Cache 20–25) |
-| `IsActiveDirectoryEnabled` | Output `activeDirectoryEnabled` (`ActiveDirectoryComponent.isActivated()`) |
-| `RegisterXmlRpcEndpoint` (+ `$XmlRpcInvocation`) | **Dynamische XML-RPC-Registrierung** beliebiger Designer-Funktionen |
-| `UnregisterXmlRpcEndpoint` | RPC-Methode wieder entfernen |
-| `RegisterXmlRpcEndpoint$1` | Synthetische SwitchMap (Compiler-Artefakt) |
-| `CheckLicense` | Online-Lizenzprüfung gegen `https://olm.o-byte.com` |
+| 13 Funktionen im `.sfm`-Root | IBaseExecutable-Adapter (InitDI, GetMonitoringOutput, RegisterXmlRpcEndpoint, CheckLicense …) |
+| 15 Dienste in `starface_xml-2.1.1-jar-with-dependencies.jar` | CheckMkComponent, XmlComponent, StarfaceAccessor(Bean), StarfaceDbAccessor(Bean), ConfigurationService(Bean), LogService(Bean), Mail(Connection|Builder)Component, Modelle |
+| `license-module-5.0.1-jar-with-dependencies.jar` | obfuskierte LicenseClient-API → olm.o-byte.com |
 
-## Caching (alle drei Output-Varianten)
+## Descriptor-Verdrahtung
 
-Modul-Scope-Cache, Timestamp + `cacheTimeout`: kein Timestamp → **fetchen** · älter als Timeout → **updaten** · sonst **Cache**. Keys: Text 0–5, Checkmk 10–15, XML 20–25 (Timestamp / Output / initiale Hardware-ID / Mail-Ts / Mail-Ergebnis / Mail-Zähler-Tag).
+Klassen als `<function id="Klassenname"><implementationFile>Klasse.class</implementationFile></function>` (Import registriert automatisch — Firmenmuster). 9 Designer-Wrapper (UUID-Ziele) steuern den Ablauf:
 
-## Checkmk-Text-Sektionen (GetMonitoringOutput)
+- **__activate** (InstanceActivated/Created/SystemStarted): `__checkLicense` → `InitDI` → `changeConfig` → `RegisterXmlRpcEndpoint` (nur `isActiveDirectoryEnabled`, auth=false) → Log
+- **__deactivate**: RemoveVariable(___licenseDelay) → `ClearCache` → `UnregisterXmlRpcEndpoint` → `ClearDI` → Log
+- **__timer** (timerEntryPoint „DailyLicenseCheck", täglich): Guard-Variable `___licenseDelay` + **Random-Delay** (`delayedForkedFunctionCall`) → `__checkLicenseTask` → `__checkLicense`
+- **__checkLicense**: `CheckLicense` mit productNo=`olm-10065`, productVersion=`2.1` + GUI-Variablen (offlineMode, licenseFile, ignoreStarfaceVersion, ignoreCloud)
+- **changeConfig**: `InstanceInitialized` → `ChangeConfiguration` (Log-Strings/Alter) → `SetEmailConfiguration`
 
-| Sektion | Inhalt |
-|---|---|
-| `starface_peers` / `starface_sip_provider` | Roh-Output der STARFACE-`MonitoringComponent` (startet sie bei Bedarf via `startInit()`) |
-| `starface_backup` | SQL: `backup_locations` × `backup_log JOIN backup_schedules`, neuester Eintrag je Standort |
-| `starface_faxqueue` | Shell `faxstat` (via System-Baustein `Execute4`): `faxqueue <count> <faxWarning> <faxCritical>` |
-| `starface_hardware_id` | aktuelle vs. initiale Lizenz-Hardware-ID (Änderungserkennung) |
-| `starface_all_peers_offline` | `ERROR`/`OK`: zählt registrierte Peers aus dem Roh-Output |
-| `starface_support_log` / `starface_pbx_log` | Fehlerstring-Suche in `/var/log/starface/support.log` bzw. `/var/log/asterisk/full` |
-| `starface_module_instances` | `instanzname:enabled` je Modul/Instanz (Module ≥ v1) |
-| `email_server_connection_check` | `msConnectionStatus 0|1|2` (2 = DI down) |
-| `email_transmission_check` | `msTransmissionStatus` — Testmail mit **Tageslimit** + **Timeout-Cache** |
+**RPC-Entrypoints** (statisch, Ziel = Wrapper-UUID — exakt unser CallBlocker-Muster):
 
-`CheckMkComponent` legt zusätzlich **lokale Agent-Checks** an (`#!/bin/bash`, `/usr/lib/check_mk_agent/local/localchecks`) — Checkmk-Format `0 "Name" key=value Text`: Backup, Faxqueue, Hardware-ID, Logs, Mail, Module, Phones-offline, SIP, Version/Update, Lizenzen (full/light users, iQueues, app premium, TSP).
-
-## XML-Format (GetMonitoringOutputXML)
-
-```xml
-<local>
-  <entry key="…"><status>…</status><name>…</name><value>…</value><string>…</string></entry>
-</local>
+```
+GetMonitoringData    → Wrapper: if2 (useLocalChecks==true) → GetMonitoringOutputCheckMk
+                      else → GetMonitoringOutput        → out data
+GetMonitoringDataXML → GetMonitoringOutputXML          → out data
 ```
 
-Zusätzlich Systemwerte: Speicher (`MemTotal`/`MemAvailable`), Festplattenauslastung (krit ≥ 90 %, Warn ≥ 70 %), STARFACE-Version (major/minor/build/revision), Update-Status, Backup-Status/-Zeit, Telefonstatus, SIP-Provider.
+Der RPC-Aufrufer wählt per `useLocalChecks` zwischen Text- und CheckMk-Variante. Zusätzlich existiert ein **dynamischer Weg** (`RegisterXmlRpcEndpoint`): macht jede Designer-Funktion zur Laufzeit zur RPC `"<Instanzname>.<Name>"` (mit/ohne Auth) — hier nur für `isActiveDirectoryEnabled` genutzt. Beide Wege sind valide.
 
-## Dynamische XML-RPC-Registrierung (Kernfund)
+## GUI-Variablen (Modulebene, per valueByReference verdrahtet)
 
-`RegisterXmlRpcEndpoint` — generischer Registrierer zur Laufzeit (aus dem Adressbuch-Modul geforkt):
+Fax-Queue WARN/CRIT = **5/10**, Cache-Timeout = **50 s**, Support- & PBX-Log-Fehlerstring + Alter (leer = OK, **5 min**), Offline-Lizenz (useOffline=false, licenseFile), ignoreStarfaceVersion/Cloud = false, E-Mail: Recipient leer, mailResultTimeout = **0** (aus), Transmissions/Tag = **2**.
 
-- Inputs: `xmlRpcMethodName`, `moduleFunction` (Designer-Funktion), `authenticationNeeded` (Default true)
-- Registriert `DynamicRpcMethod("<Instanzname>.<xmlRpcMethodName>", invocation)` — mit oder ohne `AccountAuthToken`-Auth
-- `invoke(params[0] = Map)`: Werte per Name in lokale Namespace-Input-Vars → `FunctionExec.execute()` → Outputs typkonvertiert (`DATE_TIME→Date`, `NUMBER→double`, `STRING`, `BOOLEAN`, `LIST/MAP`→cast) als `LinkedHashMap` zurück
-- `UnregisterXmlRpcEndpoint` räumt ab
+## Caching (Module-Scope, Key-Sätze 0–5 Text / 10–15 CheckMk / 20–25 XML)
 
-**Bezug zum Anrufblocker:** Zwei valide Wege, Designer-Funktionen per XML-RPC erreichbar zu machen — (a) [statisch] Descriptor-`rpcEntryPoint` → Wrapper-Funktion (UUID-Ziel, unser CallBlocker-Weg; direkte Klassen-Ziele bekommen keine Parameter) oder (b) [dynamisch] solcher Registrier-Baustein (konfigurierbarer Methodenname + Auth-Flag je Registrierung). XmlMonitoring nutzt beides.
++0 Timestamp (cacheTimeout) · +1 Output · +2 Initial-Hardware-ID (Vergleich gegen `recomputeHardwareId`) · +3 Mail-Zeitpunkt · +4 Mail-Result · +5 Tageszähler (count/dayOfMonth). Update-Check zusätzlich mit 1-Tage-TTL.
 
-## Lizenzprüfung (CheckLicense)
+## Funktionsweise im Detail
 
-`ModuleLicenseService("https://olm.o-byte.com", …, "/var/tmp", …)`: `hardwareId` = SHA-256(STARFACE-Hardware-ID + MACs aller Interfaces), Server-Lizenzkey, Licensee, Modul-/Instanzdaten, PBX-Version, vCloud-Status → `licensedFeatures` + `maxAllowedUsers`. Modi: `offlineMode` (Lizenzdatei), `ignoreCloud`/`ignoreStarfaceVersion`, Warnmail bei Problemen.
+- **InitDI/ClearDI**: o-byte-DependencyInjector pro Instanz (Spring-Bohnen + ClassFinder `/var/starface/module/modules/repo/<ModuleID>`); ClearDI löscht auch `/usr/lib/check_mk_agent/`
+- **CheckMkComponent**: baut ein **lokales Agent-Skript** `/usr/lib/check_mk_agent/local/localchecks` (echo $'…' + chmod via ExecuteAsRoot-Skript-Wrapper) und ersetzt im Output die Sektion `<<<local>>>…<<<starface>>>`. Lokale Checks (Checkmk-Format `STATUS "Name" key=value;warn;crit;min;max`): Update (Major→2), Version, Full/Light-User, iQueues (SQL), Terminal-Server, App-Premium, Lizenzeventual, Modul-Instanzen, Log-Status, Telefone offline, Hardware-ID, Fax-Queue (faxstat), Backups (SQL), SIP-Provider, E-Mail-Server + Testmail
+- **XmlComponent**: `<local>…<entry key…><status/name/value/string>` mit RAM-Auslastung (MemTotal/MemAvailable), Update, Version, Telefone, Backups (+Zeit), SIP-Provider
+- **E-Mail**: Testmail über **Original-Baustein** `de.vertico.starface.module.core.runtime.functions.net.Email` (Betreff „Xml-Monitoring - mail check"); Server-Test via MultiPartEmail+Transport mit kompletter STARFACE-Mailkonfig (externer SMTP/OAuth2/POP-before-SMTP/TLS/STARTTLS)
+- **DB**: direkte JDBC-Verbindung `jdbc:postgresql://localhost/asterisk` (asterisk/asterisk, nur lokal auf der Anlage); Backups über `backup_log JOIN backup_schedules` (letzter Lauf je Standort), Queue-Counts
+- **Log-Status**: ReversedLinesFileReader rückwärts über `/var/log/starface/support.log` + `/var/log/asterisk/full`, Zeitfilter (Alter), Fehlerstring-Suche → OK/ERROR/UNKNOWN
+- **Lizenz**: SHA-256-Hardware-ID (STARFACE-ID + MACs), Online/Offline gegen olm.o-byte.com; für eigene Module nicht nutzbar (fremde Server)
 
-## Lessons für eigene Module
+## Bauanleitung (eigenes Monitoring-Modul)
 
-1. **Dünne Bausteine:** Eigene Dienste als Service-Schicht in eingebetteter Jar + pro-Instanz-DependencyInjector (UUID-keyed, `ClassFinder` lädt aus dem Modul-Repo) — Designer-Klassen bleiben Adapter.
-2. **Cache-Schema:** Modul-Scope-Cache mit Integer-Keys + Timestamp/Timeout — für teure Abfragen übernehmenswert.
-3. **Original-Bausteine instanziieren:** `Execute4` (Shell), Logging etc. aus Java-Code — deckt sich mit der CallBlocker-Philosophie (SimpleMatch/Log2 statt Eigenbau).
-4. **SQL nur ohne BO-API:** `StarfaceDbAccessor` (DataSource) für Backup-/Fax-Queries.
-5. **RPC dynamisch oder statisch:** je nach Bedarf konfigurierbarer Name/Auth vs. Descriptor-Entrypoints.
+1. Klassen als `.class` in die `.sfm` + `<implementationFile>` im Descriptor (kein manueller Upload)
+2. Ausgabe-Adapter nach o-byte-Schema: `getMonitoringOutput(env, faxWarning, faxCritical)` + Cache-Keys; Text-/XML-Format wie oben
+3. Datenquellen: STARFACE-Komponenten (MonitoringComponent, LicenseComponent, PersonAndAccountHandler, ModuleRegistry, `GetStarfaceVersion`-Baustein), lesendes Direkt-SQL, Shell via `Execute4`/`ExecuteAsRoot`, Logdateien rückwärts
+4. E-Mail-Test immer über den Original-`Email`-Baustein
+5. RPC: statische Descriptor-`rpcEntryPoint`s auf **Designer-Wrapper** (UUID-targetId, valueByReference-GUI-Variablen) — dynamische Registrierung nur bei Bedarf
+6. Tages-Jobs: timerEntryPoint + Random-Delay + Guard-Variable
+7. Logging über `Log2`-Baustein; alle Schwellen als GUI-Variablen (Modulebene)
 
-## Verknüpfungen
+## Lessons
 
-[[starface-anrufblocker]] · [[starface-modul-designer]] · Skill `starface-modul-designer` (Referenz `rpc-wrapper-funktionen.md`, Sektion „Firmenmodul-Muster") · Rohdaten: `/opt/data/profiles/axel/wiki/assets/xmlmonitoring/`
+Beide RPC-Wege (statisch + dynamisch) im selben Modul produktiv verifiziert; Wrapper-UUID-Verdrahtung über Modul-Ebene = exakt die CallBlocker-v28-Technik; Hardware-ID-/Cache-Muster direkt übernehmbar.
 
-*Rekonstruiert am 2026-08-25 aus `XmlMonitoring_v152.sfm` (MD5 `8227308e…c817`) — Werkzeuge: javap (JDK 21) + CFR 0.152.*
+## Offene Punkte
+
+MonitoringComponent-Output (vcloud-intern), MailComponent-OAuth-Details, rpcEntryPoint-`<type>`-Default, obfuskierte LicenseClient-Algorithmen — nicht Bestandteil des .sfm bzw. nicht prüfbar (kein SSH zur Anlage).
