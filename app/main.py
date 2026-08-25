@@ -719,7 +719,7 @@ async def dashboard(request: Request):
         if not acc["can_read"] and not acc["is_admin"]:
             continue  # keine Sicht auf diese Anlage
         rows.append({"id": inst["id"], "name": inst["name"], "url": inst["url"],
-                     "is10": bool(inst["is_starface10"]), **acc})
+                     "is_starface10": bool(inst["is_starface10"]), **acc})
 
     return TEMPLATES.TemplateResponse("dashboard.html",
                                       {"request": request, "user": user,
