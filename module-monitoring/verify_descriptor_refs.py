@@ -93,6 +93,25 @@ def main(path):
                 co = fc.find('outputVars').findall('variable') if fc.find('outputVars') is not None else []
                 t = fc.find('target')
                 tname = t.get('targetName') if t is not None else '?'
+                target = None
+                if t is not None:
+                    tid = t.get('targetId')
+                    target = next((f for f in funcs if f.get('id') == tid), None)
+                    if target is None:
+                        errors.append(f"{fname} → {tname}: Ziel-Funktion mit id='{tid}' nicht gefunden")
+                # Signatur-Abgleich (Import-Fehler „Output variable 'X' not found in
+                # called function"): jeder Call-Output-NAME muss als Output-Variable
+                # der Ziel-Funktion existieren (TelefonieMonitoring-v1-Lektion:
+                # OUT_-Präfix im Call, Java-Feld ohne → Importfehler + „signature changed").
+                # Java-Funktionen zählen nicht ausgenommen: Descriptor-<outputVars>
+                # spiegelt die @OutputVar-Namen.
+                if target is not None and target.find('outputVars') is not None:
+                    touts = {v.get('name') for v in target.findall('outputVars/variable') if v.get('name')}
+                    for v in co:
+                        if v.get('name') and v.get('name') not in touts:
+                            errors.append(f"{fname} → {tname}: Call-Output '{v.get('name')}' "
+                                          f"existiert nicht in Ziel-Outputs {sorted(touts)} "
+                                          f"(→ Importfehler 'Output variable not found')")
                 for v in ci:
                     check_variable(v, 'C-IN', visible, f"{fname} → {tname}", errors)
                 for v in co:

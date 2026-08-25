@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<module lastChangedTime="1787662800000" moduleType="EXTENDED" createTime="1784793600000" id="cc487008-3504-44da-96cb-504d689c6cff" name="TelefonieMonitoring" specVersion="5" vendor="MiCoSa79" version="1">
+<module lastChangedTime="1787662800000" moduleType="EXTENDED" createTime="1784793600000" id="cc487008-3504-44da-96cb-504d689c6cff" name="TelefonieMonitoring" specVersion="5" vendor="MiCoSa79" version="2">
  <description>Telefonie-Monitoring: Systemmetriken (RAM, CPU-Last, STARFACE-Version, Hostname) und SIP-Provider-Status fuer InfluxDB/Grafana.</description>
     <descriptionURL />
     <disabled>false</disabled>
@@ -180,75 +180,75 @@
                     <disabled>false</disabled>
                     <inputVars />
                     <outputVars>
-                        <variable id="OUT_systemName" label="" name="OUT_systemName" type="STRING" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
+                        <variable id="systemName" label="" name="systemName" type="STRING" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
                             <description />
                             <value>20117d15-541b-4ce8-a201-a47d3d4d4438</value>
                         </variable>
-                        <variable id="OUT_systemVersion" label="" name="OUT_systemVersion" type="STRING" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
+                        <variable id="systemVersion" label="" name="systemVersion" type="STRING" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
                             <description />
                             <value>a9c27052-16ad-40f9-a5f2-dc0bd7969e4f</value>
                         </variable>
-                        <variable id="OUT_memTotal" label="" name="OUT_memTotal" type="NUMBER" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
+                        <variable id="memTotal" label="" name="memTotal" type="NUMBER" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
                             <description />
                             <value>82368cba-41e5-4c74-a867-3ec2eaf0dbf9</value>
                         </variable>
-                        <variable id="OUT_memFree" label="" name="OUT_memFree" type="NUMBER" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
+                        <variable id="memFree" label="" name="memFree" type="NUMBER" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
                             <description />
                             <value>3c33cbed-ad4e-4548-9d26-ac18aa04a788</value>
                         </variable>
-                        <variable id="OUT_memAvailable" label="" name="OUT_memAvailable" type="NUMBER" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
+                        <variable id="memAvailable" label="" name="memAvailable" type="NUMBER" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
                             <description />
                             <value>73882487-856f-46b7-a96e-904da861597b</value>
                         </variable>
-                        <variable id="OUT_buffers" label="" name="OUT_buffers" type="NUMBER" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
+                        <variable id="buffers" label="" name="buffers" type="NUMBER" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
                             <description />
                             <value>a13b9155-c047-4ba6-be2f-ffc28be0a813</value>
                         </variable>
-                        <variable id="OUT_cached" label="" name="OUT_cached" type="NUMBER" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
+                        <variable id="cached" label="" name="cached" type="NUMBER" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
                             <description />
                             <value>6a43471a-b15b-4b87-b987-c4f85affd75d</value>
                         </variable>
-                        <variable id="OUT_swapCached" label="" name="OUT_swapCached" type="NUMBER" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
+                        <variable id="swapCached" label="" name="swapCached" type="NUMBER" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
                             <description />
                             <value>dcecb1d2-2838-401f-a648-35c464ee017b</value>
                         </variable>
-                        <variable id="OUT_active" label="" name="OUT_active" type="NUMBER" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
+                        <variable id="active" label="" name="active" type="NUMBER" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
                             <description />
                             <value>d9244eea-adc1-4aaa-823a-e2b5f77e5bf2</value>
                         </variable>
-                        <variable id="OUT_inactive" label="" name="OUT_inactive" type="NUMBER" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
+                        <variable id="inactive" label="" name="inactive" type="NUMBER" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
                             <description />
                             <value>4a1805af-3693-42e5-8b5e-8f5f8449b792</value>
                         </variable>
-                        <variable id="OUT_load1" label="" name="OUT_load1" type="STRING" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
+                        <variable id="load1" label="" name="load1" type="STRING" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
                             <description />
                             <value>93025c39-920d-45e4-809b-4e896dc3a066</value>
                         </variable>
-                        <variable id="OUT_load5" label="" name="OUT_load5" type="STRING" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
+                        <variable id="load5" label="" name="load5" type="STRING" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
                             <description />
                             <value>4d1c3e3b-d247-4745-9994-189b149a7402</value>
                         </variable>
-                        <variable id="OUT_load15" label="" name="OUT_load15" type="STRING" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
+                        <variable id="load15" label="" name="load15" type="STRING" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
                             <description />
                             <value>8dd3820a-6e08-4b4e-bf5d-965bca327b7a</value>
                         </variable>
-                        <variable id="OUT_procsRunning" label="" name="OUT_procsRunning" type="NUMBER" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
+                        <variable id="procsRunning" label="" name="procsRunning" type="NUMBER" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
                             <description />
                             <value>c3885265-d733-4939-b1b4-fe080ad1674e</value>
                         </variable>
-                        <variable id="OUT_procsTotal" label="" name="OUT_procsTotal" type="NUMBER" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
+                        <variable id="procsTotal" label="" name="procsTotal" type="NUMBER" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
                             <description />
                             <value>34249dd3-b2b3-45e1-8013-4319728e5f66</value>
                         </variable>
-                        <variable id="OUT_cpuCores" label="" name="OUT_cpuCores" type="NUMBER" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
+                        <variable id="cpuCores" label="" name="cpuCores" type="NUMBER" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
                             <description />
                             <value>8bc7e6da-a91f-48f3-b622-077a0368e03e</value>
                         </variable>
-                        <variable id="OUT_providerStatus" label="" name="OUT_providerStatus" type="STRING" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
+                        <variable id="providerStatus" label="" name="providerStatus" type="STRING" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
                             <description />
                             <value>5caf74c2-1ec8-4f14-902a-d25a35d006a0</value>
                         </variable>
-                        <variable id="OUT_providerNames" label="" name="OUT_providerNames" type="STRING" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
+                        <variable id="providerNames" label="" name="providerNames" type="STRING" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
                             <description />
                             <value>65089491-f893-432a-b12a-ace6fd3b8721</value>
                         </variable>
