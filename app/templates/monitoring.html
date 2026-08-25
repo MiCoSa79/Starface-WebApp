@@ -55,7 +55,7 @@
         <div style="margin-bottom:12px;">
             <a href="{% if user.is_admin %}/admin{% else %}/dashboard{% endif %}" class="btn-secondary" style="padding:8px 14px;border-radius:6px;text-decoration:none;background:#333;color:#ccc;font-size:13px;">{% if user.is_admin %}← Zurück zum Admin{% else %}← Zurück zum Dashboard{% endif %}</a>
             {% if user.is_admin %}
-            <a href="{{ grafana_base }}/d/{{ grafana_admin_uid }}/?from=now-6h&to=now&kiosk=1" target="_blank" rel="noopener" class="btn-secondary" style="margin-left:8px;padding:8px 14px;border-radius:6px;text-decoration:none;background:#333;color:#ccc;font-size:13px;display:inline-flex;align-items:center;gap:6px;" title="Grafana-Admin-Übersicht (alle Anlagen) öffnen">
+            <a href="{{ grafana_base }}/d/{{ grafana_admin_uid }}/?from=now-6h&to=now&kiosk=1&hideLogo" target="_blank" rel="noopener" class="btn-secondary" style="margin-left:8px;padding:8px 14px;border-radius:6px;text-decoration:none;background:#333;color:#ccc;font-size:13px;display:inline-flex;align-items:center;gap:6px;" title="Grafana-Admin-Übersicht (alle Anlagen) öffnen">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>
                 Admin-Übersicht
             </a>
@@ -115,7 +115,7 @@
                     <td data-ts="{{ vals.ts or 0 }}">—</td>
                     <td>
                         <a class="grafana-dl" target="_blank" rel="noopener" title="Grafana-Dashboard der Anlage {{ name }} öffnen"
-                           href="{{ grafana_base }}/d/{{ grafana_uid }}/?var-installation={{ name|urlencode }}&from=now-6h&to=now&kiosk=1">
+                           href="{{ grafana_base }}/d/{{ grafana_uid }}/?var-installation={{ name|urlencode }}&from=now-6h&to=now&kiosk=1&hideLogo">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 15.5l2.8-3.2 2.4 2.2L15.6 9"/><path d="M16.5 14.5h1.2"/></svg>
                         </a>
                     </td>

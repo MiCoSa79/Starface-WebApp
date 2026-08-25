@@ -77,7 +77,7 @@ body = r.text
 assert "Testanlage A" in body and "Testanlage B" in body, "Admin muss beide Anlagen sehen"
 assert body.count('class="grafana-dl"') == 2, f"Admin erwartet 2 Icon-Buttons, hat {body.count('grafana-dl')}"
 assert "var-installation=Testanlage+A" in body.replace("Testanlage%20A", "Testanlage+A") or "var-installation=Testanlage%20A" in body.replace("+", "%20") or "var-installation=Testanlage+A" in body, "URL-Encode des Anlagennamens im Link fehlt"
-assert "starface-anlage-detail" in body and "kiosk=1" in body, "Grafana-UID oder kiosk fehlt im Link"
+assert "starface-anlage-detail" in body and "kiosk=1&hideLogo" in body, "Grafana-UID oder kiosk fehlt im Link"
 ok += 1
 print("2. Admin: beide Anlagen + 2 Links + korrekte URL  OK")
 
@@ -193,7 +193,7 @@ print("12. Leerer Wert -> Fallback-URL  OK")
 # 13) Admin-Übersicht-Link: NUR Admin auf /monitoring, Bob nicht
 login("admin")
 r = c.get("/monitoring")
-assert "starface-admin-uebersicht" in r.text and "kiosk=1" in r.text, "Admin-Übersicht-Link oder kiosk fehlt auf /monitoring"
+assert "starface-admin-uebersicht" in r.text and "kiosk=1&hideLogo" in r.text, "Admin-Übersicht-Link oder kiosk fehlt auf /monitoring"
 login("bob")
 r = c.get("/monitoring")
 body = r.text
@@ -205,7 +205,7 @@ print("13. Admin-Übersicht-Link nur für Admins (Monitoring)  OK")
 login("admin")
 r = c.get("/admin")
 body = r.text
-assert "starface-admin-uebersicht" in body and "Grafana Admin-Übersicht öffnen" in body and "kiosk=1" in body, "Admin-Seite: Admin-Übersicht-Link/kiosk fehlt"
+assert "starface-admin-uebersicht" in body and "Grafana Admin-Übersicht öffnen" in body and "kiosk=1&hideLogo" in body, "Admin-Seite: Admin-Übersicht-Link/kiosk fehlt"
 ok += 1
 print("14. Admin-Seite: Admin-Übersicht-Link in Einstellungen  OK")
 
