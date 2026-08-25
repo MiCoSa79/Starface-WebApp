@@ -165,5 +165,30 @@ assert body.count('class="card"') == 0 and body.count('class="grafana-dl"') == 0
 ok += 1
 print("10. Eve /dashboard: 0 Karten, 0 Links  OK")
 
+# 11) Admin-Einstellung: Grafana-Basis-URL hinterlegen -> Links nutzen die Domäne
+login("admin")
+r = c.post("/admin/settings", data={"grafana_base_url": "https://monitoring.meiser.family"})
+assert r.status_code == 303 and "set_ok=1" in r.headers.get("location", ""), (r.status_code, r.headers.get("location"))
+r = c.get("/dashboard")
+body = r.text
+assert "https://monitoring.meiser.family/d/starface-anlage-detail/?var-installation=Testanlage+A" in body.replace("Testanlage%20A", "Testanlage+A"), "Dashboard-Link nutzt nicht die Admin-Domäne"
+assert "10.0.25.60" not in body, "Fallback-IP darf nicht mehr auftauchen"
+r = c.get("/monitoring")
+assert "https://monitoring.meiser.family/d/starface-anlage-detail/" in r.text, "Monitoring-Link nutzt nicht die Admin-Domäne"
+r = c.get("/admin")
+body = r.text
+assert 'value="https://monitoring.meiser.family"' in body, "Admin-Formular zeigt hinterlegte URL nicht"
+ok += 1
+print("11. Admin-Domäne wirkt auf Startseite + Monitoring + Formular  OK")
+
+# 12) Feld leeren -> Fallback (Env -> Default-IP)
+r = c.post("/admin/settings", data={"grafana_base_url": ""})
+assert r.status_code == 303
+r = c.get("/dashboard")
+body = r.text
+assert "10.0.25.60:8894/d/starface-anlage-detail/" in body, "Leerer Wert muss auf Fallback-URL zurücksetzen"
+ok += 1
+print("12. Leerer Wert -> Fallback-URL  OK")
+
 print(f"\nALLE {ok} TESTS OK")
 os.remove(DB) if os.path.exists(DB) else None

@@ -150,6 +150,10 @@
             <span class="codes">{{ request.query_params.get('codes', '') }}</span></div>
         {% endif %}
 
+        {% if request.query_params.get('set_ok') %}
+        <div class="okmsg">✅ Einstellungen gespeichert.</div>
+        {% endif %}
+
         {% if request.query_params.get('role_err') == 'lastadmin' %}
         <div class="error" style="max-width:400px;margin:0 auto 16px;text-align:center;">Es muss immer mindestens ein Admin geben — der letzte Admin kann nicht entlassen werden.</div>
         {% endif %}
@@ -227,6 +231,21 @@
             </tr>
             {% endfor %}
         </table>
+        </div>
+
+        <h2>Einstellungen</h2>
+        <div class="card">
+            <form method="POST" action="/admin/settings">
+                <div class="form-row">
+                    <label class="sr-only" for="grafana_base_url">Grafana-Basis-URL (extern)</label>
+                    <input type="url" id="grafana_base_url" name="grafana_base_url"
+                           placeholder="https://monitoring.meiser.family"
+                           value="{{ grafana_base_url_value }}"
+                           autocomplete="url" style="flex:1 1 380px; font-size:16px;">
+                    <button type="submit" class="btn-primary">Speichern</button>
+                </div>
+                <div class="hint">Grafana-Basis-URL für die Dashboard-Links (Startseite + Monitoring), z. B. die per NPM durchgeleitete Domäne <span class="codes">https://monitoring.meiser.family</span>. Leer lassen = interne Standard-URL (<span class="codes">{{ grafana_base_fallback }}</span>). Änderungen wirken sofort.</div>
+            </form>
         </div>
 
         <h2 class="tbl-head">

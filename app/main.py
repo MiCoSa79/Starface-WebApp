@@ -70,6 +70,34 @@ def _db():
     return conn
 
 
+def _get_setting(key: str, default: str = "") -> str:
+    """Liest eine Admin-Einstellung (settings-Tabelle); fehlend/leer -> default."""
+    try:
+        conn = _db()
+        try:
+            row = conn.execute("SELECT value FROM settings WHERE key = ?", (key,)).fetchone()
+        finally:
+            conn.close()
+        return row["value"] if row and row["value"] is not None else default
+    except Exception:
+        return default
+
+
+def _set_setting(key: str, value: str) -> None:
+    conn = _db()
+    try:
+        conn.execute("INSERT INTO settings (key, value) VALUES (?, ?) "
+                     "ON CONFLICT(key) DO UPDATE SET value = excluded.value", (key, value))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _grafana_base() -> str:
+    """Basis-URL für Grafana-Links: Admin-Einstellung > Env > Default (interne IP)."""
+    return _get_setting("grafana_base_url").strip() or os.environ.get("GRAFANA_BASE_URL", "http://10.0.25.60:8894")
+
+
 def init_db():
     conn = _db()
     conn.executescript("""
@@ -133,6 +161,10 @@ def init_db():
             app_version TEXT DEFAULT '',
             build_date TEXT DEFAULT '',
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS settings (
+            key TEXT PRIMARY KEY,
+            value TEXT
         );
     """)
     # Migration (v0.0.34+): bestehende DBs um Modul-Versionierungs-Spalten erweitern
@@ -788,7 +820,7 @@ async def dashboard(request: Request):
                                        "installations": rows,
                                        "active": "dashboard",
                                        "version": os.environ.get("APP_VERSION", "dev"),
-                                       "grafana_base": os.environ.get("GRAFANA_BASE_URL", "http://10.0.25.60:8894"),
+                                       "grafana_base": _grafana_base(),
                                        "grafana_uid": "starface-anlage-detail"})
 
 
@@ -814,7 +846,18 @@ async def admin_page(request: Request):
                                        "users": users, "access": access,
                                        "active": "admin",
                                        "OTP_ISSUER": "STARFACE-WebApp",
-                                       "version": os.environ.get("APP_VERSION", "dev")})
+                                       "version": os.environ.get("APP_VERSION", "dev"),
+                                       "grafana_base_url_value": _get_setting("grafana_base_url"),
+                                       "grafana_base_fallback": os.environ.get("GRAFANA_BASE_URL", "http://10.0.25.60:8894")})
+
+
+@app.post("/admin/settings")
+async def admin_settings(request: Request, grafana_base_url: str = Form("")):
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user or not user["is_admin"]:
+        return RedirectResponse("/dashboard")
+    _set_setting("grafana_base_url", (grafana_base_url or "").strip())
+    return RedirectResponse("/admin?set_ok=1", status_code=303)
 
 
 @app.get("/sw.js")
@@ -1573,7 +1616,7 @@ async def monitoring_page(request: Request):
     return TEMPLATES.TemplateResponse("monitoring.html",
         {"request": request, "user": user, "active": "monitoring",
          "status": {**mstatus, "installations": installations},
-         "grafana_base": os.environ.get("GRAFANA_BASE_URL", "http://10.0.25.60:8894"),
+         "grafana_base": _grafana_base(),
          "grafana_uid": "starface-anlage-detail"})
 
 
