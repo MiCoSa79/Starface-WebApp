@@ -64,3 +64,22 @@ letzte Werte pro Installation.
 - **Modul-Log** (STARFACE Admin → Module → Instanzen → Log): Rohwerte von
   `getRegisterForProviderLines()` + `sip show registry` beim ersten Lauf.
 - **Grafana**: Datasource `InfluxDB` (Bucket `telefonie`) muss grün sein.
+
+## Versionshistorie (kompakt)
+
+### Modul (TelefonieMonitoring.sfm)
+
+| Version | Datum | Inhalt |
+|---|---|---|
+| v2 | 2026-08-25 | **Import-Fix:** Alle 36 Call-Output-Variablen im Descriptor ohne `OUT_`-Präfix (exakt die Java-Feldnamen von `SystemStatsMonitor`) — vorher „Output variable not found … Signatur geändert" beim Import; `verify_descriptor_refs.py` validiert die Namen jetzt automatisch (Negativtest am alten Descriptor etabliert). **IMPORT-BEREIT**, von der STARFACE-Installation akzeptiert. |
+| v1 | 2026-08-25 | Erstversion: Systemmetriken (Speicher, Load, Prozesse, CPU-Kerne, Starface-Version) + SIP-Provider-Status (`sip show registry`) über RPC-Wrapper `GetStats` (XmlMonitoring-Muster, JWT-Auth); Import scheiterte am Signatur-Mismatch der Output-Variablen → v2. |
+
+### Web-App (Sammler + Statusseite)
+
+| Version | Datum | Inhalt |
+|---|---|---|
+| v0.0.115 | 2026-08-25 | **Provider-Status-Badges** auf `/admin/monitoring`: grün „Alle Provider verbunden", rot „Provider getrennt (x/y)" mit Details, grau „Keine Provider"; Auswertung zentral in `monitoring._provider_summary` (auch in der Status-API). |
+| v0.0.109 | 2026-08-25 | **Statusseite `/admin/monitoring`:** Sammler-Status (Poll-Läufe, Points, Intervall, Fehler rot) + letzte Werte je Installation, Auto-Refresh 15 s; Nav-Link. |
+| v0.0.108 | 2026-08-25 | Modul v2 (siehe oben) — WebApp stellt die korrigierte `.sfm` zum Download bereit. |
+| v0.0.107 | 2026-08-25 | Feld **Monitoring-Modul-Instanz** in den Anlagen-Stammdaten (getrennt vom CallBlocker-Feld) — Voraussetzung, damit der Sammler die Anlage pollt. |
+| v0.0.105 | 2026-08-25 | **Sammler:** Poll-Loop (GetStats je Installation mit Instanzname), Messwerte nach InfluxDB (Measurements `system`/`providers`), Status-JSON `/api/monitoring/status`; Stack Grafana + InfluxDB im Docker-Compose. |
