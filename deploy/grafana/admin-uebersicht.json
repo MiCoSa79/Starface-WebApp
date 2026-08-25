@@ -1020,7 +1020,7 @@
           "uid": "${DS_INFLUXDB}"
         },
         "definition": "import \"influxdata/influxdb/schema\"\nschema.tagValues(bucket: \"telefonie\", tag: \"installation\")",
-        "hide": 0,
+        "hide": 2,
         "includeAll": false,
         "label": "Anlage",
         "multi": false,
