@@ -117,6 +117,11 @@ Modul-Historie v4–v28 vollständig (inkl. UUIDs und Commit-Hashes) im Repo
 
 | Version | Inhalt |
 |---|---|
+| v0.0.97 | **Comboboxen mit Suchfeld** in den Rechte-Dropdowns (User + Anlage: keine Vorauswahl, gleich breit & breiter; Filter-Anlage suchbar, behält „Alle Anlagen“); Tabellen **standardmäßig eingeklappt**; Guard: Recht ohne Auswahl → Meldung statt 422. |
+| v0.0.96 | **Admin-Listen filterbar + einklappbar:** Anlagen (Name + URL ab 3 Zeichen, Version-Dropdown), Benutzer (Name), Rechte (Benutzer + Anlage); „N von M“-Zähler; Zustand pro Tabelle gespeichert. |
+| v0.0.95 | Scrollbar-Stil (Dark Design) app-weit vereinheitlicht. |
+| v0.0.94 | Wiki-Scrollbars an Dark Design angeglichen. |
+| v0.0.93 | **Dieses Admin-Wiki unter `/wiki`:** Markdown-Seiten, automatischer Index, TOC mit Ankern, interne Wikilinks, Volltextsuche; XSS-sicher via markdown-it-py; E2E-Tests. |
 | v0.0.92 | **Dashboard-Badge-Fix:** zeigte immer „v9" — Route übergab `is10`, Template las `is_starface10` (Jinja2-Undefined = falsy, Bug seit Initial-Commit); + Regressionstest `badge_e2e.py`. |
 | v0.0.78 | API-Doku im WebApp-Layout (Template mit Gruppen-Menü + Suche, nur Admins, Route statt Standalone-HTML). |
 | v0.0.73 | Blocklist-Ändern-Button pro Eintrag (Inline-Formular, verlustfreier Update via ListAdd+ListRemove); E2E-Tests etabliert (`tmp_tests/`). |
