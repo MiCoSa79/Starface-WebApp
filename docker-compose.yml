@@ -22,5 +22,48 @@ services:
       #   danach nicht mehr ausgewertet.
       ADMIN_USERNAME: "admin@example.com"
       ADMIN_PASSWORD: "BeispielPasswort123!"
+      # ── InfluxDB-Anbindung (Zeitreihen-Sammler) ─────────────
+      # Werte aus .env (siehe .env.example) — NICHT hier committen.
+      INFLUXDB_URL: "http://influxdb:8086"
+      INFLUXDB_TOKEN: "${INFLUXDB_TOKEN:-}"
+      INFLUXDB_ORG: "starface"
+      INFLUXDB_BUCKET: "telefonie"
     volumes:
       - ./data:/data
+    depends_on:
+      - influxdb
+
+  # ── Grafana (Visualisierung für Admins) — Port 8894 ──────────
+  grafana:
+    image: grafana/grafana:latest
+    restart: always
+    ports:
+      - "8894:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: "admin"
+      GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_ADMIN_PASSWORD:-admin}"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - influxdb
+
+  # ── InfluxDB (Zeitreihen-DB, intern — kein Host-Port) ────────
+  influxdb:
+    image: influxdb:latest
+    restart: always
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: "setup"
+      DOCKER_INFLUXDB_INIT_USERNAME: "admin"
+      DOCKER_INFLUXDB_INIT_PASSWORD: "${INFLUXDB_ADMIN_PASSWORD:-}"
+      DOCKER_INFLUXDB_INIT_ORG: "starface"
+      DOCKER_INFLUXDB_INIT_BUCKET: "telefonie"
+    volumes:
+      - influxdb-data:/var/lib/influxdb2
+
+volumes:
+  grafana-data:
+  influxdb-data:

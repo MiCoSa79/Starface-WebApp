@@ -1,5 +1,8 @@
 # .gitignore
 
+# Lokale Secrets (nie committen!)
+.env
+
 # Python
 __pycache__/
 *.py[cod]
