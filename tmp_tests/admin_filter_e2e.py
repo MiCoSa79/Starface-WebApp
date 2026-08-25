@@ -96,4 +96,21 @@ with TestClient(main.app) as c:
     check("JS initCollapse", "function initCollapse" in html and "function initTableFilters" in html)
     check("keine Fehlerbox", 'class="msg-err' not in html)
 
+    # ── Comboboxen (Struktur) ─────────────────────────────────────
+    check("3 Comboboxen", html.count('class="cb" data-cb=') >= 3)
+    check("Combobox User", 'data-cb="access_user_id"' in html)
+    check("Combobox Anlage", 'data-cb="access_installation_id"' in html)
+    check("Combobox Filter-Anlage", 'data-cb="f-access-inst"' in html)
+    check("Platzhalter-Option User", '<option value="" selected>— Benutzer wählen —</option>' in html)
+    check("Platzhalter-Option Anlage", '<option value="" selected>— Anlage wählen —</option>' in html)
+    check("3 Suchfelder in Combos", html.count('class="cb-search"') == 3)
+    check("JS initComboboxes", "function initComboboxes" in html)
+
+    # ── Guard: Recht ohne Auswahl (leere Combobox abschicken) ─────
+    r = c.post("/admin/access", data={"user_id": "", "installation_id": "", "can_read": "1"})
+    check("Guard: 303 statt 422", r.status_code == 303, f"status={r.status_code}")
+    check("Guard: Redirect mit ?err=missing", r.headers.get("location", "").endswith("/admin?err=missing"), r.headers.get("location", ""))
+    gu = c.get("/admin?err=missing").text
+    check("Fehlermeldung gerendert", "Bitte Benutzer und Anlage für das Recht auswählen." in gu)
+
 print(f"\n{ok} Checks grün")

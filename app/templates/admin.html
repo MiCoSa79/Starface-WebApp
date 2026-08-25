@@ -118,6 +118,28 @@
             .tbl-filters select { width: 100%; max-width: none; }
         }
 
+    /* ── Combobox (Dropdown mit Suchfeld, ab 3 Zeichen) ─────── */
+    .cb { position: relative; flex: 1 1 0; min-width: 260px; }
+    .cb-trigger { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+          background: #0f3460; border: 1px solid #333; border-radius: 6px; color: #fff;
+          padding: 9px 10px; font-size: 16px; cursor: pointer; text-align: left; }
+    .cb-trigger:hover { border-color: #555; }
+    .cb-value { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .cb-value.placeholder { color: #8b93a7; }
+    .cb-chev { flex-shrink: 0; color: #e94560; transition: transform .18s ease; }
+    .cb.open .cb-chev { transform: rotate(180deg); }
+    .cb-pop { position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 60;
+          background: #16213e; border: 1px solid #333; border-radius: 8px;
+          box-shadow: 0 8px 24px rgba(0,0,0,.45); padding: 8px; }
+    .cb-pop[hidden] { display: none; }
+    .cb-search { width: 100%; box-sizing: border-box; font-size: 16px; background: #0f3460;
+          border: 1px solid #333; border-radius: 6px; color: #fff; padding: 8px 10px; }
+    .cb-list { list-style: none; margin: 6px 0 0; padding: 0; max-height: 220px; overflow-y: auto; }
+    .cb-list li { padding: 7px 10px; border-radius: 6px; cursor: pointer; color: #e0e0e0; }
+    .cb-list li:hover { background: rgba(233,69,96,.16); color: #fff; }
+    .cb-list li.empty { color: #8b93a7; cursor: default; background: none; }
+    .cb-native { position: absolute; opacity: 0; pointer-events: none; width: 1px; height: 1px; }
+    @media (max-width: 640px) { .cb { min-width: 100%; } }
 </style>
 </head>
 <body>
@@ -163,6 +185,9 @@
 
         {% if request.query_params.get('role_err') == 'lastadmin' %}
         <div class="error" style="max-width:400px;margin:0 auto 16px;text-align:center;">Es muss immer mindestens ein Admin geben — der letzte Admin kann nicht entlassen werden.</div>
+        {% endif %}
+        {% if request.query_params.get('err') == 'missing' %}
+        <div class="error" style="max-width:400px;margin:0 auto 16px;text-align:center;">Bitte Benutzer und Anlage für das Recht auswählen.</div>
         {% endif %}
 
         <h2 class="tbl-head">
@@ -303,13 +328,35 @@
             <form method="POST" action="/admin/access">
                 <div class="form-row">
                     <label class="sr-only" for="access_user_id">Benutzer</label>
-                    <select name="user_id" id="access_user_id" autocomplete="off">
+                    <div class="cb" data-cb="access_user_id">
+                        <button type="button" class="cb-trigger" role="combobox" aria-expanded="false" aria-haspopup="listbox" aria-controls="cb-pop-user" aria-label="Benutzer wählen">
+                            <span class="cb-value">— Benutzer wählen —</span>
+                            <svg class="cb-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+                        </button>
+                        <div class="cb-pop" id="cb-pop-user" hidden>
+                            <input type="text" class="cb-search" placeholder="Benutzer suchen (ab 3 Zeichen)" style="font-size:16px;" autocomplete="off">
+                            <ul class="cb-list" role="listbox"></ul>
+                        </div>
+                    </div>
+                    <select name="user_id" id="access_user_id" class="cb-native" autocomplete="off" tabindex="-1" aria-hidden="true">
+                        <option value="" selected>— Benutzer wählen —</option>
                         {% for u in users %}{% if not u.is_admin %}
                         <option value="{{ u.id }}">{{ u.username }}</option>
                         {% endif %}{% endfor %}
                     </select>
                     <label class="sr-only" for="access_installation_id">Anlage</label>
-                    <select name="installation_id" id="access_installation_id" autocomplete="off">
+                    <div class="cb" data-cb="access_installation_id">
+                        <button type="button" class="cb-trigger" role="combobox" aria-expanded="false" aria-haspopup="listbox" aria-controls="cb-pop-inst" aria-label="Anlage wählen">
+                            <span class="cb-value">— Anlage wählen —</span>
+                            <svg class="cb-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+                        </button>
+                        <div class="cb-pop" id="cb-pop-inst" hidden>
+                            <input type="text" class="cb-search" placeholder="Anlage suchen (ab 3 Zeichen)" style="font-size:16px;" autocomplete="off">
+                            <ul class="cb-list" role="listbox"></ul>
+                        </div>
+                    </div>
+                    <select name="installation_id" id="access_installation_id" class="cb-native" autocomplete="off" tabindex="-1" aria-hidden="true">
+                        <option value="" selected>— Anlage wählen —</option>
                         {% for inst in installations %}
                         <option value="{{ inst.id }}">{{ inst.name }}</option>
                         {% endfor %}
@@ -327,7 +374,17 @@
             <label class="sr-only" for="f-access-user">Rechte nach Benutzer filtern</label>
             <input type="text" id="f-access-user" data-filter="tbl-access" data-col="0" data-minlen="3" placeholder="Benutzer filtern (ab 3 Zeichen)" style="font-size:16px;">
             <label class="sr-only" for="f-access-inst">Rechte nach Anlage filtern</label>
-            <select id="f-access-inst" data-filter="tbl-access" data-col="1">
+            <div class="cb" data-cb="f-access-inst">
+                <button type="button" class="cb-trigger" role="combobox" aria-expanded="false" aria-haspopup="listbox" aria-controls="cb-pop-finst" aria-label="Nach Anlage filtern">
+                    <span class="cb-value">Alle Anlagen</span>
+                    <svg class="cb-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <div class="cb-pop" id="cb-pop-finst" hidden>
+                    <input type="text" class="cb-search" placeholder="Anlage suchen (ab 3 Zeichen)" style="font-size:16px;" autocomplete="off">
+                    <ul class="cb-list" role="listbox"></ul>
+                </div>
+            </div>
+            <select id="f-access-inst" data-filter="tbl-access" data-col="1" class="cb-native" tabindex="-1" aria-hidden="true">
                 <option value="">Alle Anlagen</option>
             </select>
         </div>
@@ -362,6 +419,71 @@
             .finally(() => {
                 btn.textContent = "⚡ Test"; btn.disabled = false;
             });
+    }
+
+    /* ── Combobox: Dropdown mit Suchfeld (ab 3 Zeichen) ───────── */
+    function initComboboxes() {
+        document.querySelectorAll('.cb').forEach(cb => {
+            const sel = document.getElementById(cb.dataset.cb);
+            if (!sel) return;
+            const trigger = cb.querySelector('.cb-trigger');
+            const valueEl = cb.querySelector('.cb-value');
+            const pop = cb.querySelector('.cb-pop');
+            const search = cb.querySelector('.cb-search');
+            const list = cb.querySelector('.cb-list');
+            const opts = Array.from(sel.options);
+            const placeholderOpt = opts.find(o => o.value === '');
+            // Filter-Combos zeigen ihren „Alle …“-Eintrag als wählbare Option, Formular-Combos nicht
+            const items = opts.filter(o => o.value !== '' || !!sel.dataset.filter);
+            function render(q) {
+                list.innerHTML = '';
+                const query = (q || '').trim().toLowerCase();
+                const active = query.length >= 3 ? items.filter(o => o.textContent.trim().toLowerCase().includes(query)) : items;
+                if (!active.length) {
+                    const li = document.createElement('li');
+                    li.className = 'empty';
+                    li.textContent = 'Keine Treffer';
+                    list.appendChild(li);
+                    return;
+                }
+                active.forEach(o => {
+                    const li = document.createElement('li');
+                    li.textContent = o.textContent;
+                    li.dataset.val = o.value;
+                    li.addEventListener('click', () => {
+                        sel.value = o.value;
+                        sel.dispatchEvent(new Event('change', { bubbles: true }));
+                        valueEl.textContent = o.textContent;
+                        valueEl.classList.toggle('placeholder', o.value === '');
+                        close();
+                    });
+                    list.appendChild(li);
+                });
+            }
+            function open() {
+                pop.hidden = false;
+                cb.classList.add('open');
+                trigger.setAttribute('aria-expanded', 'true');
+                render('');
+                search.focus();
+            }
+            function close() {
+                pop.hidden = true;
+                cb.classList.remove('open');
+                trigger.setAttribute('aria-expanded', 'false');
+            }
+            trigger.addEventListener('click', e => { e.stopPropagation(); pop.hidden ? open() : close(); });
+            document.addEventListener('click', e => { if (!cb.contains(e.target)) close(); });
+            search.addEventListener('input', () => render(search.value));
+            search.addEventListener('keydown', e => {
+                if (e.key === 'Enter') { const first = list.querySelector('li[data-val]'); if (first) first.click(); }
+                else if (e.key === 'Escape') close();
+            });
+            // Initial: Platzhalter (kein Vorauswahlwert) oder aktuellen Wert anzeigen
+            const cur = sel.options[sel.selectedIndex];
+            if (cur && cur.value !== '') { valueEl.textContent = cur.textContent; }
+            else if (placeholderOpt) { valueEl.textContent = placeholderOpt.textContent; valueEl.classList.add('placeholder'); }
+        });
     }
 
     /* ── Tabellen: Filter (ab 3 Zeichen, Dropdowns aus Spaltenwerten) + Einklappen ── */
@@ -424,8 +546,8 @@
             const wrap = document.querySelector('.tbl-wrap[data-wrap="' + btn.dataset.collapse + '"]');
             if (!wrap) return;
             const key = 'sf.admin.collapse.' + btn.dataset.collapse;
-            let collapsed = false;
-            try { collapsed = localStorage.getItem(key) === '0'; } catch (e) {}
+            let collapsed = true;  // Standard: eingeklappt; nur explizites Aufklappen (='1') hält
+            try { collapsed = localStorage.getItem(key) !== '1'; } catch (e) {}
             if (collapsed) wrap.classList.add('collapsed');
             btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
             btn.addEventListener('click', () => {
@@ -438,6 +560,7 @@
     }
     initCollapse();
     initTableFilters();
+    initComboboxes();
     </script>
 </body>
 </html>

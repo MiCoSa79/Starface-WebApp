@@ -958,13 +958,16 @@ async def admin_installation_test_conn(request: Request, inst_id: int):
 
 @app.post("/admin/access")
 async def admin_access_set(request: Request,
-                           user_id: int = Form(...),
-                           installation_id: int = Form(...),
+                           user_id: int = Form(0),
+                           installation_id: int = Form(0),
                            can_read: int = Form(0),
                            can_write: int = Form(0)):
     user = verify_session(request.cookies.get(SESSION_COOKIE))
     if not user or not user["is_admin"]:
         return RedirectResponse("/dashboard")
+    if not user_id or not installation_id:
+        # Combobox ohne Auswahl abgeschickt — sauber abfangen statt 422
+        return RedirectResponse("/admin?err=missing", status_code=303)
     conn = _db()
     conn.execute(
         "INSERT INTO access (user_id, installation_id, can_read, can_write) VALUES (?,?,?,?) "
