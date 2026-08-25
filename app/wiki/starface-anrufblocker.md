@@ -75,6 +75,9 @@ GitHub-Mirror `Fabian95qw/SFWiki`) — Details siehe
 - Container: ZimaOS, Port 8895, Image `micosa79/starface-webapp:latest`.
   **Update nur per `docker compose pull && docker compose up -d`** — ein alter
   Container zeigt altes Verhalten.
+- **Versionierung:** Die CI vergibt bei **jedem** Push automatisch ein neues
+  `v0.0.x`-Tag — auch reine Wiki-Updates erhöhen die Nummer. Der aktuelle
+  Feature-Stand steht im Versionsregister unten.
 - **Stolperstein docker-compose:** `./config.json:/app/config.json` nur mounten,
   wenn die Datei existiert — sonst Container-Crash (Fehler in v0.0.18). Keine
   persönlichen Daten in der compose-Datei (Beispielwerte für FERNET_KEY/ADMIN_*).
