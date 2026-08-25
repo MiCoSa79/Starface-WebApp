@@ -97,6 +97,27 @@
         ::-webkit-scrollbar-corner { background: transparent; }
         * { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.25) transparent; }
 
+        /* ── Tabellen: Filter + Einklappen (Admin) ─────────────── */
+        .tbl-head { display: flex; align-items: center; gap: 8px; }
+        .collapse-btn { background: none; border: none; padding: 2px; cursor: pointer;
+                        color: #e94560; display: inline-flex; align-items: center; }
+        .collapse-btn:hover { opacity: .8; }
+        .chev { transition: transform .18s ease; }
+        .tbl-wrap.collapsed .chev { transform: rotate(-90deg); }
+        .tbl-wrap.collapsed .tbl-filters,
+        .tbl-wrap.collapsed table { display: none; }
+        .tbl-filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; }
+        .tbl-filters input, .tbl-filters select { background: #0f3460; border: 1px solid #333;
+                        border-radius: 6px; color: #fff; padding: 8px 10px; }
+        .tbl-filters input[type="text"] { width: 220px; }
+        .tbl-filters select { max-width: 240px; }
+        .tbl-count { color: #666; font-size: 12px; font-weight: 400; margin-left: auto; }
+        @media (max-width: 640px) {
+            .tbl-filters { flex-direction: column; align-items: stretch; }
+            .tbl-filters input[type="text"],
+            .tbl-filters select { width: 100%; max-width: none; }
+        }
+
 </style>
 </head>
 <body>
@@ -144,7 +165,12 @@
         <div class="error" style="max-width:400px;margin:0 auto 16px;text-align:center;">Es muss immer mindestens ein Admin geben — der letzte Admin kann nicht entlassen werden.</div>
         {% endif %}
 
-        <h2>Anlagen</h2>
+        <h2 class="tbl-head">
+            <button type="button" class="collapse-btn" data-collapse="inst" aria-expanded="true" aria-label="Anlagen-Tabelle ein- oder ausklappen">
+                <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            Anlagen <span class="tbl-count" data-count="inst">{{ installations|length }} von {{ installations|length }}</span>
+        </h2>
         <div class="card">
             <form method="POST" action="/admin/installations">
                 <div class="form-row">
@@ -169,7 +195,18 @@
             </form>
         </div>
 
-        <table>
+        <div class="tbl-wrap" data-wrap="inst">
+        <div class="tbl-filters">
+            <label class="sr-only" for="f-inst-name">Anlagen nach Name filtern</label>
+            <input type="text" id="f-inst-name" data-filter="tbl-inst" data-col="1" data-minlen="3" placeholder="Name filtern (ab 3 Zeichen)" style="font-size:16px;">
+            <label class="sr-only" for="f-inst-url">Anlagen nach URL filtern</label>
+            <input type="text" id="f-inst-url" data-filter="tbl-inst" data-col="2" data-minlen="3" placeholder="URL filtern (ab 3 Zeichen)" style="font-size:16px;">
+            <label class="sr-only" for="f-inst-version">Anlagen nach API-Version filtern</label>
+            <select id="f-inst-version" data-filter="tbl-inst" data-col="3">
+                <option value="">Alle Versionen</option>
+            </select>
+        </div>
+        <table id="tbl-inst">
             <tr><th>ID</th><th>Name</th><th>URL</th><th>API-Version</th><th></th></tr>
             {% for inst in installations %}
             <tr>
@@ -198,8 +235,14 @@
             </tr>
             {% endfor %}
         </table>
+        </div>
 
-        <h2>Benutzer</h2>
+        <h2 class="tbl-head">
+            <button type="button" class="collapse-btn" data-collapse="users" aria-expanded="true" aria-label="Benutzer-Tabelle ein- oder ausklappen">
+                <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            Benutzer <span class="tbl-count" data-count="users">{{ users|length }} von {{ users|length }}</span>
+        </h2>
         <div class="card">
             <form method="POST" action="/admin/users">
                 <div class="form-row">
@@ -213,7 +256,12 @@
             </form>
         </div>
 
-        <table>
+        <div class="tbl-wrap" data-wrap="users">
+        <div class="tbl-filters">
+            <label class="sr-only" for="f-users-name">Benutzer nach Name filtern</label>
+            <input type="text" id="f-users-name" data-filter="tbl-users" data-col="1" data-minlen="3" placeholder="Benutzer filtern (ab 3 Zeichen)" style="font-size:16px;">
+        </div>
+        <table id="tbl-users">
             <tr><th>ID</th><th>Benutzer</th><th>Rolle</th><th>2FA</th><th></th></tr>
             {% for u in users %}
             <tr>
@@ -243,8 +291,14 @@
             </tr>
             {% endfor %}
         </table>
+        </div>
 
-        <h2>Rechte (User → Anlage)</h2>
+        <h2 class="tbl-head">
+            <button type="button" class="collapse-btn" data-collapse="access" aria-expanded="true" aria-label="Rechte-Tabelle ein- oder ausklappen">
+                <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            Rechte (User → Anlage) <span class="tbl-count" data-count="access">{{ access|length }} von {{ access|length }}</span>
+        </h2>
         <div class="card">
             <form method="POST" action="/admin/access">
                 <div class="form-row">
@@ -268,7 +322,16 @@
             </form>
         </div>
 
-        <table>
+        <div class="tbl-wrap" data-wrap="access">
+        <div class="tbl-filters">
+            <label class="sr-only" for="f-access-user">Rechte nach Benutzer filtern</label>
+            <input type="text" id="f-access-user" data-filter="tbl-access" data-col="0" data-minlen="3" placeholder="Benutzer filtern (ab 3 Zeichen)" style="font-size:16px;">
+            <label class="sr-only" for="f-access-inst">Rechte nach Anlage filtern</label>
+            <select id="f-access-inst" data-filter="tbl-access" data-col="1">
+                <option value="">Alle Anlagen</option>
+            </select>
+        </div>
+        <table id="tbl-access">
             <tr><th>User</th><th>Anlage</th><th>Lesen</th><th>Bearbeiten</th></tr>
             {% for a in access %}
             <tr>
@@ -279,6 +342,7 @@
             </tr>
             {% endfor %}
         </table>
+        </div>
 
         <div class="footer">STARFACE WebApp {{ version }}</div>
     </div>
@@ -299,6 +363,81 @@
                 btn.textContent = "⚡ Test"; btn.disabled = false;
             });
     }
+
+    /* ── Tabellen: Filter (ab 3 Zeichen, Dropdowns aus Spaltenwerten) + Einklappen ── */
+    function initTableFilters() {
+        document.querySelectorAll('.tbl-wrap').forEach(wrap => {
+            const first = wrap.querySelector('.tbl-filters input, .tbl-filters select');
+            if (!first) return;
+            const table = document.getElementById(first.dataset.filter);
+            if (!table) return;
+            const rows = Array.from(table.rows).slice(1);
+            const countEl = document.querySelector('[data-count="' + wrap.dataset.wrap + '"]');
+            const controls = Array.from(wrap.querySelectorAll('.tbl-filters input, .tbl-filters select'));
+            controls.forEach(ctl => {
+                if (ctl.tagName !== 'SELECT') return;
+                const col = parseInt(ctl.dataset.col, 10);
+                const vals = new Set();
+                rows.forEach(r => {
+                    if (r.cells[col]) { const v = r.cells[col].textContent.trim(); if (v) vals.add(v); }
+                });
+                [...vals].sort((a, b) => a.localeCompare(b, 'de', { numeric: true })).forEach(v => {
+                    const o = document.createElement('option');
+                    o.value = v; o.textContent = v; ctl.appendChild(o);
+                });
+            });
+            if (!rows.length) {
+                wrap.querySelector('.tbl-filters').style.display = 'none';
+                if (countEl) countEl.textContent = '0 von 0';
+                return;
+            }
+            function matches(r) {
+                return controls.every(ctl => {
+                    const col = parseInt(ctl.dataset.col, 10);
+                    if (isNaN(col) || !r.cells[col]) return true;
+                    const q = ctl.value.trim().toLowerCase();
+                    if (!q) return true;
+                    if (ctl.dataset.minlen && q.length < parseInt(ctl.dataset.minlen, 10)) return true;
+                    const cell = r.cells[col].textContent.trim().toLowerCase();
+                    return ctl.tagName === 'SELECT' ? cell === q : cell.includes(q);
+                });
+            }
+            function apply() {
+                let vis = 0;
+                rows.forEach(r => {
+                    const show = matches(r);
+                    r.style.display = show ? '' : 'none';
+                    if (show) vis++;
+                });
+                if (countEl) countEl.textContent = vis + ' von ' + rows.length;
+            }
+            controls.forEach(ctl => {
+                if (ctl.tagName === 'SELECT') { ctl.addEventListener('change', apply); return; }
+                let t;
+                ctl.addEventListener('input', () => { clearTimeout(t); t = setTimeout(apply, 200); });
+            });
+            apply();
+        });
+    }
+    function initCollapse() {
+        document.querySelectorAll('.collapse-btn').forEach(btn => {
+            const wrap = document.querySelector('.tbl-wrap[data-wrap="' + btn.dataset.collapse + '"]');
+            if (!wrap) return;
+            const key = 'sf.admin.collapse.' + btn.dataset.collapse;
+            let collapsed = false;
+            try { collapsed = localStorage.getItem(key) === '0'; } catch (e) {}
+            if (collapsed) wrap.classList.add('collapsed');
+            btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+            btn.addEventListener('click', () => {
+                wrap.classList.toggle('collapsed');
+                const open = !wrap.classList.contains('collapsed');
+                btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+                try { localStorage.setItem(key, open ? '1' : '0'); } catch (e) {}
+            });
+        });
+    }
+    initCollapse();
+    initTableFilters();
     </script>
 </body>
 </html>
