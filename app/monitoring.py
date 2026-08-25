@@ -88,13 +88,16 @@ def build_points(inst_name: str, system_name: str, members: dict) -> list:
         except (KeyError, TypeError, ValueError):
             pass
     points.append(p)
-    # SIP-Provider: Zeilen \"Name=Status\"
+    # SIP-Provider: Zeilen "Name=Status"
     prov_status = members.get("providerStatus") or ""
     for line in prov_status.splitlines():
         line = line.strip()
         if not line or "=" not in line:
             continue
-        name, status = line.split("=", 1)
+        # rsplit am LETZTEN '=': Namen duerfen kein '=' enthalten (Modul liefert
+        # 'user@host=State'), aber defensiv gegen alte "register=>..."-Namen,
+        # deren '=' den Status sonst verfaelschen wuerde.
+        name, status = line.rsplit("=", 1)
         pp = Point("providers") \
             .tag("installation", inst_name) \
             .tag("provider", name.strip()) \
@@ -162,7 +165,10 @@ def _provider_summary(raw: str) -> dict:
         line = line.strip()
         if not line or "=" not in line:
             continue
-        name, status = line.split("=", 1)
+        # rsplit am LETZTEN '=': Namen duerfen kein '=' enthalten (Modul liefert
+        # 'user@host=State'), aber defensiv gegen alte "register=>..."-Namen,
+        # deren '=' den Status sonst verfaelschen wuerde.
+        name, status = line.rsplit("=", 1)
         name_s = name.strip()
         status_s = status.strip()
         providers.append(name_s)

@@ -57,6 +57,9 @@ prov_reg = [l for l in lp if l.startswith("providers") and "providerA" in l]
 prov_not = [l for l in lp if l.startswith("providers") and "providerB" in l]
 check("providerA: registered=1", bool(prov_reg) and "registered=1" in prov_reg[0], prov_reg)
 check("providerB: registered=0", bool(prov_not) and "registered=0" in prov_not[0], prov_not)
+# rsplit-Regression: Name mit '=' (altes \"register=>...\"-Format) darf den Status nicht verfaelschen
+prov_eq = [p.to_line_protocol() for p in monitoring.build_points("Kraemer", "pbx", {"providerStatus": "register=>user:geheim@host:5060/1=Registered"}) if p.to_line_protocol().startswith("providers")]
+check("build_points rsplit: '=' im Namen", bool(prov_eq) and "registered=1" in prov_eq[0], prov_eq)
 
 # 3. members-Parsing des _xmlrpc-Antwortformats (GetStats-Struct)
 xml = """<?xml version="1.0"?><methodResponse><params><param><value><struct>

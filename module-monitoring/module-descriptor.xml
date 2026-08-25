@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<module lastChangedTime="1787662800000" moduleType="EXTENDED" createTime="1784793600000" id="cc487008-3504-44da-96cb-504d689c6cff" name="TelefonieMonitoring" specVersion="5" vendor="MiCoSa79" version="3">
+<module lastChangedTime="1787666400000" moduleType="EXTENDED" createTime="1784793600000" id="cc487008-3504-44da-96cb-504d689c6cff" name="TelefonieMonitoring" specVersion="5" vendor="MiCoSa79" version="4">
  <description>Telefonie-Monitoring: Systemmetriken (RAM, CPU-Last, STARFACE-Version, Hostname) und SIP-Provider-Status fuer InfluxDB/Grafana.</description>
     <descriptionURL />
     <disabled>false</disabled>
@@ -282,4 +282,4 @@
     </resourceKeys>
     <shortDescription>Systemmetriken + SIP-Provider-Status fuer InfluxDB/Grafana</shortDescription>
     <writeHash>83396addf4bc54dd8b437ddf07934070d39f6b7b</writeHash>
-<noLicenseId>f70c50723aaccdb565fff15cd12acac7d08a8067</noLicenseId></module>
+<noLicenseId>0240db4ad22f318850a7db1b862652cd64dd4db2</noLicenseId></module>

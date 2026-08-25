@@ -71,14 +71,20 @@ letzte Werte pro Installation.
 
 | Version | Datum | Inhalt |
 |---|---|---|
-| v2 | 2026-08-25 | **Import-Fix:** Alle 36 Call-Output-Variablen im Descriptor ohne `OUT_`-Präfix (exakt die Java-Feldnamen von `SystemStatsMonitor`) — vorher „Output variable not found … Signatur geändert" beim Import; `verify_descriptor_refs.py` validiert die Namen jetzt automatisch (Negativtest am alten Descriptor etabliert). **IMPORT-BEREIT**, von der STARFACE-Installation akzeptiert. |
+| v4 | 2026-08-25 | **Status-Name-Fix + Security:** `providerStatus`-Namen sind jetzt `user@host` statt der rohen Wire-Settings-Zeile (`register=>user:pass@host:port/…`) — die enthielt ein `=` (brach das WebApp-Format „Name=Status“ → fälschlich „getrennt“ trotz Registered) und das SIP-Passwort (wäre als InfluxDB-Tag/Feld gelandet). Parser liefert `306326@sip.iks-computer.de=Registered`. |
+| v3 | 2026-08-25 | **dnsmgr-Spalten-Fix:** STARFACE schiebt in `sip show registry` eine `dnsmgr`-Spalte ein (State in Spalte 5 statt 4) — Status wird jetzt spalten-unabhängig per „Registered“-Token-Scan erkannt (`extractState`), User/Port robust extrahiert; bewiesen gegen das echte Cloud-Log der Anlage. |
+| v2 | 2026-08-25 | **Import-Fix:** Alle 36 Call-Output-Variablen im Descriptor ohne `OUT_`-Präfix (exakt die Java-Feldnamen von `SystemStatsMonitor`) — vorher „Output variable not found … Signatur geändert“ beim Import; `verify_descriptor_refs.py` validiert die Namen jetzt automatisch (Negativtest am alten Descriptor etabliert). **IMPORT-BEREIT**, von der STARFACE-Installation akzeptiert. |
 | v1 | 2026-08-25 | Erstversion: Systemmetriken (Speicher, Load, Prozesse, CPU-Kerne, Starface-Version) + SIP-Provider-Status (`sip show registry`) über RPC-Wrapper `GetStats` (XmlMonitoring-Muster, JWT-Auth); Import scheiterte am Signatur-Mismatch der Output-Variablen → v2. |
 
 ### Web-App (Sammler + Statusseite)
 
 | Version | Datum | Inhalt |
 |---|---|---|
-| v0.0.115 | 2026-08-25 | **Provider-Status-Badges** auf `/admin/monitoring`: grün „Alle Provider verbunden", rot „Provider getrennt (x/y)" mit Details, grau „Keine Provider"; Auswertung zentral in `monitoring._provider_summary` (auch in der Status-API). |
+| v0.0.119 | 2026-08-25 | **Provider-Parsing robust:** `_provider_summary` und `build_points` splitten am **letzten** `=` (rsplit) — Namen dürfen kein `=` brechen mehr den Status (Defense-in-Depth zu Modul v4, das ohnehin saubere `user@host`-Namen liefert); Regressionstests für „`=` im Namen“ ergänzt. |
+| v0.0.118 | 2026-08-25 | **Registered-Präfix-Toleranz:** Status-Verbunden-Check als `startswith("Registered")` (deckt „Registered (2 devices)“-Varianten ab); Modul v3-Download. |
+| v0.0.117 | 2026-08-25 | **Badge-Text eindeutig:** Roter Badge zählt Getrennte — „Provider getrennt (x von y)“ statt mehrdeutigem „0/2“. |
+| v0.0.116 | 2026-08-25 | App-Wiki-Versionshistorie + Doku. |
+| v0.0.115 | 2026-08-25 | **Provider-Status-Badges** auf `/admin/monitoring`: grün „Alle Provider verbunden“, rot „Provider getrennt (x/y)“ mit Details, grau „Keine Provider“; Auswertung zentral in `monitoring._provider_summary` (auch in der Status-API). |
 | v0.0.109 | 2026-08-25 | **Statusseite `/admin/monitoring`:** Sammler-Status (Poll-Läufe, Points, Intervall, Fehler rot) + letzte Werte je Installation, Auto-Refresh 15 s; Nav-Link. |
 | v0.0.108 | 2026-08-25 | Modul v2 (siehe oben) — WebApp stellt die korrigierte `.sfm` zum Download bereit. |
 | v0.0.107 | 2026-08-25 | Feld **Monitoring-Modul-Instanz** in den Anlagen-Stammdaten (getrennt vom CallBlocker-Feld) — Voraussetzung, damit der Sammler die Anlage pollt. |

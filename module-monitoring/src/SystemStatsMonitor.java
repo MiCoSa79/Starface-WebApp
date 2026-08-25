@@ -263,15 +263,19 @@ public class SystemStatsMonitor implements IBaseExecutable
 		// Pass 1: exakter Abgleich configName -> Registry-Zeile (User/Host)
 		StringBuilder unmapped = new StringBuilder();
 		for (String c : configNames) {
-			String state = matchRegistryState(c, registryLines, consumed);
-			if (state == null) {
+			String[] line = matchRegistryLine(c, registryLines, consumed);
+			if (line == null) {
 				if (unmapped.length() > 0) {
 					unmapped.append("\n");
 				}
 				unmapped.append(c);
 				continue;
 			}
-			appendStatus(status, c, state);
+			// Name bewusst NICHT aus configName ("register=>user:pass@host:port/..."):
+			// enthaelt ein '=' (bricht das WebApp-Format "Name=Status") und bei
+			// manchen Anlagen das SIP-Passwort -> stattdessen sauberes user@host
+			appendStatus(status, registryUser(line) + "@" + registryHost(line),
+					extractState(line));
 		}
 
 		// Pass 2: verbleibende Registry-Zeilen der Reihenfolge nach ungemappten
@@ -285,7 +289,8 @@ public class SystemStatsMonitor implements IBaseExecutable
 			if (ri < unmapArr.length) {
 				String c = unmapArr[ri++].trim();
 				if (c.length() > 0) {
-					appendStatus(status, c, extractState(line));
+					appendStatus(status, registryUser(line) + "@" + registryHost(line),
+							extractState(line));
 					consumed.put(lineKey(line), extractState(line));
 				}
 			}
@@ -339,37 +344,37 @@ public class SystemStatsMonitor implements IBaseExecutable
 		return result;
 		}
 
-		private String matchRegistryState(String configName, java.util.List<String[]> lines, Map<String, String> consumed)
+		private String[] matchRegistryLine(String configName, java.util.List<String[]> lines, Map<String, String> consumed)
 		{
-		String cfgUser = configName;
-		int at = configName.indexOf('@');
-		if (at >= 0) {
-			cfgUser = configName.substring(0, at);
-		}
-		String[] bestLine = null;
-		for (String[] t : lines) {
-			if (consumed.containsKey(lineKey(t))) {
-				continue;
+			String cfgUser = configName;
+			int at = configName.indexOf('@');
+			if (at >= 0) {
+				cfgUser = configName.substring(0, at);
 			}
-			String user = registryUser(t);
-			String host = registryHost(t);
-			if (cfgUser.equals(user) || configName.contains(host)
-					|| user.contains(cfgUser) || t[2].contains(configName)) {
-				if (extractState(t).startsWith("Registered")) {
-					bestLine = t;
-					break;
+			String[] bestLine = null;
+			for (String[] t : lines) {
+				if (consumed.containsKey(lineKey(t))) {
+					continue;
 				}
-				if (bestLine == null) {
-					bestLine = t;
+				String user = registryUser(t);
+				String host = registryHost(t);
+				if (cfgUser.equals(user) || configName.contains(host)
+						|| user.contains(cfgUser) || t[2].contains(configName)) {
+					if (extractState(t).startsWith("Registered")) {
+						bestLine = t;
+						break;
+					}
+					if (bestLine == null) {
+						bestLine = t;
+					}
 				}
 			}
+			if (bestLine != null) {
+				consumed.put(lineKey(bestLine), extractState(bestLine));
+				return bestLine;
+			}
+			return null;
 		}
-		if (bestLine != null) {
-			consumed.put(lineKey(bestLine), extractState(bestLine));
-			return extractState(bestLine);
-		}
-		return null;
-	}
 
 	private String extractState(String[] t)
 	{

@@ -13,6 +13,7 @@ cases = [
     ("leer", "", dict(count=0, connected=0, all_ok=False, has_data=False), 0),
     ("Nur Name ohne =", "Kryptisch", dict(count=0, has_data=False), 0),
     ("Registered mit Zusatz", "Glasfunk=Registered (2 devices)", dict(count=1, connected=1, all_ok=True, has_data=True), 0),
+    ("Name mit = (altes Wire-Settings-Format)", "register=>user:geheim@host:5060/1=Registered", dict(count=1, connected=1, all_ok=True, has_data=True), 0),
 ]
 for label, raw, exp, exp_disc in cases:
     r = _provider_summary(raw)
