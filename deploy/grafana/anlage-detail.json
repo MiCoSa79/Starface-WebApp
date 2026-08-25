@@ -867,8 +867,9 @@
   },
   "timepicker": {},
   "timezone": "browser",
-  "title": "STARFACE Anlage: ${installation}",
+  "title": "STARFACE Anlagen-Detail",
   "uid": "starface-anlage-detail",
   "version": 1,
-  "weekStart": ""
+  "weekStart": "",
+  "description": "Anlage: ${installation}"
 }
