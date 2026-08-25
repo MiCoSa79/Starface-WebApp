@@ -15,6 +15,7 @@ import secrets
 import sqlite3
 from functools import lru_cache
 import time
+import asyncio
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -462,17 +463,28 @@ def _xmlrpc(url: str, token: str, method: str, params: dict = None,
         msg = fs.text if fs is not None and fs.text else "XML-RPC-Fault (Details fehlen)"
         raise RuntimeError(f"STARFACE-Fehler: {msg} — Roh: {r.text[:300]}")
     values = []
+    members = {}
+    for member in root.iter("member"):
+        name_el = member.find("name")
+        if name_el is None or not name_el.text or not name_el.text.strip():
+            continue
+        for cand in member.iter():
+            if cand is member:
+                continue
+            if cand.tag in ("string", "int", "i4", "boolean", "double") and cand.text and cand.text.strip():
+                members[name_el.text.strip()] = _xmlrpc_value(cand)
+                break
     for v in root.iter():
         if v.tag in ("string", "int", "i4", "boolean", "double") and v.text and v.text.strip():
             values.append(v.text)
-    return {"raw": r.text, "values": values}
+    return {"raw": r.text, "values": values, "members": members}
 
 
 def _split_numbers(values: list) -> list:
     """Splittet STARFACE-Listenantworten in einzelne Nummern.
 
     Das CallBlocker-Modul liefert die Einträge kommasepariert in EINEM
-    String (OUTPUT_NUMMERN) — z. B. [\"+491512345678,+491512345679\"].
+    String (OUTPUT_NUMMERN) — z. B. ["+491512345678,+491512345679"].
     """
     out = []
     for v in values:
@@ -483,6 +495,42 @@ def _split_numbers(values: list) -> list:
     return out
 
 
+def _xmlrpc_value(el) -> object:
+    """Konvertiert ein XML-RPC-Wert-Element in einen Python-Wert (für members).
+
+    el kann der Typ-Tag selbst sein (<int>42</int>) oder <value> mit Kind-Tag.
+    """
+    tag = el.tag
+    text = (el.text or "").strip()
+    if tag == "string":
+        return text
+    if tag in ("int", "i4"):
+        try:
+            return int(text)
+        except ValueError:
+            return 0
+    if tag == "boolean":
+        return text == "1"
+    if tag == "double":
+        try:
+            return float(text)
+        except ValueError:
+            return 0.0
+    for child in el:
+        return _xmlrpc_value(child)
+    return text
+
+
+# ─────────────────────────────────────────────────────────────
+# Telefonie-Monitoring: Sammler (InfluxDB)
+# ─────────────────────────────────────────────────────────────
+
+try:
+    import monitoring
+except ImportError:
+    from app import monitoring
+
+
 # ─────────────────────────────────────────────────────────────
 # App
 # ─────────────────────────────────────────────────────────────
@@ -490,6 +538,7 @@ def _split_numbers(values: list) -> list:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
+    monitoring_task = asyncio.create_task(monitoring.run_loop())
     if ADMIN_USERNAME and ADMIN_PASSWORD:
         conn = _db()
         exists = conn.execute("SELECT id FROM users WHERE username = ?", (ADMIN_USERNAME,)).fetchone()
@@ -500,7 +549,14 @@ async def lifespan(app: FastAPI):
             conn.commit()
             print(f"[Starface-WebApp] Admin '{ADMIN_USERNAME}' angelegt")
         conn.close()
-    yield
+    try:
+        yield
+    finally:
+        monitoring_task.cancel()
+        try:
+            await monitoring_task
+        except (asyncio.CancelledError, Exception):
+            pass
 
 
 app = FastAPI(title="STARFACE WebApp", lifespan=lifespan)
@@ -1482,3 +1538,12 @@ async def version():
         "version": os.environ.get("APP_VERSION", "dev"),
         "build_date": os.environ.get("BUILD_DATE", "dev"),
     })
+
+
+@app.get("/api/monitoring/status")
+async def api_monitoring_status(request: Request):
+    """Sammler-Status (letzter Poll, Fehler, letzte Werte je Installation) — JSON."""
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user:
+        return JSONResponse({"ok": False, "message": "Nicht autorisiert"}, status_code=401)
+    return JSONResponse(monitoring.status())

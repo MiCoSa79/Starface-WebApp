@@ -1,0 +1,285 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<module lastChangedTime="1787662800000" moduleType="EXTENDED" createTime="1784793600000" id="cc487008-3504-44da-96cb-504d689c6cff" name="TelefonieMonitoring" specVersion="5" vendor="MiCoSa79" version="1">
+ <description>Telefonie-Monitoring: Systemmetriken (RAM, CPU-Last, STARFACE-Version, Hostname) und SIP-Provider-Status fuer InfluxDB/Grafana.</description>
+    <descriptionURL />
+    <disabled>false</disabled>
+    <inputVars />
+    <outputVars />
+    <resources />
+    <children>
+        
+        <function visibility="Private" createTime="1784793600000" id="SystemStatsMonitor" name="SystemStatsMonitor" specVersion="0" vendor="MiCoSa79" version="0">
+            <description>Sammelt Systemmetriken (RAM, CPU-Last, Version, Hostname) und SIP-Provider-Status.</description>
+            <descriptionURL />
+            <disabled>false</disabled>
+            <inputVars />
+            <outputVars>
+                <variable id="systemName" label="systemName" name="systemName" type="STRING" valueByReference="false" valueByReferenceAllowed="false" valueByValueAllowed="true" visible="true">
+                    <description>Hostname der Anlage</description>
+                    <value />
+                </variable>
+                <variable id="systemVersion" label="systemVersion" name="systemVersion" type="STRING" valueByReference="false" valueByReferenceAllowed="false" valueByValueAllowed="true" visible="true">
+                    <description>STARFACE-Version</description>
+                    <value />
+                </variable>
+                <variable id="memTotal" label="memTotal" name="memTotal" type="NUMBER" valueByReference="false" valueByReferenceAllowed="false" valueByValueAllowed="true" visible="true">
+                    <description>MemTotal (kB)</description>
+                    <value />
+                </variable>
+                <variable id="memFree" label="memFree" name="memFree" type="NUMBER" valueByReference="false" valueByReferenceAllowed="false" valueByValueAllowed="true" visible="true">
+                    <description>MemFree (kB)</description>
+                    <value />
+                </variable>
+                <variable id="memAvailable" label="memAvailable" name="memAvailable" type="NUMBER" valueByReference="false" valueByReferenceAllowed="false" valueByValueAllowed="true" visible="true">
+                    <description>MemAvailable (kB)</description>
+                    <value />
+                </variable>
+                <variable id="buffers" label="buffers" name="buffers" type="NUMBER" valueByReference="false" valueByReferenceAllowed="false" valueByValueAllowed="true" visible="true">
+                    <description>Buffers (kB)</description>
+                    <value />
+                </variable>
+                <variable id="cached" label="cached" name="cached" type="NUMBER" valueByReference="false" valueByReferenceAllowed="false" valueByValueAllowed="true" visible="true">
+                    <description>Cached (kB)</description>
+                    <value />
+                </variable>
+                <variable id="swapCached" label="swapCached" name="swapCached" type="NUMBER" valueByReference="false" valueByReferenceAllowed="false" valueByValueAllowed="true" visible="true">
+                    <description>SwapCached (kB)</description>
+                    <value />
+                </variable>
+                <variable id="active" label="active" name="active" type="NUMBER" valueByReference="false" valueByReferenceAllowed="false" valueByValueAllowed="true" visible="true">
+                    <description>Active (kB)</description>
+                    <value />
+                </variable>
+                <variable id="inactive" label="inactive" name="inactive" type="NUMBER" valueByReference="false" valueByReferenceAllowed="false" valueByValueAllowed="true" visible="true">
+                    <description>Inactive (kB)</description>
+                    <value />
+                </variable>
+                <variable id="load1" label="load1" name="load1" type="STRING" valueByReference="false" valueByReferenceAllowed="false" valueByValueAllowed="true" visible="true">
+                    <description>1-Minuten-Load-Average</description>
+                    <value />
+                </variable>
+                <variable id="load5" label="load5" name="load5" type="STRING" valueByReference="false" valueByReferenceAllowed="false" valueByValueAllowed="true" visible="true">
+                    <description>5-Minuten-Load-Average</description>
+                    <value />
+                </variable>
+                <variable id="load15" label="load15" name="load15" type="STRING" valueByReference="false" valueByReferenceAllowed="false" valueByValueAllowed="true" visible="true">
+                    <description>15-Minuten-Load-Average</description>
+                    <value />
+                </variable>
+                <variable id="procsRunning" label="procsRunning" name="procsRunning" type="NUMBER" valueByReference="false" valueByReferenceAllowed="false" valueByValueAllowed="true" visible="true">
+                    <description>Laufende Prozesse</description>
+                    <value />
+                </variable>
+                <variable id="procsTotal" label="procsTotal" name="procsTotal" type="NUMBER" valueByReference="false" valueByReferenceAllowed="false" valueByValueAllowed="true" visible="true">
+                    <description>Prozesse gesamt</description>
+                    <value />
+                </variable>
+                <variable id="cpuCores" label="cpuCores" name="cpuCores" type="NUMBER" valueByReference="false" valueByReferenceAllowed="false" valueByValueAllowed="true" visible="true">
+                    <description>CPU-Kerne</description>
+                    <value />
+                </variable>
+                <variable id="providerStatus" label="providerStatus" name="providerStatus" type="STRING" valueByReference="false" valueByReferenceAllowed="false" valueByValueAllowed="true" visible="true">
+                    <description>Zeilen 'Name=Status' pro SIP-Provider</description>
+                    <value />
+                </variable>
+                <variable id="providerNames" label="providerNames" name="providerNames" type="STRING" valueByReference="false" valueByReferenceAllowed="false" valueByValueAllowed="true" visible="true">
+                    <description>Semikolon-getrennte konfigurierte SIP-Provider</description>
+                    <value />
+                </variable>
+            </outputVars>
+            <resources />
+            <children />
+            <implementationFile>SystemStatsMonitor.class</implementationFile>
+        </function>
+
+        
+        <function visibility="Private" createTime="1784793600000" id="dfd72ef9-94cd-4bbd-9f37-8ca0fc3cf286" name="GetStatsRpc" specVersion="0" vendor="MiCoSa79" version="0">
+            <description>RPC-Wrapper: liefert alle Monitoring-Daten (Systemmetriken + Provider-Status).</description>
+            <descriptionURL />
+            <disabled>false</disabled>
+            <inputVars />
+            <outputVars>
+                <variable id="20117d15-541b-4ce8-a201-a47d3d4d4438" label="systemName" name="systemName" type="STRING" valueByReference="true" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="true">
+                    <description>Hostname der Anlage</description>
+                    <value />
+                </variable>
+                <variable id="a9c27052-16ad-40f9-a5f2-dc0bd7969e4f" label="systemVersion" name="systemVersion" type="STRING" valueByReference="true" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="true">
+                    <description>STARFACE-Version</description>
+                    <value />
+                </variable>
+                <variable id="82368cba-41e5-4c74-a867-3ec2eaf0dbf9" label="memTotal" name="memTotal" type="NUMBER" valueByReference="true" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="true">
+                    <description>MemTotal (kB)</description>
+                    <value />
+                </variable>
+                <variable id="3c33cbed-ad4e-4548-9d26-ac18aa04a788" label="memFree" name="memFree" type="NUMBER" valueByReference="true" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="true">
+                    <description>MemFree (kB)</description>
+                    <value />
+                </variable>
+                <variable id="73882487-856f-46b7-a96e-904da861597b" label="memAvailable" name="memAvailable" type="NUMBER" valueByReference="true" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="true">
+                    <description>MemAvailable (kB)</description>
+                    <value />
+                </variable>
+                <variable id="a13b9155-c047-4ba6-be2f-ffc28be0a813" label="buffers" name="buffers" type="NUMBER" valueByReference="true" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="true">
+                    <description>Buffers (kB)</description>
+                    <value />
+                </variable>
+                <variable id="6a43471a-b15b-4b87-b987-c4f85affd75d" label="cached" name="cached" type="NUMBER" valueByReference="true" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="true">
+                    <description>Cached (kB)</description>
+                    <value />
+                </variable>
+                <variable id="dcecb1d2-2838-401f-a648-35c464ee017b" label="swapCached" name="swapCached" type="NUMBER" valueByReference="true" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="true">
+                    <description>SwapCached (kB)</description>
+                    <value />
+                </variable>
+                <variable id="d9244eea-adc1-4aaa-823a-e2b5f77e5bf2" label="active" name="active" type="NUMBER" valueByReference="true" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="true">
+                    <description>Active (kB)</description>
+                    <value />
+                </variable>
+                <variable id="4a1805af-3693-42e5-8b5e-8f5f8449b792" label="inactive" name="inactive" type="NUMBER" valueByReference="true" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="true">
+                    <description>Inactive (kB)</description>
+                    <value />
+                </variable>
+                <variable id="93025c39-920d-45e4-809b-4e896dc3a066" label="load1" name="load1" type="STRING" valueByReference="true" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="true">
+                    <description>1-Minuten-Load-Average</description>
+                    <value />
+                </variable>
+                <variable id="4d1c3e3b-d247-4745-9994-189b149a7402" label="load5" name="load5" type="STRING" valueByReference="true" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="true">
+                    <description>5-Minuten-Load-Average</description>
+                    <value />
+                </variable>
+                <variable id="8dd3820a-6e08-4b4e-bf5d-965bca327b7a" label="load15" name="load15" type="STRING" valueByReference="true" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="true">
+                    <description>15-Minuten-Load-Average</description>
+                    <value />
+                </variable>
+                <variable id="c3885265-d733-4939-b1b4-fe080ad1674e" label="procsRunning" name="procsRunning" type="NUMBER" valueByReference="true" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="true">
+                    <description>Laufende Prozesse</description>
+                    <value />
+                </variable>
+                <variable id="34249dd3-b2b3-45e1-8013-4319728e5f66" label="procsTotal" name="procsTotal" type="NUMBER" valueByReference="true" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="true">
+                    <description>Prozesse gesamt</description>
+                    <value />
+                </variable>
+                <variable id="8bc7e6da-a91f-48f3-b622-077a0368e03e" label="cpuCores" name="cpuCores" type="NUMBER" valueByReference="true" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="true">
+                    <description>CPU-Kerne</description>
+                    <value />
+                </variable>
+                <variable id="5caf74c2-1ec8-4f14-902a-d25a35d006a0" label="providerStatus" name="providerStatus" type="STRING" valueByReference="true" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="true">
+                    <description>Zeilen 'Name=Status' pro SIP-Provider</description>
+                    <value />
+                </variable>
+                <variable id="65089491-f893-432a-b12a-ace6fd3b8721" label="providerNames" name="providerNames" type="STRING" valueByReference="true" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="true">
+                    <description>Semikolon-getrennte konfigurierte SIP-Provider</description>
+                    <value />
+                </variable>
+            </outputVars>
+            <resources />
+            <children>
+                <functionCall createTime="1784793600000" id="748758d7-da58-41b4-b7aa-6aceb2376a4d" name="Call --&gt; SystemStatsMonitor" specVersion="0" vendor="MiCoSa79" version="0">
+                    <description />
+                    <descriptionURL />
+                    <disabled>false</disabled>
+                    <inputVars />
+                    <outputVars>
+                        <variable id="OUT_systemName" label="" name="OUT_systemName" type="STRING" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
+                            <description />
+                            <value>20117d15-541b-4ce8-a201-a47d3d4d4438</value>
+                        </variable>
+                        <variable id="OUT_systemVersion" label="" name="OUT_systemVersion" type="STRING" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
+                            <description />
+                            <value>a9c27052-16ad-40f9-a5f2-dc0bd7969e4f</value>
+                        </variable>
+                        <variable id="OUT_memTotal" label="" name="OUT_memTotal" type="NUMBER" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
+                            <description />
+                            <value>82368cba-41e5-4c74-a867-3ec2eaf0dbf9</value>
+                        </variable>
+                        <variable id="OUT_memFree" label="" name="OUT_memFree" type="NUMBER" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
+                            <description />
+                            <value>3c33cbed-ad4e-4548-9d26-ac18aa04a788</value>
+                        </variable>
+                        <variable id="OUT_memAvailable" label="" name="OUT_memAvailable" type="NUMBER" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
+                            <description />
+                            <value>73882487-856f-46b7-a96e-904da861597b</value>
+                        </variable>
+                        <variable id="OUT_buffers" label="" name="OUT_buffers" type="NUMBER" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
+                            <description />
+                            <value>a13b9155-c047-4ba6-be2f-ffc28be0a813</value>
+                        </variable>
+                        <variable id="OUT_cached" label="" name="OUT_cached" type="NUMBER" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
+                            <description />
+                            <value>6a43471a-b15b-4b87-b987-c4f85affd75d</value>
+                        </variable>
+                        <variable id="OUT_swapCached" label="" name="OUT_swapCached" type="NUMBER" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
+                            <description />
+                            <value>dcecb1d2-2838-401f-a648-35c464ee017b</value>
+                        </variable>
+                        <variable id="OUT_active" label="" name="OUT_active" type="NUMBER" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
+                            <description />
+                            <value>d9244eea-adc1-4aaa-823a-e2b5f77e5bf2</value>
+                        </variable>
+                        <variable id="OUT_inactive" label="" name="OUT_inactive" type="NUMBER" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
+                            <description />
+                            <value>4a1805af-3693-42e5-8b5e-8f5f8449b792</value>
+                        </variable>
+                        <variable id="OUT_load1" label="" name="OUT_load1" type="STRING" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
+                            <description />
+                            <value>93025c39-920d-45e4-809b-4e896dc3a066</value>
+                        </variable>
+                        <variable id="OUT_load5" label="" name="OUT_load5" type="STRING" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
+                            <description />
+                            <value>4d1c3e3b-d247-4745-9994-189b149a7402</value>
+                        </variable>
+                        <variable id="OUT_load15" label="" name="OUT_load15" type="STRING" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
+                            <description />
+                            <value>8dd3820a-6e08-4b4e-bf5d-965bca327b7a</value>
+                        </variable>
+                        <variable id="OUT_procsRunning" label="" name="OUT_procsRunning" type="NUMBER" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
+                            <description />
+                            <value>c3885265-d733-4939-b1b4-fe080ad1674e</value>
+                        </variable>
+                        <variable id="OUT_procsTotal" label="" name="OUT_procsTotal" type="NUMBER" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
+                            <description />
+                            <value>34249dd3-b2b3-45e1-8013-4319728e5f66</value>
+                        </variable>
+                        <variable id="OUT_cpuCores" label="" name="OUT_cpuCores" type="NUMBER" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
+                            <description />
+                            <value>8bc7e6da-a91f-48f3-b622-077a0368e03e</value>
+                        </variable>
+                        <variable id="OUT_providerStatus" label="" name="OUT_providerStatus" type="STRING" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
+                            <description />
+                            <value>5caf74c2-1ec8-4f14-902a-d25a35d006a0</value>
+                        </variable>
+                        <variable id="OUT_providerNames" label="" name="OUT_providerNames" type="STRING" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
+                            <description />
+                            <value>65089491-f893-432a-b12a-ace6fd3b8721</value>
+                        </variable>
+                    </outputVars>
+                    <resources />
+                    <target targetDomainId="cc487008-3504-44da-96cb-504d689c6cff" targetId="SystemStatsMonitor" targetName="SystemStatsMonitor" targetVersion="0" />
+                </functionCall>
+            </children>
+        </function>
+    </children>
+    <createdWith>STARFACE 10.0.2.5</createdWith>
+    <defaultLocale>de</defaultLocale>
+    <editable>true</editable>
+    <entryPoints>
+        <rpcEntryPoint id="5aa265e3-787b-4114-9f9b-303110f9938e" name="GetStats">
+            <functionReference targetDomainId="cc487008-3504-44da-96cb-504d689c6cff" targetId="dfd72ef9-94cd-4bbd-9f37-8ca0fc3cf286" targetName="GetStatsRpc" targetVersion="0" />
+            <type>XMLRPC_auth</type>
+        </rpcEntryPoint>
+    </entryPoints>
+    <resourceKeys>
+        <entries>
+            <key>en</key>
+            <value>Telefonie Monitoring</value>
+        </entries>
+        <entries>
+            <key>de</key>
+            <value>Telefonie-Monitoring</value>
+        </entries>
+        <key>module.name{cc487008-3504-44da-96cb-504d689c6cff}</key>
+        <propertyName>NAME</propertyName>
+    </resourceKeys>
+    <shortDescription>Systemmetriken + SIP-Provider-Status fuer InfluxDB/Grafana</shortDescription>
+    <writeHash>83396addf4bc54dd8b437ddf07934070d39f6b7b</writeHash>
+<noLicenseId>f70c50723aaccdb565fff15cd12acac7d08a8067</noLicenseId></module>
