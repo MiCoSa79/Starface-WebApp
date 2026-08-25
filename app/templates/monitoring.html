@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#16213e">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta http-equiv="refresh" content="15">
+    <title>STARFACE WebApp — Monitoring</title>
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png">
+    <link rel="manifest" href="/static/site.webmanifest">
+    <style>
+        .sr-only { position:absolute; width:1px; height:1px; margin:-1px; padding:0; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+               background: #1a1a2e; color: #e0e0e0; }
+        .topbar { background: #16213e; padding: calc(16px + env(safe-area-inset-top, 0px)) 24px 16px;
+                  display: flex; justify-content: space-between; align-items: center;
+                  border-bottom: 1px solid #333; position: relative; z-index: 2; }
+        .topbar h1 { font-size: 20px; display: flex; align-items: center; gap: 8px; }
+        .topbar h1 img { height: 24px; width: auto; }
+        .topbar h1 span { color: #e94560; }
+        .topbar a { color: #e94560; text-decoration: none; margin-left: 16px; }
+        .container { max-width: 1100px; margin: 0 auto; padding: 24px;
+                     padding-bottom: 60px; }
+        h2 { font-size: 18px; margin: 24px 0 12px; color: #e94560; }
+        h2:first-child { margin-top: 0; }
+        .card { background: #16213e; border-radius: 12px; padding: 20px; margin-bottom: 16px;
+                border: 1px solid #333; }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th, td { text-align: left; padding: 8px; border-bottom: 1px solid #2a2a4a; }
+        th { color: #888; font-weight: 600; }
+        .badge { display: inline-block; background: #e94560; color: #fff;
+                 padding: 2px 8px; border-radius: 4px; font-size: 11px; }
+        .badge-green { background: #2d6a4f; }
+        .badge-red { background: #8b0000; }
+        .badge-gray { background: #333; }
+        .codes { font-family: monospace; word-break: break-all; }
+        .kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+        .kv div { background: #0f3460; border-radius: 8px; padding: 10px 14px; }
+        .kv .k { color: #888; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+        .kv .v { font-size: 15px; margin-top: 2px; }
+        .kv .v.err { color: #ff6b6b; }
+        .errbox { background: #3d1a1a; border: 1px solid #8b0000; color: #ffb3b3;
+                  padding: 10px 14px; border-radius: 8px; font-size: 13px; white-space: pre-wrap; }
+
+        /* Navigation */
+        .nav { background: #16213e; border-bottom: 1px solid #333;
+               display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
+               padding: 8px 24px; }
+        .nav a { color: #aaa; text-decoration: none; padding: 6px 14px;
+                 border-radius: 6px; font-size: 13px; }
+        .nav a:hover { background: #0f3460; color: #fff; }
+        .nav a.active { background: #e94560; color: #fff; font-weight: 600; }
+        .nav .spacer { flex: 1; }
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        <h1><img src="/static/kits-logo.png" alt="Logo"><span>STARFACE WebApp</span></h1>
+        <div style="display:flex;align-items:center;gap:12px;">
+            {% if user.is_admin %}<span style="background:#2d6a4f;color:#95d5b2;padding:2px 8px;border-radius:4px;font-size:12px;">Admin</span>{% endif %}
+            <span style="color:#aaa;font-size:13px;">{{ user.username }}</span>
+        </div>
+    </div>
+    <nav class="nav">
+        <a href="/dashboard" class="{% if active=='dashboard' %}active{% endif %}">Dashboard</a>
+        <a href="/admin" class="{% if active=='admin' %}active{% endif %}">Admin</a>
+        <a href="/admin/modules" class="{% if active=='modules' %}active{% endif %}">Module</a>
+        <a href="/admin/api-doku" class="{% if active=='api-doku' %}active{% endif %}">API-Doku</a>
+        <a href="/admin/monitoring" class="{% if active=='monitoring' %}active{% endif %}">Monitoring</a>
+        <a href="/wiki" class="{% if active=='wiki' %}active{% endif %}">Wiki</a>
+        <a href="/password" class="{% if active=='password' %}active{% endif %}">Passwort</a>
+        <span class="spacer"></span>
+        <a href="/logout">Abmelden</a>
+    </nav>
+
+    <div class="container">
+        <h2>Telefonie-Monitoring</h2>
+        <div style="margin-bottom:12px;">
+            <a href="/admin" class="btn-secondary" style="padding:8px 14px;border-radius:6px;text-decoration:none;background:#333;color:#ccc;font-size:13px;">← Zurück zum Admin</a>
+            <span style="color:#666;font-size:12px;margin-left:10px;">Seite aktualisiert sich alle 15 s</span>
+        </div>
+
+        <div class="card">
+            <h2 style="margin-top:0;">Sammler</h2>
+            <div class="kv">
+                <div><div class="k">Status</div>
+                    <div class="v">{% if status.running %}<span class="badge badge-green">Läuft</span>{% else %}<span class="badge badge-red">Gestoppt</span>{% endif %}</div></div>
+                <div><div class="k">Intervall</div><div class="v">{{ status.interval }} s</div></div>
+                <div><div class="k">Poll-Läufe gesamt</div><div class="v">{{ status.total_runs }}</div></div>
+                <div><div class="k">Points geschrieben</div><div class="v">{{ status.total_writes }}</div></div>
+                <div><div class="k">Letzter Poll</div><div class="v" data-ts="{{ status.last_run or 0 }}">—</div></div>
+                <div><div class="k">InfluxDB</div>
+                    <div class="v">{% if status.influx_configured %}<span class="badge badge-green">konfiguriert</span>{% else %}<span class="badge badge-red">kein Token</span>{% endif %}</div></div>
+                <div><div class="k">Bucket</div><div class="v codes">{{ status.influx_bucket }}</div></div>
+            </div>
+            {% if status.last_error %}
+            <div style="margin-top:12px;" class="errbox">Letzter Fehler: {{ status.last_error }}</div>
+            {% endif %}
+        </div>
+
+        <div class="card">
+            <h2 style="margin-top:0;">Installationen (letzte Werte)</h2>
+            {% if status.installations %}
+            <table>
+                <tr>
+                    <th>Anlage</th>
+                    <th>Hostname</th>
+                    <th>Version</th>
+                    <th>Provider</th>
+                    <th>Points</th>
+                    <th>Letzter Poll</th>
+                </tr>
+                {% for name, vals in status.installations.items() %}
+                <tr>
+                    <td>{{ name }}</td>
+                    <td class="codes">{{ vals.systemName or '—' }}</td>
+                    <td>{{ vals.systemVersion or '—' }}</td>
+                    <td title="{{ vals.providers or '' }}">{{ (vals.providers or '—')|truncate(40, True) }}</td>
+                    <td>{{ vals.points }}</td>
+                    <td data-ts="{{ vals.ts or 0 }}">—</td>
+                </tr>
+                {% endfor %}
+            </table>
+            {% else %}
+            <p style="color:#888;font-size:14px;">Noch keine Werte. Hinweis: Der Sammler pollt nur Installationen, bei denen unter <b>Bearbeiten</b> das Feld <b>Monitoring-Modul-Instanz</b> gesetzt ist.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+        function fmtTs(ts) {
+            if (!ts || ts <= 0) return '—';
+            try { return new Date(ts * 1000).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'medium' }); }
+            catch (e) { return ts; }
+        }
+        document.querySelectorAll('[data-ts]').forEach(function (el) {
+            el.textContent = fmtTs(el.dataset.ts ? parseFloat(el.dataset.ts) : 0);
+        });
+    </script>
+</body>
+</html>

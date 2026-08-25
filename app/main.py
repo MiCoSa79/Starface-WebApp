@@ -1545,6 +1545,18 @@ async def version():
     })
 
 
+@app.get("/admin/monitoring", response_class=HTMLResponse)
+async def admin_monitoring(request: Request):
+    """Telefonie-Monitoring-Status (Sammler, letzte Werte je Installation) — nur Admins."""
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user or not user["is_admin"]:
+        return RedirectResponse("/dashboard")
+
+    return TEMPLATES.TemplateResponse("monitoring.html",
+        {"request": request, "user": user, "active": "monitoring",
+         "status": monitoring.status()})
+
+
 @app.get("/api/monitoring/status")
 async def api_monitoring_status(request: Request):
     """Sammler-Status (letzter Poll, Fehler, letzte Werte je Installation) — JSON."""

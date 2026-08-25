@@ -28,6 +28,7 @@ Damit der Sammler die Anlage pollt, braucht die Installation ein **Modul-Instanz
    sein eigenes Feld `monitoring_instance_name`.)
 3. Verbindung testen (⚡ Test-Conn) — muss grün sein.
 4. Nur Installationen mit gesetztem Instanz-Namen werden gepollt.
+5. **Status prüfen:** WebApp → Admin → **Monitoring** (Nav, aktualisiert sich alle 15 s) — `Poll-Läufe` steigt, `Points geschrieben` > 0, Tabelle zeigt Hostname/Version/Provider; bei Problemen zeigt das rote Feld den exakten Fehler (auch als JSON unter `/api/monitoring/status`).
 
 ## 3. Datenfluss & Messwerte
 
