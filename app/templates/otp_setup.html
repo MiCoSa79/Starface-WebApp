@@ -1,18 +1,7 @@
-<!DOCTYPE html>
-<html lang="de">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <meta name="theme-color" content="#16213e">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>2FA einrichten — STARFACE WebApp</title>
-    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
-    <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png">
-    <link rel="manifest" href="/static/site.webmanifest">
-    <style>
+{% extends "base.html" %}
+{% block title %}2FA einrichten — STARFACE WebApp{% endblock %}
+{% block styles %}
+<style>
         .sr-only { position:absolute; width:1px; height:1px; margin:-1px; padding:0; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -41,11 +30,6 @@
         a.back { display: block; text-align: center; color: #888; text-decoration: none;
                  margin-top: 16px; font-size: 14px; }
 
-        /* Fußzeile — fixiert am unteren Bildschirmrand */
-        .footer { position: fixed; bottom: 0; left: 0; right: 0;
-                  text-align: center; padding: 8px 16px; color: #555; font-size: 12px;
-                  background: #16213e; border-top: 1px solid #222; z-index: 100; }
-    
         /* ── Scrollbars an das Dark-Design anpassen (app-weit) ──── */
         ::-webkit-scrollbar { width: 10px; height: 10px; }
         ::-webkit-scrollbar-track { background: rgba(255,255,255,.05); border-radius: 8px; }
@@ -55,8 +39,10 @@
         * { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.25) transparent; }
 
 </style>
-</head>
-<body>
+{% endblock %}
+{% block topbar %}{% endblock %}
+{% block nav %}{% endblock %}
+{% block content %}
     <div class="card">
         <h1>2FA für Benutzer #{{ uid }}</h1>
         <p>Scanne den QR-Code mit deinem Authenticator (z. B. Google Authenticator) und gib den 6-stelligen Code ein.</p>
@@ -73,8 +59,4 @@
 
         <a class="back" href="/admin">Zurück zum Admin</a>
     </div>
-
-    <div class="footer">STARFACE WebApp {{ version }}</div>
-    <script src="/static/pwa.js" defer></script>
-</body>
-</html>
+{% endblock %}

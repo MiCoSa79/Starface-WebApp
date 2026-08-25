@@ -1,18 +1,7 @@
-<!DOCTYPE html>
-<html lang="de">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <meta name="theme-color" content="#16213e">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>STARFACE WebApp — Admin</title>
-    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
-    <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png">
-    <link rel="manifest" href="/static/site.webmanifest">
-    <style>
+{% extends "base.html" %}
+{% block title %}STARFACE WebApp — Admin{% endblock %}
+{% block styles %}
+<style>
         .sr-only { position:absolute; width:1px; height:1px; margin:-1px; padding:0; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -141,32 +130,9 @@
     .cb-native { position: absolute; opacity: 0; pointer-events: none; width: 1px; height: 1px; }
     @media (max-width: 640px) { .cb { min-width: 100%; } }
 </style>
-</head>
-<body>
-    <div class="header-wrap">
-    <input type="checkbox" id="nav-open" style="display:none;">
-    <div class="topbar">
-        <h1><img src="/static/kits-logo.png" alt="Logo"><span>STARFACE WebApp</span></h1>
-        <div style="display:flex;align-items:center;gap:12px;">
-            {% if user.is_admin %}<span style="background:#2d6a4f;color:#95d5b2;padding:2px 8px;border-radius:4px;font-size:12px;">Admin</span>{% endif %}
-            <span style="color:#aaa;font-size:13px;">{{ user.username }}</span>
-            <label for="nav-open" class="hamburger" title="Menü">☰</label>
-        </div>
-    </div>
-    <nav class="nav">
-        <a href="/dashboard" class="{% if active=='dashboard' %}active{% endif %}">Dashboard</a>
-        <a href="/admin" class="{% if active=='admin' %}active{% endif %}">Admin</a>
-        <a href="/admin/modules" class="{% if active=='modules' %}active{% endif %}">Module</a>
-        <a href="/admin/api-doku" class="{% if active=='api-doku' %}active{% endif %}">API-Doku</a>
-        <a href="/admin/monitoring" class="{% if active=='monitoring' %}active{% endif %}">Monitoring</a>
-        <a href="/wiki" class="{% if active=='wiki' %}active{% endif %}">Wiki</a>
-        <a href="/password" class="{% if active=='password' %}active{% endif %}">Passwort</a>
-        <span class="spacer"></span>
-        <a href="/logout">Abmelden</a>
-    </nav>
-    </div>
-
-    <div class="container">
+{% endblock %}
+{% block content %}
+<div class="container">
         {% if request.query_params.get('toter') %}
         <div class="okmsg" style="background:#3d0000;color:#ff9b9b;">Falscher Code — TOTP nicht aktiviert.</div>
         {% endif %}
@@ -401,10 +367,7 @@
             {% endfor %}
         </table>
         </div>
-
-        <div class="footer">STARFACE WebApp {{ version }}</div>
     </div>
-    <script src="/static/pwa.js" defer></script>
     <script>
     function testConn(instId, name) {
         const btn = event.target;
@@ -563,5 +526,4 @@
     initTableFilters();
     initComboboxes();
     </script>
-</body>
-</html>
+{% endblock %}
