@@ -787,7 +787,9 @@ async def dashboard(request: Request):
                                       {"request": request, "user": user,
                                        "installations": rows,
                                        "active": "dashboard",
-                                       "version": os.environ.get("APP_VERSION", "dev")})
+                                       "version": os.environ.get("APP_VERSION", "dev"),
+                                       "grafana_base": os.environ.get("GRAFANA_BASE_URL", "http://10.0.25.60:8894"),
+                                       "grafana_uid": "starface-anlage-detail"})
 
 
 # ─────────────────────────────────────────────────────────────

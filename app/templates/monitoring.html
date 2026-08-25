@@ -53,7 +53,7 @@
 <div class="container">
         <h2>Telefonie-Monitoring</h2>
         <div style="margin-bottom:12px;">
-            <a href="/admin" class="btn-secondary" style="padding:8px 14px;border-radius:6px;text-decoration:none;background:#333;color:#ccc;font-size:13px;">← Zurück zum Admin</a>
+            <a href="{% if user.is_admin %}/admin{% else %}/dashboard{% endif %}" class="btn-secondary" style="padding:8px 14px;border-radius:6px;text-decoration:none;background:#333;color:#ccc;font-size:13px;">{% if user.is_admin %}← Zurück zum Admin{% else %}← Zurück zum Dashboard{% endif %}</a>
             <span style="color:#666;font-size:12px;margin-left:10px;">Seite aktualisiert sich alle 15 s</span>
         </div>
 

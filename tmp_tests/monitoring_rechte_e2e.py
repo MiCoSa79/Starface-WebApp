@@ -136,5 +136,34 @@ assert r.status_code == 200 and 'href="/monitoring"' in r.text, "Nav-Monitoring 
 ok += 1
 print("7. Nav-Link /monitoring auf /dashboard für Eve  OK")
 
+# 8) Admin /dashboard: 2 Karten, je 1 grafana-dl-Link
+login("admin")
+r = c.get("/dashboard")
+assert r.status_code == 200, r.status_code
+body = r.text
+assert body.count('class="card"') == 2, "Anzahl Karten != 2"
+assert body.count('class="grafana-dl"') == 2, "Admin erwartet 2 Dashboard-Links auf /dashboard"
+assert "Testanlage+A" in body.replace("Testanlage%20A", "Testanlage+A"), "urlencode des Anlagennamens fehlt im Dashboard-Link"
+assert "starface-anlage-detail" in body, "Grafana-UID fehlt im Dashboard-Link"
+ok += 1
+print("8. Admin /dashboard: 2 Karten + 2 Links + korrekte URL  OK")
+
+# 9) Bob /dashboard: nur Anlage A sichtbar (can_read), genau 1 Link
+login("bob")
+r = c.get("/dashboard")
+body = r.text
+assert "Testanlage A" in body and "Testanlage B" not in body, "Bob sieht auf /dashboard die falsche Anlagenmenge"
+assert body.count('class="card"') == 1 and body.count('class="grafana-dl"') == 1, "Bob: Karten/Links-Anzahl falsch"
+ok += 1
+print("9. Bob /dashboard: 1 Karte + 1 Link (nur can_read)  OK")
+
+# 10) Eve /dashboard: keine Karten, keine Links
+login("eve")
+r = c.get("/dashboard")
+body = r.text
+assert body.count('class="card"') == 0 and body.count('class="grafana-dl"') == 0, "Eve darf keine Karten/Links sehen"
+ok += 1
+print("10. Eve /dashboard: 0 Karten, 0 Links  OK")
+
 print(f"\nALLE {ok} TESTS OK")
 os.remove(DB) if os.path.exists(DB) else None
