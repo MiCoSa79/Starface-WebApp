@@ -43,7 +43,7 @@ Entscheidungen: **ein docker-compose-Stack** (ein `up -d`, geteilte Volumes), **
 - **Datalinks:** Cell-Link auf `installation` → `/d/starface-anlage-detail/anlage-detail?var-installation=${__value.raw}&from=now-6h&to=now` (Global + Admin).
 - **Einspielung:** per Service-Account-Token (Editor) → `/api/dashboards/db`; **alle 30 Panel-Queries gegen /api/ds/query validiert** (9+11+10 OK). Anleitung: `deploy/grafana/README.md`.
 - **FLUX-Pitfalls (dokumentiert):** `float(v: …)` statt `float(…)`; **nie `group()` über alle Felder eines Measurements** (int/float-Schema-Kollision) — vorher auf EIN `_field` filtern (z. B. `load1`).
-- **Rechtefilter folgt als WebApp-Release:** Grafana kennt `access`-Rechte nicht; Link-Anzeige „nur mit Leserecht“ kommt über die WebApp (Monitoring-Seite + gefilterte Grafana-Links).
+- **Rechtebasierte Link-Anzeige (WebApp v0.0.120):** Grafana kennt die `access`-Rechte nicht → die Monitoring-Seite `/monitoring` ist seit v0.0.120 für alle eingeloggten Benutzer da (Filter: nur Anlagen mit `can_read`; Admins alle) und zeigt je Anlage einen Grafana-Detail-Link; Basis-URL via `GRAFANA_BASE_URL` (Default `http://10.0.25.60:8894`, fürs iPhone/NPM die Subdomain eintragen).
 
 ## ZimaOS-Hinweis (Deploy-Vorbereitung)
 

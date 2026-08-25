@@ -88,11 +88,13 @@
         {% block nav %}
         <nav class="nav">
             <a href="/dashboard" class="{% if active=='dashboard' %}active{% endif %}">Dashboard</a>
+            {% if user %}
+            <a href="/monitoring" class="{% if active=='monitoring' %}active{% endif %}">Monitoring</a>
+            {% endif %}
             {% if user and user.is_admin %}
             <a href="/admin" class="{% if active=='admin' %}active{% endif %}">Admin</a>
             <a href="/admin/modules" class="{% if active=='modules' %}active{% endif %}">Module</a>
             <a href="/admin/api-doku" class="{% if active=='api-doku' %}active{% endif %}">API-Doku</a>
-            <a href="/admin/monitoring" class="{% if active=='monitoring' %}active{% endif %}">Monitoring</a>
             <a href="/wiki" class="{% if active=='wiki' %}active{% endif %}">Wiki</a>
             {% endif %}
             <a href="/password" class="{% if active=='password' %}active{% endif %}">Passwort</a>

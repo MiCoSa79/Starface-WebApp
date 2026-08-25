@@ -27,6 +27,8 @@
         .badge-green { background: #2d6a4f; }
         .badge-red { background: #8b0000; }
         .badge-gray { background: #333; }
+        .grafana-dl { display:inline-flex; align-items:center; justify-content:center; width:34px; height:34px; border:1px solid rgba(255,255,255,.28); border-radius:7px; color:inherit; text-decoration:none; opacity:.7; transition:opacity .15s, border-color .15s, color .15s; }
+        .grafana-dl:hover, .grafana-dl:focus { opacity:1; border-color:#4ea1ff; color:#4ea1ff; }
         .codes { font-family: monospace; word-break: break-all; }
         .kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
         .kv div { background: #0f3460; border-radius: 8px; padding: 10px 14px; }
@@ -84,6 +86,7 @@
                     <th>Provider</th>
                     <th>Points</th>
                     <th>Letzter Poll</th>
+                    <th style="width:44px;"></th>
                 </tr>
                 {% for name, vals in status.installations.items() %}
                 <tr>
@@ -104,11 +107,21 @@
                     </td>
                     <td>{{ vals.points }}</td>
                     <td data-ts="{{ vals.ts or 0 }}">—</td>
+                    <td>
+                        <a class="grafana-dl" target="_blank" rel="noopener" title="Grafana-Dashboard der Anlage {{ name }} öffnen"
+                           href="{{ grafana_base }}/d/{{ grafana_uid }}/?var-installation={{ name|urlencode }}&from=now-6h&to=now">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 15.5l2.8-3.2 2.4 2.2L15.6 9"/><path d="M16.5 14.5h1.2"/></svg>
+                        </a>
+                    </td>
                 </tr>
                 {% endfor %}
             </table>
             {% else %}
+            {% if user and user.is_admin %}
             <p style="color:#888;font-size:14px;">Noch keine Werte. Hinweis: Der Sammler pollt nur Installationen, bei denen unter <b>Bearbeiten</b> das Feld <b>Monitoring-Modul-Instanz</b> gesetzt ist.</p>
+            {% else %}
+            <p style="color:#888;font-size:14px;">Für keine Anlage liegen Monitoring-Daten vor, oder du hast für keine Anlage Lese-Rechte. Wende dich an einen Administrator.</p>
+            {% endif %}
             {% endif %}
         </div>
     </div>

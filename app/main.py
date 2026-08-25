@@ -1547,22 +1547,58 @@ async def version():
     })
 
 
-@app.get("/admin/monitoring", response_class=HTMLResponse)
-async def admin_monitoring(request: Request):
-    """Telefonie-Monitoring-Status (Sammler, letzte Werte je Installation) — nur Admins."""
+@app.get("/monitoring", response_class=HTMLResponse)
+async def monitoring_page(request: Request):
+    """Telefonie-Monitoring-Status — für alle eingeloggten User, gefiltert nach Leserecht
+    (Admin sieht alle Anlagen; Benutzer nur Anlagen mit can_read). Inkl. Grafana-Detail-Link."""
     user = verify_session(request.cookies.get(SESSION_COOKIE))
-    if not user or not user["is_admin"]:
-        return RedirectResponse("/dashboard")
+    if not user:
+        return RedirectResponse("/")
+
+    conn = _db()
+    inst_rows = conn.execute("SELECT id, name FROM installations").fetchall()
+    conn.close()
+    id_by_name = {r["name"]: r["id"] for r in inst_rows}
+
+    mstatus = monitoring.status()
+    installations = {}
+    for name, vals in mstatus.get("installations", {}).items():
+        acc = get_access(user["user_id"], id_by_name.get(name, -1))
+        if not acc["can_read"] and not acc["is_admin"]:
+            continue
+        installations[name] = vals
 
     return TEMPLATES.TemplateResponse("monitoring.html",
         {"request": request, "user": user, "active": "monitoring",
-         "status": monitoring.status()})
+         "status": {**mstatus, "installations": installations},
+         "grafana_base": os.environ.get("GRAFANA_BASE_URL", "http://10.0.25.60:8894"),
+         "grafana_uid": "starface-anlage-detail"})
+
+
+@app.get("/admin/monitoring", response_class=HTMLResponse)
+async def admin_monitoring(request: Request):
+    """Kompatibilitäts-Redirect auf /monitoring (seit v0.0.120 für alle eingeloggten User)."""
+    return RedirectResponse("/monitoring")
 
 
 @app.get("/api/monitoring/status")
 async def api_monitoring_status(request: Request):
-    """Sammler-Status (letzter Poll, Fehler, letzte Werte je Installation) — JSON."""
+    """Sammler-Status (letzter Poll, Fehler, letzte Werte je Installation) — JSON,
+    gefiltert nach Leserecht des Users (Admin: alle)."""
     user = verify_session(request.cookies.get(SESSION_COOKIE))
     if not user:
         return JSONResponse({"ok": False, "message": "Nicht autorisiert"}, status_code=401)
-    return JSONResponse(monitoring.status())
+
+    conn = _db()
+    inst_rows = conn.execute("SELECT id, name FROM installations").fetchall()
+    conn.close()
+    id_by_name = {r["name"]: r["id"] for r in inst_rows}
+
+    mstatus = monitoring.status()
+    installations = {}
+    for name, vals in mstatus.get("installations", {}).items():
+        acc = get_access(user["user_id"], id_by_name.get(name, -1))
+        if not acc["can_read"] and not acc["is_admin"]:
+            continue
+        installations[name] = vals
+    return JSONResponse({**mstatus, "installations": installations})

@@ -28,6 +28,10 @@ services:
       INFLUXDB_TOKEN: "${INFLUXDB_TOKEN:-}"
       INFLUXDB_ORG: "starface"
       INFLUXDB_BUCKET: "telefonie"
+      # ── Grafana-Dashboard-Links (Monitoring-Seite) ──────────
+      # Basis-URL fürs Öffnen der Anlagen-Dashboards aus der WebApp.
+      # Interner Stack: http://10.0.25.60:8894 — von außen (PWA/iPhone) die NPM-Subdomain.
+      GRAFANA_BASE_URL: "${GRAFANA_BASE_URL:-http://10.0.25.60:8894}"
     volumes:
       - ./data:/data
     depends_on:
