@@ -312,5 +312,5 @@ diese Reihenfolge:
 
 ## Verwandt
 
-- [[starface-anrufblocker]] — Anwendungsprojekt (CallBlocker v28, Web-App v0.0.97).
+- [[starface-anrufblocker]] — Anwendungsprojekt (CallBlocker v28, Web-App v0.0.112: gemeinsames Base-Layout `base.html`, Monitoring-Stack).
 - [[starface-modul-paketierung]] — `.sfm` als JAR bauen und verifizieren.
