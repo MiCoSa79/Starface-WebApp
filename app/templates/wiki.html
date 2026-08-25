@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#16213e">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>STARFACE WebApp — Wiki</title>
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png">
+    <link rel="manifest" href="/static/site.webmanifest">
+    <style>
+        .sr-only { position:absolute; width:1px; height:1px; margin:-1px; padding:0; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+               background: #1a1a2e; color: #e0e0e0; }
+        .topbar { background: #16213e; padding: calc(16px + env(safe-area-inset-top, 0px)) 24px 16px;
+                  display: flex; justify-content: space-between; align-items: center;
+                  border-bottom: 1px solid #333; position: relative; z-index: 2; }
+        .topbar h1 { font-size: 20px; display: flex; align-items: center; gap: 8px; }
+        .topbar h1 img { height: 24px; width: auto; }
+        .topbar h1 span { color: #e94560; }
+        .topbar a { color: #e94560; text-decoration: none; margin-left: 16px; }
+        .container { max-width: 1100px; margin: 0 auto; padding: 24px;
+                     padding-bottom: 60px; }
+        h2 { font-size: 18px; margin: 24px 0 12px; color: #e94560; }
+        h2:first-child { margin-top: 0; }
+        .card { background: #16213e; border-radius: 12px; padding: 20px; margin-bottom: 16px;
+                border: 1px solid #333; }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th, td { text-align: left; padding: 8px; border-bottom: 1px solid #2a2a4a; }
+        th { color: #888; font-weight: 600; }
+        input, select { padding: 8px; border: 1px solid #333; border-radius: 6px;
+                        background: #0f3460; color: #fff; font-size: 14px; }
+        .hint { color: #666; font-size: 12px; margin-top: 4px; }
+        .badge { display: inline-block; background: #e94560; color: #fff;
+                 padding: 2px 8px; border-radius: 4px; font-size: 11px; }
+        .badge-gray { background: #333; }
+
+        /* Navigation */
+        .nav { background: #16213e; border-bottom: 1px solid #333;
+               display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
+               padding: 8px 24px; }
+        .nav a { color: #aaa; text-decoration: none; padding: 6px 14px;
+                 border-radius: 6px; font-size: 13px; }
+        .nav a:hover { background: #0f3460; color: #fff; }
+        .nav a.active { background: #e94560; color: #fff; font-weight: 600; }
+        .nav .spacer { flex: 1; }
+
+        /* Fußzeile — fixiert am unteren Bildschirmrand */
+        .footer { position: fixed; bottom: 0; left: 0; right: 0;
+                  text-align: center; padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+                  color: #555; font-size: 12px;
+                  background: #16213e; border-top: 1px solid #222; z-index: 100; }
+
+        /* ── Wiki ── */
+        .wiki-meta { color: #888; font-size: 13px; margin: 4px 0 16px; }
+        .wiki-back { display: inline-block; color: #e94560; text-decoration: none;
+                     font-size: 13px; margin-bottom: 14px; }
+        .wiki-layout { display: flex; gap: 24px; align-items: flex-start; }
+        .wiki-prose { flex: 1; min-width: 0; background: #16213e; border: 1px solid #333;
+                      border-radius: 12px; padding: 24px 28px; line-height: 1.6; overflow-wrap: break-word; }
+        .wiki-prose h2 { font-size: 22px; margin: 30px 0 12px; padding-top: 8px; }
+        .wiki-prose h3 { font-size: 17px; margin: 22px 0 8px; color: #ff8fa3; }
+        .wiki-prose p { margin: 10px 0; font-size: 15px; }
+        .wiki-prose ul, .wiki-prose ol { padding-left: 24px; margin: 8px 0; }
+        .wiki-prose li { margin: 5px 0; font-size: 15px; }
+        .wiki-prose a { color: #e94560; }
+        .wiki-prose code { background: #0f3460; padding: 2px 6px; border-radius: 4px;
+                           font-size: 13px; font-family: ui-monospace, Menlo, monospace; }
+        .wiki-prose pre { background: #0a1a33; border: 1px solid #2a2a4a; border-radius: 8px;
+                          padding: 14px 16px; overflow-x: auto; margin: 12px 0; }
+        .wiki-prose pre code { background: none; padding: 0; }
+        .wiki-prose blockquote { border-left: 3px solid #e94560; padding: 2px 0 2px 14px;
+                                 color: #b0b0b0; margin: 12px 0; }
+        .wiki-prose table { margin: 12px 0; display: block; overflow-x: auto; white-space: nowrap; }
+        .wiki-prose th { background: #0f3460; }
+        .wiki-prose hr { border: none; border-top: 1px solid #333; margin: 22px 0; }
+        .wiki-prose strong { color: #fff; }
+        .wiki-prose h2:first-child { margin-top: 0; }
+
+        .wiki-toc { width: 260px; flex-shrink: 0; background: #16213e; border: 1px solid #333;
+                    border-radius: 12px; padding: 16px 18px; position: sticky; top: 150px;
+                    max-height: calc(100vh - 180px); overflow-y: auto; }
+        .wiki-toc strong { display: block; color: #e94560; font-size: 13px;
+                           text-transform: uppercase; letter-spacing: .08em; margin-bottom: 10px; }
+        .wiki-toc ul { list-style: none; }
+        .wiki-toc li { margin: 6px 0; }
+        .wiki-toc a { color: #aaa; text-decoration: none; font-size: 13px; line-height: 1.4; }
+        .wiki-toc a:hover { color: #fff; }
+        .wiki-toc li.lvl-3 { padding-left: 14px; }
+        .wiki-toc li.lvl-4, .wiki-toc li.lvl-5, .wiki-toc li.lvl-6 { padding-left: 28px; }
+
+        .searchbox { margin-bottom: 18px; }
+        .searchbox input { width: 100%; max-width: 420px; padding: 12px 14px;
+                           font-size: 16px; } /* 16px gegen iOS-Zoom */
+        .wiki-results { margin-bottom: 18px; }
+        .wiki-results .result { display: block; background: #16213e; border: 1px solid #333;
+                                border-radius: 10px; padding: 14px 16px; margin-bottom: 10px;
+                                text-decoration: none; color: #e0e0e0; }
+        .wiki-results .result:hover { border-color: #e94560; }
+        .wiki-results .result strong { color: #e94560; font-size: 14px; display: block; margin-bottom: 4px; }
+        .wiki-results .result span { font-size: 13px; color: #aaa; line-height: 1.5; display: block; }
+        .no-results { color: #888; font-size: 14px; padding: 12px 0; }
+
+        .wiki-card { display: block; background: #16213e; border: 1px solid #333;
+                     border-radius: 12px; padding: 18px 20px; margin-bottom: 14px;
+                     text-decoration: none; color: #e0e0e0; }
+        .wiki-card:hover { border-color: #e94560; }
+        .wiki-card strong { color: #e94560; font-size: 16px; display: block; margin-bottom: 6px; }
+        .wiki-card span { font-size: 14px; color: #aaa; display: block; line-height: 1.5; }
+        .wiki-card em { font-style: normal; color: #666; font-size: 12px; display: block; margin-top: 8px; }
+
+        /* ── Mobil (Hamburger-Menü + schmale Screens) ── */
+        .hamburger { display: none; font-size: 22px; cursor: pointer;
+                     color: #e94560; background: none; border: none;
+                     padding: 4px 8px; line-height: 1; }
+        @media (max-width: 640px) {
+            .hamburger { display: inline-block; }
+            .nav { display: none; flex-direction: column; padding: 8px 12px; gap: 2px; }
+            .nav a { padding: 14px 12px; font-size: 15px; border-bottom: 1px solid #222; border-radius: 0; }
+            .nav a:last-child { border-bottom: none; }
+            .nav .spacer { display: none; }
+            #nav-open:checked ~ .nav { display: flex; }
+            .topbar { padding: calc(12px + env(safe-area-inset-top, 0px)) 16px 12px; }
+            .topbar h1 { font-size: 17px; }
+            .container { padding: 16px 14px 60px; }
+            .wiki-layout { flex-direction: column; }
+            .wiki-toc { width: 100%; position: static; max-height: 240px; }
+            .wiki-prose { padding: 18px 16px; }
+        }
+    .header-wrap { position: sticky; top: 0; left: 0; right: 0;
+          z-index: 30; background: #16213e; box-shadow: 0 2px 8px rgba(0,0,0,.35); }
+</style>
+</head>
+<body>
+    <div class="header-wrap">
+    <input type="checkbox" id="nav-open" style="display:none;">
+    <div class="topbar">
+        <h1><img src="/static/kits-logo.png" alt="Logo"><span>STARFACE WebApp</span></h1>
+        <div style="display:flex;align-items:center;gap:12px;">
+            <span style="background:#2d6a4f;color:#95d5b2;padding:2px 8px;border-radius:4px;font-size:12px;">Admin</span>
+            <span style="color:#aaa;font-size:13px;">{{ user.username }}</span>
+            <label for="nav-open" class="hamburger" title="Menü">☰</label>
+        </div>
+    </div>
+    <nav class="nav">
+        <a href="/dashboard" class="{% if active=='dashboard' %}active{% endif %}">Dashboard</a>
+        <a href="/admin" class="{% if active=='admin' %}active{% endif %}">Admin</a>
+        <a href="/admin/modules" class="{% if active=='modules' %}active{% endif %}">Module</a>
+        <a href="/admin/api-doku" class="{% if active=='api-doku' %}active{% endif %}">API-Doku</a>
+        <a href="/wiki" class="{% if active=='wiki' %}active{% endif %}">Wiki</a>
+        <a href="/password" class="{% if active=='password' %}active{% endif %}">Passwort</a>
+        <span class="spacer"></span>
+        <a href="/logout">Abmelden</a>
+    </nav>
+    </div>
+
+    <div class="container">
+        {% if page %}
+        <a class="wiki-back" href="/wiki">&lt; Zur Übersicht</a>
+        <h2>{{ page.title }}</h2>
+        <div class="wiki-meta">Zuletzt geändert: {{ page.updated }}</div>
+        <div class="wiki-layout">
+            <article class="wiki-prose">{{ page.html | safe }}</article>
+            {% if page.toc %}
+            <aside class="wiki-toc">
+                <strong>Inhalt</strong>
+                <ul>
+                    {% for item in page.toc %}
+                    <li class="lvl-{{ item.level }}"><a href="#{{ item.slug }}">{{ item.text }}</a></li>
+                    {% endfor %}
+                </ul>
+            </aside>
+            {% endif %}
+        </div>
+        {% else %}
+        <h2>Wissensdatenbank</h2>
+        <div class="wiki-meta">{{ pages | length }} Seite(n) — STARFACE WebApp &amp; Module</div>
+
+        <div class="searchbox">
+            <label class="sr-only" for="wiki-q">Volltextsuche</label>
+            <input type="search" id="wiki-q" placeholder="Suchen (min. 2 Zeichen)…" autocomplete="off" style="font-size:16px;">
+        </div>
+        <div id="wiki-results"></div>
+
+        {% for p in pages %}
+        <a class="wiki-card" href="/wiki/{{ p.slug }}">
+            <strong>{{ p.title }}</strong>
+            <span>{{ p.description }}</span>
+            <em>Zuletzt geändert: {{ p.updated }}</em>
+        </a>
+        {% else %}
+        <p class="no-results">Noch keine Wiki-Seiten vorhanden.</p>
+        {% endfor %}
+        {% endif %}
+    </div>
+
+    <div class="footer">STARFACE WebApp {{ version }}</div>
+
+    <script>
+        // Volltextsuche über /wiki/search (JSON) — debounced
+        (function () {
+            var input = document.getElementById('wiki-q');
+            if (!input) return;
+            var results = document.getElementById('wiki-results');
+            var timer = null;
+
+            function render(list) {
+                results.innerHTML = '';
+                if (!list.length) {
+                    var p = document.createElement('p');
+                    p.className = 'no-results';
+                    p.textContent = 'Keine Treffer.';
+                    results.appendChild(p);
+                    return;
+                }
+                list.forEach(function (r) {
+                    var a = document.createElement('a');
+                    a.className = 'result';
+                    a.href = '/wiki/' + encodeURIComponent(r.slug);
+                    var strong = document.createElement('strong');
+                    strong.textContent = r.title;
+                    var span = document.createElement('span');
+                    span.textContent = r.snippet;
+                    a.appendChild(strong);
+                    a.appendChild(span);
+                    results.appendChild(a);
+                });
+            }
+
+            input.addEventListener('input', function () {
+                clearTimeout(timer);
+                var q = input.value.trim();
+                if (q.length < 2) {
+                    results.innerHTML = '';
+                    return;
+                }
+                timer = setTimeout(function () {
+                    fetch('/wiki/search?q=' + encodeURIComponent(q))
+                        .then(function (r) { return r.json(); })
+                        .then(function (data) { render(data.results || []); })
+                        .catch(function () { results.innerHTML = ''; });
+                }, 250);
+            });
+        })();
+    </script>
+    <script src="/static/pwa.js" defer></script>
+</body>
+</html>

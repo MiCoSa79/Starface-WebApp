@@ -1417,6 +1417,53 @@ async def installation_test(request: Request, inst_id: int):
 
 
 # ─────────────────────────────────────────────────────────────
+# Wiki (Admin-only, Markdown → HTML, XSS-sicher)
+# ─────────────────────────────────────────────────────────────
+
+try:
+    from wiki_render import list_pages, render_page, search as wiki_search  # Tests (sys.path: app/)
+except ImportError:
+    from app.wiki_render import list_pages, render_page, search as wiki_search  # Container
+
+
+@app.get("/wiki/search")
+async def wiki_search_route(request: Request):
+    """Volltextsuche über alle Wiki-Seiten (JSON, nur Admins)."""
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user or not user["is_admin"]:
+        return JSONResponse({"results": []})
+    q = request.query_params.get("q", "")
+    return JSONResponse({"results": wiki_search(q)})
+
+
+@app.get("/wiki", response_class=HTMLResponse)
+async def wiki_index(request: Request):
+    """Wiki-Übersicht: automatischer Index aller Seiten in app/wiki/."""
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user or not user["is_admin"]:
+        return RedirectResponse("/dashboard")
+    return TEMPLATES.TemplateResponse("wiki.html",
+        {"request": request, "user": user, "active": "wiki",
+         "version": os.environ.get("APP_VERSION", "dev"),
+         "pages": list_pages(), "page": None})
+
+
+@app.get("/wiki/{wiki_page}", response_class=HTMLResponse)
+async def wiki_page(request: Request, wiki_page: str):
+    """Einzelne Wiki-Seite (gerendert inkl. TOC + Wikilinks)."""
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user or not user["is_admin"]:
+        return RedirectResponse("/dashboard")
+    page = render_page(wiki_page)
+    if page is None:
+        return RedirectResponse("/wiki")
+    return TEMPLATES.TemplateResponse("wiki.html",
+        {"request": request, "user": user, "active": "wiki",
+         "version": os.environ.get("APP_VERSION", "dev"),
+         "pages": list_pages(), "page": page})
+
+
+# ─────────────────────────────────────────────────────────────
 # Health
 # ─────────────────────────────────────────────────────────────
 
