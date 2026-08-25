@@ -78,6 +78,13 @@ input[type="checkbox"]{margin-right:6px;transform:scale(1.2)}
                 <div class="hint">Der Instanzname des CallBlocker-Moduls in der STARFACE-Anlage (z. B. „Anrufblocker Test") — wird für XML-RPC-Aufrufe als Präfix verwendet: [Instanzname].ListGet</div>
             </div>
         </div>
+        <div class="form-row">
+            <div>
+                <label for="monitoring_instance_name">Monitoring-Modul-Instanz</label>
+                <input type="text" id="monitoring_instance_name" name="monitoring_instance_name" value="{{ inst.monitoring_instance_name }}" autocomplete="off">
+                <div class="hint">Instanzname des Telefonie-Monitoring-Moduls (z. B. „TelefonieMonitoring") — der Sammler ruft [Instanzname].GetStats auf (System-Metriken + Provider-Status → Grafana)</div>
+            </div>
+        </div>
         <div class="form-row" style="justify-content:flex-end;gap:12px">
             <a href="/admin" class="btn-secondary">Abbrechen</a>
             <button type="submit" class="btn-primary">Speichern</button>

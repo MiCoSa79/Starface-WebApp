@@ -156,6 +156,10 @@ def init_db():
         icols = [r[1] for r in conn.execute("PRAGMA table_info(installations)").fetchall()]
         if "module_instance_name" not in icols:
             conn.execute("ALTER TABLE installations ADD COLUMN module_instance_name TEXT DEFAULT ''")
+        # Migration (Telefonie-Monitoring): eigener Instanzname für den Sammler
+        icols = [r[1] for r in conn.execute("PRAGMA table_info(installations)").fetchall()]
+        if "monitoring_instance_name" not in icols:
+            conn.execute("ALTER TABLE installations ADD COLUMN monitoring_instance_name TEXT DEFAULT ''")
     try:
         conn.execute("""
             CREATE TABLE IF NOT EXISTS oauth_auths (
@@ -968,6 +972,7 @@ async def admin_installation_update(request: Request, inst_id: int,
                                     auth_pass: str = Form(""),
                                     client_secret: str = Form(""),
                                     module_instance_name: str = Form(""),
+                                    monitoring_instance_name: str = Form(""),
                                     is_starface10: int = Form(1)):
     """Update einer bestehenden Anlage."""
     user = verify_session(request.cookies.get(SESSION_COOKIE))
@@ -983,8 +988,8 @@ async def admin_installation_update(request: Request, inst_id: int,
     new_auth_pass = _encrypt(auth_pass) if auth_pass else inst["auth_pass"]
     new_client_secret = _encrypt(client_secret) if client_secret else inst["client_secret"]
     conn.execute(
-        "UPDATE installations SET name=?, url=?, auth_id=?, auth_pass=?, client_secret=?, module_instance_name=?, is_starface10=? WHERE id=?",
-        (name, url, new_auth_id, new_auth_pass, new_client_secret, module_instance_name, bool(is_starface10), inst_id))
+        "UPDATE installations SET name=?, url=?, auth_id=?, auth_pass=?, client_secret=?, module_instance_name=?, monitoring_instance_name=?, is_starface10=? WHERE id=?",
+        (name, url, new_auth_id, new_auth_pass, new_client_secret, module_instance_name, monitoring_instance_name, bool(is_starface10), inst_id))
     conn.commit()
     conn.close()
     _log_event(inst_id, user["user_id"], "installation_update", name)

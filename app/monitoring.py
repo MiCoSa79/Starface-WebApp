@@ -108,8 +108,8 @@ def collect_installations() -> int:
     """Ein Poll über alle Installationen mit gesetzter Modul-Instanz."""
     conn = _db()
     rows = conn.execute(
-        "SELECT * FROM installations WHERE module_instance_name IS NOT NULL"
-        " AND module_instance_name != ''"
+        "SELECT * FROM installations WHERE monitoring_instance_name IS NOT NULL"
+        " AND monitoring_instance_name != ''"
     ).fetchall()
     conn.close()
     writes = 0
@@ -118,7 +118,7 @@ def collect_installations() -> int:
         try:
             token = _get_token(inst)
             result = _xmlrpc(inst["url"], token, "GetStats",
-                             instance_name=inst["module_instance_name"])
+                             instance_name=inst["monitoring_instance_name"])
             members = result.get("members", {})
             system_name = str(members.get("systemName", ""))
             points = build_points(name, system_name, members)

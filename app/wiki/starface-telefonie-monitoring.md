@@ -23,7 +23,9 @@ liefert die Daten per XML-RPC, die WebApp pollt sie und schreibt sie nach Influx
 Damit der Sammler die Anlage pollt, braucht die Installation ein **Modul-Instanz-Feld**:
 
 1. WebApp → Admin → **Anlagen** → Installation bearbeiten.
-2. Feld **Module Instance Name** = Instanzname aus Schritt 1 (z. B. `TelefonieMonitoring`).
+2. Feld **Monitoring-Modul-Instanz** = Instanzname aus Schritt 1 (z. B. `TelefonieMonitoring`).
+   (Das CallBlocker-Feld „Module Instance Name" bleibt davon unberührt — der Sammler nutzt
+   sein eigenes Feld `monitoring_instance_name`.)
 3. Verbindung testen (⚡ Test-Conn) — muss grün sein.
 4. Nur Installationen mit gesetztem Instanz-Namen werden gepollt.
 
