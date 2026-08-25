@@ -43,6 +43,8 @@ SESSION_COOKIE = "sf_webapp_session"
 SESSION_LIFETIME = 8 * 3600  # Sekunden
 
 TEMPLATES = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
+# Version global für ALLE Templates (Footer in base.html) — Routen müssen sie nicht mehr selbst übergeben
+TEMPLATES.env.globals["version"] = os.environ.get("APP_VERSION", "dev")
 _FERNET = Fernet(FERNET_KEY.encode()) if FERNET_KEY else None
 
 
