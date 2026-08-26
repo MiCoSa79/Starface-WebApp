@@ -118,6 +118,7 @@ j = r.json()
 assert r.status_code == 200 and j["ok"] and j["fault"] is None \
     and j["raw"] == INSTALLED_OK and j["expected"] == ["CallBlocker", "TelefonieMonitoring"], \
     (r.status_code, j)
+assert "stats_diag" in j, j  # v7-Diagnosefeld vorhanden (Fake liefert kein moduleDiag -> None)
 r = c.get("/api/monitoring/module-status-raw?installation=PBX-ALT")
 j = r.json()
 assert j["ok"] and j["raw"] is None and "GetModuleStatus" in (j["fault"] or ""), j

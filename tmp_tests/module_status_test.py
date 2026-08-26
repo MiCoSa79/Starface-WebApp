@@ -87,9 +87,9 @@ monitoring._EXPECT_CACHE["sig"], monitoring._EXPECT_CACHE["data"] = None, {}
 real_exp = monitoring._module_expectations()
 monitoring.MODULES_DIR = rollback
 monitoring._EXPECT_CACHE["sig"], monitoring._EXPECT_CACHE["data"] = None, {}
-check("expectations: echtes app/modules -> CallBlocker v28 + TelefonieMonitoring v6",
+check("expectations: echtes app/modules -> CallBlocker v28 + TelefonieMonitoring v7",
       real_exp.get("CallBlocker", {}).get("version") == 28
-      and real_exp.get("TelefonieMonitoring", {}).get("version") == 6,
+      and real_exp.get("TelefonieMonitoring", {}).get("version") == 7,
       str(real_exp))
 
 # ------------------------------------------------- 2. _compare_modules

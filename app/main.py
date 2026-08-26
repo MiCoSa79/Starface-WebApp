@@ -1674,13 +1674,39 @@ async def api_monitoring_module_raw(request: Request, installation: str = ""):
         return JSONResponse({"ok": False, "message": "Anlage nicht gefunden"}, status_code=404)
 
     expected = sorted(monitoring._module_expectations().keys())
+    token = None
     try:
         token = _get_token(row)
+    except Exception:
+        token = None
+    stats_diag = None
+    if token:
+        # GetStats-Diagnose: der laufende RPC (gleiche Instanz) traegt seit Modul
+        # v7 den Output moduleDiag = rohe ModuleRegistry-Daten (Module.getVersion()
+        # je Modul) — der getVersion()-Beweis, den der GetModuleStatus-Fault
+        # („No item with that key“) derzeit verweigert. Fehlt das Feld (v6-Instanz
+        # oder alte Instanz-Konfiguration) bleibt stats_diag=None -> Befund!
+        try:
+            sres = _xmlrpc(row["url"], token, "GetStats",
+                           instance_name=row["monitoring_instance_name"])
+            sdiag = (sres.get("members") or {}).get("moduleDiag")
+            if sdiag:
+                try:
+                    stats_diag = json.loads(sdiag)
+                except Exception:
+                    stats_diag = sdiag
+        except Exception:
+            stats_diag = None
+    try:
+        if token is None:
+            raise RuntimeError("Kein Token fuer die Anlage verfuegbar")
         mres = _xmlrpc(row["url"], token, "GetModuleStatus",
                        instance_name=row["monitoring_instance_name"])
         raw = mres.get("moduleJson")
         return JSONResponse({"ok": True, "installation": row["name"],
-                             "raw": raw, "fault": None, "expected": expected})
+                             "raw": raw, "fault": None, "stats_diag": stats_diag,
+                             "expected": expected})
     except Exception as e:
         return JSONResponse({"ok": True, "installation": row["name"],
-                             "raw": None, "fault": str(e), "expected": expected})
+                             "raw": None, "fault": str(e), "stats_diag": stats_diag,
+                             "expected": expected})

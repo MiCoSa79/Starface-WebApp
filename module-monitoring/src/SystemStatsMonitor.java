@@ -6,6 +6,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import de.vertico.starface.module.core.ModuleRegistry;
+import de.vertico.starface.module.core.model.Module;
+import de.vertico.starface.module.core.model.ModuleInstanceRO;
 import de.vertico.starface.module.core.model.VariableType;
 import de.vertico.starface.module.core.model.Visibility;
 import de.vertico.starface.module.core.runtime.IBaseExecutable;
@@ -92,6 +95,9 @@ public class SystemStatsMonitor implements IBaseExecutable
 	@OutputVar(label="providerNames", description="Semikolon-getrennte konfigurierte SIP-Provider", type=VariableType.STRING)
 	public String providerNames = "";
 
+	@OutputVar(label="moduleDiag", description="Diagnose-JSON: rohe ModuleRegistry-Daten (Module.getVersion() je Modul inkl. eingebauter, Instanz-Liste) — getVersion()-Beweis ueber den laufenden GetStats-Pfad", type=VariableType.STRING)
+	public String moduleDiag = "";
+
 	@Override
 	public void execute(IRuntimeEnvironment context) throws Exception
 	{
@@ -130,6 +136,17 @@ public class SystemStatsMonitor implements IBaseExecutable
 
 		// 6) SIP-Provider: Namen + Registry-Status
 		readProviders(context);
+
+		// 7) Diagnose: rohe ModuleRegistry-Daten (Module.getVersion() usw.) — laeuft
+		//    ueber den funktionierenden GetStats-Pfad und liefert den getVersion()-
+		//    Beweis, den GetModuleStatus ("No item with that key") derzeit verweigert.
+		try {
+			collectModuleDiag(context);
+		} catch (Exception e) {
+			moduleDiag = "{\"error\":" + json(String.valueOf(e.getMessage())) + "}";
+			log(context, "SystemStats: moduleDiag fehlgeschlagen: " + e.getMessage());
+		}
+		log(context, "SystemStats: moduleDiag=" + moduleDiag);
 	}
 
 	private String shell(IRuntimeEnvironment context, String command) throws Exception
@@ -421,6 +438,95 @@ public class SystemStatsMonitor implements IBaseExecutable
 		} catch (Exception e) {
 			return 0;
 		}
+	}
+
+	private void collectModuleDiag(IRuntimeEnvironment context) throws Exception
+	{
+		ModuleRegistry MR = (ModuleRegistry) context.springApplicationContext()
+				.getBean(ModuleRegistry.class);
+		java.util.List<Module> mods = MR.getModules();
+		java.util.List<ModuleInstanceRO> insts = MR.getInstalledInstances();
+		StringBuilder sb = new StringBuilder("{\"source\":\"SystemStatsMonitor\",");
+		sb.append("\"modulesTotal\":").append(mods == null ? 0 : mods.size());
+		sb.append(",\"instancesTotal\":").append(insts == null ? 0 : insts.size());
+		sb.append(",\"modules\":[");
+		boolean first = true;
+		if (mods != null) {
+			for (Module M : mods) {
+				if (!first) {
+					sb.append(",");
+				}
+				first = false;
+				Long ver = versionOf(M);   // roh: auch null/0 (eingebaute Module!)
+				sb.append("{\"id\":").append(json(M.getId()));
+				sb.append(",\"name\":").append(json(M.getName()));
+				sb.append(",\"version\":").append(ver == null ? "null" : String.valueOf(ver.longValue()));
+				sb.append(",\"vendor\":").append(json(safe(M.getVendor())));
+				sb.append(",\"instances\":[");
+				boolean firstI = true;
+				if (insts != null) {
+					for (ModuleInstanceRO MIS : insts) {
+						if (!MIS.getModuleId().equals(M.getId())) {
+							continue;
+						}
+						if (!firstI) {
+							sb.append(",");
+						}
+						firstI = false;
+						sb.append("{\"name\":").append(json(MIS.getName()));
+						sb.append(",\"disabled\":").append(MIS.getDisabled());
+						sb.append("}");
+					}
+				}
+				sb.append("]}");
+			}
+		}
+		sb.append("]}");
+		moduleDiag = sb.toString();
+	}
+
+	private Long versionOf(Module M)
+	{
+		try {
+			return M.getVersion();
+		} catch (Exception e) {
+			return null;
+		}
+	}
+
+	private static String safe(String s)
+	{
+		return s == null ? "" : s;
+	}
+
+	private static String json(String s)
+	{
+		return "\"" + escapeJson(s) + "\"";
+	}
+
+	private static String escapeJson(String s)
+	{
+		if (s == null) {
+			return "";
+		}
+		StringBuilder sb = new StringBuilder();
+		for (int i = 0; i < s.length(); i++) {
+			char c = s.charAt(i);
+			switch (c) {
+				case '"':  sb.append("\\\""); break;
+				case '\\': sb.append("\\\\"); break;
+				case '\n': sb.append("\\n"); break;
+				case '\r': sb.append("\\r"); break;
+				case '	': sb.append("\\t"); break;
+				default:
+					if (c < 0x20) {
+						sb.append(String.format("\\u%04x", (int) c));
+					} else {
+						sb.append(c);
+					}
+			}
+		}
+		return sb.toString();
 	}
 
 	private void log(IRuntimeEnvironment context, String msg)
