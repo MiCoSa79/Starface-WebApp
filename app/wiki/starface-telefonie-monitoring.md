@@ -121,3 +121,7 @@ Die Karte aktualisiert sich über den bestehenden 15-s-Refresh; ohne ausgeliefer
 | v0.0.108 | 2026-08-25 | Modul v2 (siehe oben) — WebApp stellt die korrigierte `.sfm` zum Download bereit. |
 | v0.0.107 | 2026-08-25 | Feld **Monitoring-Modul-Instanz** in den Anlagen-Stammdaten (getrennt vom CallBlocker-Feld) — Voraussetzung, damit der Sammler die Anlage pollt. |
 | v0.0.105 | 2026-08-25 | **Sammler:** Poll-Loop (GetStats je Installation mit Instanzname), Messwerte nach InfluxDB (Measurements `system`/`providers`), Status-JSON `/api/monitoring/status`; Stack Grafana + InfluxDB im Docker-Compose. |
+
+## Ausblick (Entscheidung offen, 2026-08-26 — nichts gebaut): Grafana durch WebApp-Dashboards ablösen?
+
+Axel: „Grafana-Dashboards gefallen mir nicht — brauchen wir Grafana überhaupt? Könnten wir eigene Monitoring-Dashboards im WebApp-Design bauen?" → **Ja, machbar + empfohlen, mit Aufgabenteilung:** InfluxDB (Bucket `telefonie`) bleibt als Speicher, nur Grafana als Anzeige-Schicht wird ersetzt; die WebApp liest dieselben Zeitreihen per Flux und rendert selbst (ECharts/uPlot, WebApp-Look, PWA/handy-tauglich, 15-s-Refresh vorhanden). Kern-Anspruch: Zeitverlauf-Diagnose („Provider getrennt obwohl verbunden“) und die Kern-Panels der 3 Dashboards (Global v13/Admin v8/Detail v5) 1:1 abbilden; Schrittweise mit Abnahme, Grafana bleibt bis dahin im Stack. Vollständige Analyse (Aufwand, Prozess, Optionen): Hermes-Wiki log.md F33 + Entity telefonie-monitoring.
