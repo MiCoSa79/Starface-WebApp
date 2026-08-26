@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<module lastChangedTime="1787666400000" moduleType="EXTENDED" createTime="1784793600000" id="cc487008-3504-44da-96cb-504d689c6cff" name="TelefonieMonitoring" specVersion="5" vendor="MiCoSa79" version="4">
+<module lastChangedTime="1787738400000" moduleType="EXTENDED" createTime="1784793600000" id="cc487008-3504-44da-96cb-504d689c6cff" name="TelefonieMonitoring" specVersion="5" vendor="MiCoSa79" version="5">
  <description>Telefonie-Monitoring: Systemmetriken (RAM, CPU-Last, STARFACE-Version, Hostname) und SIP-Provider-Status fuer InfluxDB/Grafana.</description>
     <descriptionURL />
     <disabled>false</disabled>
@@ -90,6 +90,23 @@
             <resources />
             <children />
             <implementationFile>SystemStatsMonitor.class</implementationFile>
+        </function>
+
+        
+        <function visibility="Private" createTime="1784793600000" id="ModuleStatus" name="ModuleStatus" specVersion="0" vendor="MiCoSa79" version="0">
+            <description>Liefert installierte Module (Name, Version, Vendor) mit Instanz-Status als JSON.</description>
+            <descriptionURL />
+            <disabled>false</disabled>
+            <inputVars />
+            <outputVars>
+                <variable id="moduleJson" label="moduleJson" name="moduleJson" type="STRING" valueByReference="false" valueByReferenceAllowed="false" valueByValueAllowed="true" visible="true">
+                    <description>JSON-Array aller installierten Module (eingebaute ausgenommen)</description>
+                    <value />
+                </variable>
+            </outputVars>
+            <resources />
+            <children />
+            <implementationFile>ModuleStatus.class</implementationFile>
         </function>
 
         
@@ -258,6 +275,38 @@
                 </functionCall>
             </children>
         </function>
+
+        
+        <function visibility="Private" createTime="1784793600000" id="8d4f2ab8-f025-4e2d-b16f-9f7e6a2a7487" name="GetModuleStatusRpc" specVersion="0" vendor="MiCoSa79" version="0">
+            <description>RPC-Wrapper: liefert installierte Module + Instanz-Status als JSON (Modul-Abgleich der WebApp).</description>
+            <descriptionURL />
+            <disabled>false</disabled>
+            <inputVars />
+            <outputVars>
+                <variable id="3782d475-2701-4ff3-bcf7-9c6c6a7a762b" label="moduleJson" name="moduleJson" type="STRING" valueByReference="true" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="true">
+                    <description>JSON der installierten Module</description>
+                    <value />
+                </variable>
+            </outputVars>
+            <resources />
+            <children>
+                <functionCall createTime="1784793600000" id="f7ea4c69-4a6f-47b2-9dae-371ff1e38503" name="Call --&gt; ModuleStatus" specVersion="0" vendor="MiCoSa79" version="0">
+                    <description />
+                    <descriptionURL />
+                    <disabled>false</disabled>
+                    <inputVars />
+                    <outputVars>
+                        <variable id="moduleJson" label="" name="moduleJson" type="STRING" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
+                            <description />
+                            <value>3782d475-2701-4ff3-bcf7-9c6c6a7a762b</value>
+                        </variable>
+                    </outputVars>
+                    <resources />
+                    <children />
+                    <target targetDomainId="cc487008-3504-44da-96cb-504d689c6cff" targetId="ModuleStatus" targetName="ModuleStatus" targetVersion="0" />
+                </functionCall>
+            </children>
+        </function>
     </children>
     <createdWith>STARFACE 10.0.2.5</createdWith>
     <defaultLocale>de</defaultLocale>
@@ -265,6 +314,10 @@
     <entryPoints>
         <rpcEntryPoint id="5aa265e3-787b-4114-9f9b-303110f9938e" name="GetStats">
             <functionReference targetDomainId="cc487008-3504-44da-96cb-504d689c6cff" targetId="dfd72ef9-94cd-4bbd-9f37-8ca0fc3cf286" targetName="GetStatsRpc" targetVersion="0" />
+            <type>XMLRPC_auth</type>
+        </rpcEntryPoint>
+        <rpcEntryPoint id="4366939c-9f9d-4402-9f10-e58fdf02a307" name="GetModuleStatus">
+            <functionReference targetDomainId="cc487008-3504-44da-96cb-504d689c6cff" targetId="8d4f2ab8-f025-4e2d-b16f-9f7e6a2a7487" targetName="GetModuleStatusRpc" targetVersion="0" />
             <type>XMLRPC_auth</type>
         </rpcEntryPoint>
     </entryPoints>
@@ -282,4 +335,4 @@
     </resourceKeys>
     <shortDescription>Systemmetriken + SIP-Provider-Status fuer InfluxDB/Grafana</shortDescription>
     <writeHash>83396addf4bc54dd8b437ddf07934070d39f6b7b</writeHash>
-<noLicenseId>0240db4ad22f318850a7db1b862652cd64dd4db2</noLicenseId></module>
+<noLicenseId>a6b705f637bbd62ed2a6bd1bc2f65d5db4b36a63</noLicenseId></module>

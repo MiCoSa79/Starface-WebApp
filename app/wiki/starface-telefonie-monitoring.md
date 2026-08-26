@@ -70,12 +70,28 @@ letzte Werte pro Installation.
   `getRegisterForProviderLines()` + `sip show registry` beim ersten Lauf.
 - **Grafana**: Datasource `InfluxDB` (Bucket `telefonie`) muss grün sein.
 
+## 6. Modul-Status-Abgleich (Monitoring-Seite, ab v0.0.137 / Modul v5)
+
+Die Monitoring-Seite zeigt pro Anlage den Status **der in der WebApp ausgelieferten „eigenen" Module**:
+
+1. **SOLL-Module** liest die WebApp automatisch aus `app/modules/*.sfm` (jede gelieferte `.sfm` = ein erwartetes Modul; SOLL-Version = `module-descriptor.xml` → `version`). Aktuell: `CallBlocker` v28 + `TelefonieMonitoring` v5.
+2. **IST-Zustand** je Anlage kommt aus dem neuen RPC-Entrypoint `GetModuleStatus` (Modul v5+): JSON-Liste aller installierten Module (Name, Version, Vendor) mit ihren Instanzen (aktiv/deaktiviert) — Quelle ist die interne `ModuleRegistry` der Anlage (eingebaute Module ohne Version/Vendor werden übersprungen).
+3. **Anzeige** als Karte „Modul-Status (eigene Module)": je Anlage/Modul ein Badge — **Aktuell** (IST = SOLL), **Update verfügbar** (IST < SOLL, z. B. v27 → v28), **Nicht installiert** (Modul fehlt auf der Anlage) oder **Keine aktive Instanz** (installiert, aber keine Instanz läuft). Zusätzlich Version „IST → SOLL" und die Instanzen mit (aktiv)/(deaktiviert).
+4. **Fehlerbilder:**
+   - Monitoring-Modul fehlt/nicht eingerichtet (XML-RPC-Fault bei `GetStats`) → Hinweis **„Monitoring-Modul nicht installiert oder eingerichtet"** je Anlage.
+   - Modul zu alt (GetStats ok, `GetModuleStatus` fehlt) → „Monitoring-Modul-Version zu alt — GetModuleStatus fehlt (Update auf v5 erforderlich)".
+   - Anlage nicht erreichbar (Transportfehler) → „Anlage nicht erreichbar".
+   - falsche Zugangsdaten (HTTP 401/403) → „Zugangsdaten/Token ungültig".
+
+Die Karte aktualisiert sich über den bestehenden 15-s-Refresh; ohne ausgelieferte Module (`app/modules` leer) wird sie ausgeblendet.
+
 ## Versionshistorie (kompakt)
 
 ### Modul (TelefonieMonitoring.sfm)
 
 | Version | Datum | Inhalt |
 |---|---|---|
+| v5 | 2026-08-26 | **Modul-Status-Abgleich (GetModuleStatus):** neuer RPC-Entrypoint `GetModuleStatus` (XMLRPC_auth) → Java-Funktion `ModuleStatus` (`module-monitoring/src/ModuleStatus.java`): liest die `ModuleRegistry` (eingebaute Module gefiltert: `version==0` && Vendor leer) und liefert JSON-Array `[{id,name,version,vendor,instances:[{name,disabled}]}]`; bei Fehler `{"error":…}` + Log2. Descriptor: Java-Funktion + Wrapper `GetModuleStatusRpc` + `rpcEntryPoint` (Muster wie `GetStats`); `verify_descriptor_refs.py` 4 Funktionen OK. Tag `v5`. Datengrundlage für die Modul-Status-Karte der WebApp (v0.0.137). |
 | v4 | 2026-08-25 | **Status-Name-Fix + Security:** `providerStatus`-Namen sind jetzt `user@host` statt der rohen Wire-Settings-Zeile (`register=>user:pass@host:port/…`) — die enthielt ein `=` (brach das WebApp-Format „Name=Status“ → fälschlich „getrennt“ trotz Registered) und das SIP-Passwort (wäre als InfluxDB-Tag/Feld gelandet). Parser liefert `306326@sip.iks-computer.de=Registered`. |
 | v3 | 2026-08-25 | **dnsmgr-Spalten-Fix:** STARFACE schiebt in `sip show registry` eine `dnsmgr`-Spalte ein (State in Spalte 5 statt 4) — Status wird jetzt spalten-unabhängig per „Registered“-Token-Scan erkannt (`extractState`), User/Port robust extrahiert; bewiesen gegen das echte Cloud-Log der Anlage. |
 | v2 | 2026-08-25 | **Import-Fix:** Alle 36 Call-Output-Variablen im Descriptor ohne `OUT_`-Präfix (exakt die Java-Feldnamen von `SystemStatsMonitor`) — vorher „Output variable not found … Signatur geändert“ beim Import; `verify_descriptor_refs.py` validiert die Namen jetzt automatisch (Negativtest am alten Descriptor etabliert). **IMPORT-BEREIT**, von der STARFACE-Installation akzeptiert. |
@@ -85,6 +101,7 @@ letzte Werte pro Installation.
 
 | Version | Datum | Inhalt |
 |---|---|---|
+| v0.0.137 | 2026-08-26 | **Modul-Status-Abgleich (eigene Module):** pro Installation wird nach `GetStats` zusätzlich `GetModuleStatus` (Modul v5) abgefragt und mit den SOLL-Modulen der App (`app/modules/*.sfm`, `module-descriptor.xml` → Version) verglichen — Anzeige als Karte **„Modul-Status (eigene Module)“** je Anlage/Modul: Badge Aktuell / Update verfügbar / Nicht installiert / Keine aktive Instanz, Version „IST → SOLL“ (z. B. v27 → v28), Instanz-Status (aktiv/deaktiviert). Fehler-Klassifikation `_classify_error`: XML-RPC-Fault → **„Monitoring-Modul nicht installiert oder eingerichtet“** (Kategorie `module`), Transportfehler → „Anlage nicht erreichbar“ (`unreachable`), HTTP 401/403 → auth; Modul zu alt → „…zu alt — GetModuleStatus fehlt (Update auf v5 erforderlich)“. Schlüssel `list` (Jinja-`m.items`-Kollision umgangen); Server-Render + JS `renderModuleRows` im 15-s-Refresh; Karte ausgeblendet ohne ausgelieferte Module. Tests: `module_status_test.py` (~50) + Live-Beweis `module_status_live.py`; Suite komplett grün. |
 | v0.0.136 | 2026-08-26 | **Fehlerbox-Semantik + Zeitangabe:** `last_error` wird beim ersten komplett fehlerfreien Poll-Zyklus gelöscht (ein „Letzter Fehler“ verschwindet, sobald er **nicht mehr besteht** — auch wenn er Minuten alt ist) und bei weiterbestehendem Fehler **nie** nach Zeitablauf ausgeblendet (bleibt mit aktuellem Zeitstempel stehen). Fehler tragen jetzt `{"msg", "ts"}` — die Box zeigt die Auftrittszeit, alle Zeiten der Monitoring-Seite explizit `Europe/Berlin` (Sommer-/Winterzeit automatisch via `timeZone`). |
 | v0.0.135 | 2026-08-25 | **Monitoring-Auto-Refresh (15 s):** Seitentext „aktualisiert sich alle 15 s“ war nur Text ohne Timer — jetzt `setInterval(refreshMonitoring, 15000)` + fetch `/api/monitoring/status` + DOM-Update (Browser-Beweis). Gleichzeitig Dashboard-Fehlalarm „Provider getrennt obwohl verbunden“ behoben (Ist-Panels nutzen 10-Minuten-Frische-Fenster statt 6h; Ursache: Serienbruch toter Legacy-Serien im Fenster) + Design-Umbau aller 3 Dashboards. |
 | v0.0.120 | 2026-08-25 | **Monitoring für alle eingeloggten Benutzer + rechtebasierte Grafana-Links:** Route `/monitoring` statt admin-only, Anlagen-Filter nach `can_read` (Admin: alle), API `/api/monitoring/status` gefiltert, dezenter SVG-Icon-Button je Anlage → `starface-anlage-detail` (auch auf Dashboard-Karten), `/admin/monitoring` redirectet, Nav-Link für alle. |
