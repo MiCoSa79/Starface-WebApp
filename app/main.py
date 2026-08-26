@@ -945,10 +945,13 @@ async def admin_updates_page(request: Request):
     user = verify_session(request.cookies.get(SESSION_COOKIE))
     if not user or not user["is_admin"]:
         return RedirectResponse("/dashboard")
-    from monitoring import _module_expectations
     conn = _db()
     installations = conn.execute("SELECT * FROM installations ORDER BY name").fetchall()
     conn.close()
+    try:
+        from monitoring import _module_expectations
+    except ImportError:
+        from app.monitoring import _module_expectations
     return TEMPLATES.TemplateResponse(
         "admin_updates.html",
         {"request": request, "user": user, "installations": installations,

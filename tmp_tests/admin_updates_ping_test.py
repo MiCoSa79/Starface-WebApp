@@ -129,6 +129,21 @@ r = c.post("/admin/updates/ping", data={
 check("Fehler -> FEHLER-Meldung in UI", "FEHLER" in r.text and "nicht erreichbar" in r.text,
       "nicht erreichbar" not in r.text and r.text[:400] or "")
 
+# --- 7. Fallback-Import (Container: 'monitoring' nicht top-level) -----------
+import sys as _sys
+_orig_mod = _sys.modules.get("monitoring")
+_sys.modules["monitoring"] = None           # erzwingt ImportError auf Weg 1
+_sys.path.insert(0, os.getcwd())            # repo-root, damit 'from app import ...' greift
+r = c.get("/admin/updates")
+_sys.path.pop(0)
+if _orig_mod is not None:
+    _sys.modules["monitoring"] = _orig_mod
+else:
+    del _sys.modules["monitoring"]
+check("Fallback-Import (app.monitoring) -> Seite 200",
+      r.status_code == 200 and "Download-Test" in r.text,
+      f"status={r.status_code}")
+
 print()
 if FAIL:
     print("FEHLGESCHLAGEN:", ", ".join(FAIL))
