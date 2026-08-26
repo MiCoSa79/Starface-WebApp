@@ -330,7 +330,7 @@ def main() -> int:
             [("Modul", "UpdateDeployer"), ("Aktuelle Version", "v6 (Stand 26.08.2026)"),
              ("Hersteller", "Axel Meiser - Kraemer IT"),
              ("Installationsname (Empfehlung)", "UpdateDeployer"),
-             ("Update-Basis-URL", "https://modulupdates.meiser.family")],
+             ("Update-Basis-URL", "wird im Admin-Bereich der WebApp festgelegt")],
             [
                 {"nummer": 1, "titel": "Was macht das Modul?",
                  "text": "UpdateDeployer ist das Verbindungsstück zwischen der WebApp und der "
@@ -353,8 +353,8 @@ def main() -> int:
                              "(Instanz-Schutz)."]},
                 {"nummer": 3, "titel": "Einrichtung in der Telefonanlage",
                  "schritte": [
-                     ("Admin-UI → Modul-Import: UpdateDeployer.sfm laden (v4-Paket als "
-                      "Einstieg; v5/v6 kommen über die WebApp).",
+                     ("Admin-UI → Modul-Import: das aktuelle UpdateDeployer.sfm laden "
+                      "(Download auf der Modul-Seite der WebApp).",
                       "Modul erscheint in der Modul-Bibliothek."),
                      ("Instanz anlegen (Empfehlung: UpdateDeployer).",
                       "Instanz erscheint in der Modul-Konfiguration."),
@@ -365,8 +365,8 @@ def main() -> int:
                       "Update-Funktionen sind aufrufbar.")]},
                 {"nummer": 4, "titel": "Einrichtung in der WebApp",
                  "schritte": [
-                     ("Admin → Anlage: Modul-Update-Basis-URL setzen "
-                      "(https://modulupdates.meiser.family).",
+                     ("Admin → Anlage: Modul-Update-Basis-URL setzen (der im Betrieb "
+                      "verwendete Update-Server; kein fester Wert).",
                       "versions.json wird vom Update-Server gespiegelt."),
                      ("deployer_instance_name = Installationsname von UpdateDeployer.",
                       "WebApp ruft die richtige Instanz auf."),
@@ -376,14 +376,24 @@ def main() -> int:
                       "Erreichbarkeits-Beweis grün."),
                      ("„Update anstoßen“ bzw. Sammel-Buttons nutzen.",
                       "Update läuft automatisch (Download → Import → Neustart).")]},
-                {"nummer": 5, "titel": "Versionen",
+                {"nummer": 5, "titel": "Token-Empfehlung (GU_UPDATE_TOKEN)",
+                 "text": "Der Token schützt Updates auf der Anlage und muss in der Anlage "
+                         "(Tab „Sicherheit“) und in der WebApp (deployer_token) identisch sein.",
+                 "bullets": ["Mindestens 32 Zeichen — je länger, desto besser "
+                             "(Empfehlung: 43+ Zeichen).",
+                             "URL-sicher erzeugen: python3 -c \"import secrets; "
+                             "print(secrets.token_urlsafe(32))\" oder openssl rand -base64 24.",
+                             "Zeichensatz automatisch URL-sicher (A–Z, a–z, 0–9, „_“, „-“).",
+                             "Wie ein Master-Passwort behandeln: nicht in Mails/Screenshots/Logs; "
+                             "bei Verdacht auf beiden Seiten neu setzen (Anlage + WebApp)."]},
+                {"nummer": 6, "titel": "Versionen",
                  "table_note": True,
                  "bullets": ["v1: PingChannel (Erreichbarkeits-Beweis über den Kanal).",
                              "v2: UpdateFromUrl — signierter Download + Modul-Import.",
                              "v4/v5: GUI-Tab „Sicherheit“ mit Token-Feld (GU_UPDATE_TOKEN).",
                              "v6: Automatischer Neustart aller aktiven Instanzen des "
                              "Zielmoduls nach dem Import."]},
-                {"nummer": 6, "titel": "Fehlerbehebung",
+                {"nummer": 7, "titel": "Fehlerbehebung",
                  "fehler": [
                      ("Update wird nicht gestartet / Download-Fehler.",
                       "Basis-URL erreichbar? Token identisch (Anlage ↔ WebApp)? URL nur 5 min "

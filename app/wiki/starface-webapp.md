@@ -22,7 +22,7 @@ Modul-Updates (UpdateDeployer). Repo `MiCoSa79/Starface-WebApp`, Image
   `module-monitoring/` (TelefonieMonitoring, Tags `vN`), CallBlocker (Tags `vN`) —
   Build via `build_sfm.py`, Spiegel nach `app/modules/` (SOLL-Versionen, mtime-Cache).
 - **Update-Server:** nginx-Service `module-updates` (Port 8896) mit Secure-Link-Signaturen
-  (`updatesign.py`, `UPDATE_SIGNING_SECRET` nur Env), Domain `modulupdates.meiser.family`.
+  (`updatesign.py`, `UPDATE_SIGNING_SECRET` nur Env), Domain `<update-server>` (im Admin hinterlegbar).
 - **Tests:** `tmp_tests/<name>.py` mit eigenem `check()`-Muster (kein pytest);
   Fakes/Zweige für Container-Importe; E2E via TestClient.
 

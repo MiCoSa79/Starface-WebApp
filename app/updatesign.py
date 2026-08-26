@@ -27,7 +27,7 @@ def build_signed_url(base_url: str, secret: str, ttl_s: int = 300,
                      path_prefix: str = "/modules/") -> str:
     """Baut eine zeitbegrenzte Download-URL für nginx secure_link.
 
-    base_url:   Basis ohne Pfad (z. B. "https://modulupdates.meiser.family")
+    base_url:   Basis ohne Pfad (z. B. "https://www.sub.example.de")
     secret:     gemeinsames Secret (Update-Signatur)
     ttl_s:      Gültigkeit in Sekunden (Default 300 = 5 min)
     path_prefix:$uri, für den die Signatur gilt (Default "/modules/") — MUSS der

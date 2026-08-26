@@ -6,7 +6,7 @@ updated: 2026-08-26
 
 # Modul-Auto-Update — Architektur & Umsetzungsplan
 
-**Status:** ✅ **Task 1 umgesetzt (26.08.):** Signatur-Bibliothek `app/updatesign.py` + Tests (8/8 grün, Vektor-geprüft). ✅ **Task 2 umgesetzt + vollständig abgenommen (26.08.):** nginx-Service `module-updates` live im Stack (403/410/Durchlauf über beide Pfade — Tabelle unten). ✅ **Task 3 umgesetzt (26.08.):** WebApp-Spiegel `app/mirror.py` + Admin-Einstellung `module_update_base_url` (Priorität Einstellung > Env > leer), 23+ Tests grün, Suite komplett grün. ✅ **Task 4 deployed (26.08., Axel):** Stack-Übertragung inkl. `UPDATE_SIGNING_SECRET` (WebApp-Env + Service), Admin-Einstellung gesetzt. ✅ **TASK 5 KOMPLETT ABGENOMMEN (26.08.):** v0.0.161 live → `https://modulupdates.meiser.family/versions.json` signiert → **200** (is-Schema, absolute downloadUrls), `.sfm` → 200 + ZIP, Schutz bleibt 403. **v0.0.162:** Admin-UI-Fix (eigener Speichern-Button je Feld, Teil-POST-Sicherheit, Spiegel-Badge liest versions.json im html-Root), Suite 14/14 grün. Umsetzungsplan: `profiles/axel/.hermes/plans/2026-08-26_152327-update-server-module-updates.md` (Hermes-Wiki). Grundlagen-RE: [[admin-power-pack-re]].
+**Status:** ✅ **Task 1 umgesetzt (26.08.):** Signatur-Bibliothek `app/updatesign.py` + Tests (8/8 grün, Vektor-geprüft). ✅ **Task 2 umgesetzt + vollständig abgenommen (26.08.):** nginx-Service `module-updates` live im Stack (403/410/Durchlauf über beide Pfade — Tabelle unten). ✅ **Task 3 umgesetzt (26.08.):** WebApp-Spiegel `app/mirror.py` + Admin-Einstellung `module_update_base_url` (Priorität Einstellung > Env > leer), 23+ Tests grün, Suite komplett grün. ✅ **Task 4 deployed (26.08., Axel):** Stack-Übertragung inkl. `UPDATE_SIGNING_SECRET` (WebApp-Env + Service), Admin-Einstellung gesetzt. ✅ **TASK 5 KOMPLETT ABGENOMMEN (26.08.):** v0.0.161 live → `https://<update-server>/versions.json` signiert → **200** (is-Schema, absolute downloadUrls), `.sfm` → 200 + ZIP, Schutz bleibt 403. **v0.0.162:** Admin-UI-Fix (eigener Speichern-Button je Feld, Teil-POST-Sicherheit, Spiegel-Badge liest versions.json im html-Root), Suite 14/14 grün. Umsetzungsplan: `profiles/axel/.hermes/plans/2026-08-26_152327-update-server-module-updates.md` (Hermes-Wiki). Grundlagen-RE: [[admin-power-pack-re]].
 
 **Fortsetzung P1-Beweis (UpdateDeployer, 26.08.):**
 - **v0.0.164/165:** Dienst `app/module_updates.py` (push_update, signierte URL → RPC `UpdateFromUrl`-Muster) + Admin-UI `/admin/updates` mit „Update pushen“ + Deployer-Feldern je Anlage (`deployer_instance_name`, `deployer_token` verschlüsselt).
@@ -57,7 +57,7 @@ ZimaOS-Stack ───┐
 ├─ grafana ────────── :8894
 ├─ influxdb (intern)
 └─ module-updates ─── :8896  nginx:alpine, secure_link, read-only
-      ▲ NPM: https://modulupdates.meiser.family → :8896
+      ▲ NPM: https://<update-server> → :8896
       STARFACE-Anlage lädt .sfm selbst (Pull) / WebApp schiebt per XML-RPC (Push-Fallback)
 ```
 
@@ -66,15 +66,15 @@ ZimaOS-Stack ───┐
 | # | Aufgabe | Detail |
 |---|---|---|
 | A1 | **Netz-Test** ✅ | Cloud-Anlagen → öffentlicher Weg verifiziert (check-host.net, 5 Nodes weltweit: DNS → UDM/öffentl. IP → NPM → 502 = erwartet, da Backend fehlt) |
-| A2 | DNS ✅ | `modulupdates.meiser.family` → öffentl. IP (`176.126.73.130`, UDM-Firewall) |
-| A3 | NPM-Host ✅ | `modulupdates.meiser.family` → `10.0.25.60:8896`, Let's Encrypt + Force SSL |
+| A2 | DNS ✅ | `<update-server>` → öffentl. IP (UDM-Firewall) |
+| A3 | NPM-Host ✅ | `<update-server>` → `10.0.25.60:8896`, Let's Encrypt + Force SSL |
 | A4 | Secret ✅ | liegt vor (PowerShell `New-Guid`-Variante) → `<UPDATE_SIGNING_SECRET>` in Stack bei Task 4 (nicht committen) |
 | A5 | Ordner | `/DATA/AppData/starface-webapp/data/modules` — optional, Docker legt an |
 | A6 | Dateien ✅ | `app/modules/TelefonieMonitoring.sfm` + `CallBlocker.sfm` vorhanden |
 
 ## Abnahmetest (26.08. — nginx-Service live)
 
-| Test | Direkt `10.0.25.60:8896` | NPM `https://modulupdates.meiser.family` |
+| Test | Direkt `10.0.25.60:8896` | NPM `https://<update-server>` |
 |---|---|---|
 | `versions.json` ohne Token | **403** ✅ | **403** ✅ |
 | `/modules/Test.sfm` ohne Token | **403** ✅ | **403** ✅ |

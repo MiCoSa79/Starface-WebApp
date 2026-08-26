@@ -136,8 +136,8 @@
     {% endfor %}
 
     <p class="hint">Signierte, zeitbegrenzte Download-URL (5 min) wird serverseitig erzeugt; der
-       UpdateDeployer auf der Anlage lädt das Paket direkt vom Update-Server
-       (modulupdates.meiser.family) und importiert es via
+       UpdateDeployer auf der Anlage lädt das Paket direkt vom konfigurierten Update-Server
+       (Basis-URL aus den Admin-Einstellungen) und importiert es via
        <code>ModuleRegistry.importModule()</code>. Geplante Updates erscheinen im
        Anlagen-Log (Modul log).</p>
 </div>

@@ -103,7 +103,7 @@ def _module_update_base() -> str:
 
     Leer bedeutet: versions.json-downloadUrl ist nur relativ (/modules/...) —
     die WebApp ist dann nur im internen Netz erreichbar. Von außen muss hier
-    z. B. https://modulupdates.meiser.family stehen.
+    z. B. https://www.sub.example.de stehen.
     """
     return _get_setting("module_update_base_url").strip() or os.environ.get("MODULE_UPDATE_BASE_URL", "")
 
