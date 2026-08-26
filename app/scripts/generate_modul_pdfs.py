@@ -383,12 +383,15 @@ def main() -> int:
                              "(Empfehlung: 43+ Zeichen).",
                              "URL-sicher erzeugen: python3 -c \"import secrets; "
                              "print(secrets.token_urlsafe(32))\" oder openssl rand -base64 24.",
-                             "PowerShell (CLM-konform — nur Cmdlet + Operatoren, "
-                             "keine .NET-API): (New-Guid).Guid -replace '-', '' "
-                             "= 32 Hex-Zeichen, URL-sicher.",
+                             "PowerShell: (New-Guid).Guid -replace '-', '' "
+                             "= 32 Hex-Zeichen (läuft NICHT unter Constrained Language "
+                             "Mode).",
                              "PowerShell mit .NET-API (nicht CLM): $b = New-Object byte[] 24; "
                              "[Security.Cryptography.RNGCryptoServiceProvider]::Create().GetBytes($b); "
                              "[Convert]::ToBase64String($b) = 32 Zeichen Base64.",
+                             "Hinweis CLM: Kryptographisch starke Tokens lassen sich in einer "
+                             "eingeschränkten Shell (CLM) nicht per Cmdlet erzeugen — Token "
+                             "außerhalb erzeugen (Python/openssl) und in Anlage + WebApp hinterlegen.",
                              "Zeichensatz: Python token_urlsafe, openssl und die GUID-Variante liefern "
                              "URL-sichere Zeichen; Base64 kann +, / und = enthalten — für den RPC-Aufruf "
                              "unkritisch, beide Felder (Anlage ↔ WebApp) identisch füllen.",
