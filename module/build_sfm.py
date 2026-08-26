@@ -50,9 +50,10 @@ def bump_descriptor(path: str) -> None:
     - lastChangedTime = aktuelle Zeit (auf volle Stunde abgerundet, damit
       noLicenseId über Stunden stabil bleibt)
     - noLicenseId = sha1Hex(id + lastChangedTime + "STARFACE")   (Lizenzfreiheit)
-    - writeHash   = sha1Hex(id)  (== Hash des LEEREN Passworts → Modul offen;
-      NICHT leer lassen! checkWritePassword("") = Strings.equals(sha1Hex(id), writeHash),
-      leerer writeHash ⇒ Modul bleibt passwortgesperrt.)
+    - writeHash   = sha1Hex(id + STARFACE_MODULE_PASSWORD)  (PFLICHT seit 2026-08-26,
+      Axel-Vorgabe: Module IMMER mit Passwort schützen; Passwort aus Env
+      STARFACE_MODULE_PASSWORD — nie hardcoden, nie committen. Fehlt es: Abbruch.
+      checkWritePassword(pw) = Strings.equals(sha1Hex(id + pw), writeHash).)
     """
     import hashlib
     import time
@@ -67,12 +68,22 @@ def bump_descriptor(path: str) -> None:
     root.set("version", str(version))
 
     module_id = root.get("id")
+    if not module_id:
+        sys.exit("FEHLER: keine id= im Descriptor (bump)")
     now = int(time.time() * 1000)
     last = now - (now % 3600000)  # volle Stunde
     root.set("lastChangedTime", str(last))
 
     no_license = hashlib.sha1((module_id + str(last) + "STARFACE").encode()).hexdigest()
-    write_hash = hashlib.sha1(module_id.encode()).hexdigest()
+    password = os.environ.get("STARFACE_MODULE_PASSWORD", "")
+    if not password:
+        sys.exit("FEHLER: STARFACE_MODULE_PASSWORD (Env) fehlt — Module werden "
+                 "NICHT ungeschützt gebaut (Axel-Vorgabe)!")
+
+    # writeHash = sha1Hex(id + password): checkWritePassword(pw) =
+    # Strings.equals(sha1Hex(id + pw), writeHash) → Modul nur mit Passwort
+    # importierbar/bearbeitbar. Leer-Passwort (sha1Hex(id)) wäre offen.
+    write_hash = hashlib.sha1((module_id + password).encode()).hexdigest()
 
     nl = root.find("noLicenseId")
     if nl is None:

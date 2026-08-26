@@ -200,7 +200,7 @@ def main() -> int:
             "CallBlocker",
             "CallBlocker",
             "Blocklist-Anrufabschaltung — weist Anrufe von Rufnummern auf der Blocklist ab.",
-            [("Modul", "CallBlocker"), ("Aktuelle Version", "v29 (Stand 26.08.2026)"),
+            [("Modul", "CallBlocker"), ("Aktuelle Version", "v30 (Stand 26.08.2026)"),
              ("Hersteller", "Axel Meiser - Kraemer IT"),
              ("Installationsname (Empfehlung)", "CallBlocker"),
              ("Logging", "genau 1 Zeile pro geblocktem Anruf")],
@@ -238,7 +238,7 @@ def main() -> int:
                      ("Blocklist öffnen und Rufnummern eintragen (einheitliches Format, "
                       "mit Vorwahl empfohlen).",
                       "Einträge greifen sofort auf der Anlage."),
-                     ("Modul-Updates-Seite: Status SOLL/IST prüfen (v29).",
+                     ("Modul-Updates-Seite: Status SOLL/IST prüfen (v30).",
                       "Update verfügbar / aktuell sichtbar."),
                      ("Updates: „Update anstoßen“ pro Modul oder Sammel-Buttons "
                       "(„Fehlende Module installieren“ / „Module aktualisieren“).",
@@ -246,13 +246,13 @@ def main() -> int:
                 {"nummer": 5, "titel": "Versionen & Wartung",
                  "bullets": ["Updates laufen vollautomatisch über die WebApp (UpdateDeployer: "
                              "signierter Download + Import + Neustart aktiver Instanzen).",
-                             "Modul-Historie v1–v29 dokumentiert (Git-Tags im Repo).",
+                             "Modul-Historie v1–v30 dokumentiert (Git-Tags im Repo).",
                              "Log-Ausgabe des Moduls zeigt nur geblockte Anrufe."]},
                 {"nummer": 6, "titel": "Fehlerbehebung",
                  "fehler": [
                      ("Anruf wird nicht geblockt.",
                       "Nummernformat in der Blocklist prüfen (mit Vorwahl, einheitlich); "
-                      "Instanz aktiv? Modul-Status v29 (IST = SOLL)?"),
+                      "Instanz aktiv? Modul-Status v30 (IST = SOLL)?"),
                      ("Seite zeigt „nicht installiert“.",
                       "Erst-Import anstoßen („Installation anstoßen“), danach Instanz anlegen "
                       "und aktivieren."),
@@ -264,7 +264,7 @@ def main() -> int:
             "TelefonieMonitoring",
             "TelefonieMonitoring",
             "Systemmetriken (RAM, CPU-Last, STARFACE-Version, Hostname) und SIP-Provider-Status für die WebApp.",
-            [("Modul", "TelefonieMonitoring"), ("Aktuelle Version", "v8 (Stand 26.08.2026)"),
+            [("Modul", "TelefonieMonitoring"), ("Aktuelle Version", "v9 (Stand 26.08.2026)"),
              ("Hersteller", "Axel Meiser - Kraemer IT"),
              ("Installationsname (Vorgabe)", "TelefonieMonitoring"),
              ("Logging", "bewusst still — das Modul schreibt keine Log-Einträge")],
@@ -309,7 +309,7 @@ def main() -> int:
                       "Verlauf wird gespeichert und visualisiert."),
                      ("Statusseite prüfen: Karte zeigt Hostname, Version und Provider-Status.",
                       "Live-Daten sichtbar."),
-                     ("Modul-Updates-Seite: IST-Version v8 verifizieren.",
+                     ("Modul-Updates-Seite: IST-Version v9 verifizieren.",
                       "Update verfügbar / aktuell sichtbar.")]},
                 {"nummer": 5, "titel": "Fehlerbehebung",
                  "fehler": [
@@ -327,7 +327,7 @@ def main() -> int:
             "UpdateDeployer",
             "UpdateDeployer",
             "Zentrales HUB-Modul für automatische Modul-Updates über die WebApp.",
-            [("Modul", "UpdateDeployer"), ("Aktuelle Version", "v6 (Stand 26.08.2026)"),
+            [("Modul", "UpdateDeployer"), ("Aktuelle Version", "v7 (Stand 26.08.2026)"),
              ("Hersteller", "Axel Meiser - Kraemer IT"),
              ("Installationsname (Empfehlung)", "UpdateDeployer"),
              ("Update-Basis-URL", "wird im Admin-Bereich der WebApp festgelegt")],
@@ -403,7 +403,9 @@ def main() -> int:
                              "v2: UpdateFromUrl — signierter Download + Modul-Import.",
                              "v4/v5: GUI-Tab „Sicherheit“ mit Token-Feld (GU_UPDATE_TOKEN).",
                              "v6: Automatischer Neustart aller aktiven Instanzen des "
-                             "Zielmoduls nach dem Import."]},
+                             "Zielmoduls nach dem Import.",
+                             "v7: Modul-Paket mit Passwortschutz (writeHash = sha1(id + Passwort); "
+                             "Import/Editor nur mit Modul-Passwort)."]},
                 {"nummer": 7, "titel": "Fehlerbehebung",
                  "fehler": [
                      ("Update wird nicht gestartet / Download-Fehler.",

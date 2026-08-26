@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<module lastChangedTime="1787770800000" moduleType="EXTENDED" createTime="1787767616269" id="ab50cee5-bae2-4cf4-9378-8ecfa7448791" name="UpdateDeployer" specVersion="5" vendor="Axel Meiser - Kraemer IT" version="6">
+<module lastChangedTime="1787778000000" moduleType="EXTENDED" createTime="1787767616269" id="ab50cee5-bae2-4cf4-9378-8ecfa7448791" name="UpdateDeployer" specVersion="5" vendor="Axel Meiser - Kraemer IT" version="7">
  <description>UpdateDeployer: zentrales HUB-Modul für automatische Modul-Updates. v1 = PingChannel (Kanal-Beweis). v2 = UpdateFromUrl: signierter Download + ModuleRegistry.importModule (echtes Update). v4 = GUI-Tab 'Sicherheit' mit Token-Feld (GU_UPDATE_TOKEN).</description>
     <descriptionURL />
     <disabled>false</disabled>
@@ -248,5 +248,5 @@
         <propertyName>NAME</propertyName>
     </resourceKeys>
     <shortDescription>Zentraler Modul-Updater (v4: GUI-Tab Update-Token + UpdateFromUrl)</shortDescription>
-    <writeHash>18d0f1ebd134c3ad360f7f7de2ac7b4960667804</writeHash>
-<noLicenseId>3d7ac59620a69465bb5359940e90b02d7013d12e</noLicenseId></module>
+    <writeHash>113d8d009759a1ec5390e501c89a7aa02de75819</writeHash>
+<noLicenseId>d4137ae9819a34d341bcd9f79a7a9c9e66530958</noLicenseId></module>

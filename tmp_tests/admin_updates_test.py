@@ -141,7 +141,7 @@ check("push-all install: nur fehlende Module angestoßen",
 check("push-all install: Meldung im HTML",
       "CallBlocker: Installation angestoßen" in r.text, "msg-Banner fehlt")
 
-# mode=update -> TelefonieMonitoring veraltet (v7 != SOLL v8) -> genau das eine Update
+# mode=update -> TelefonieMonitoring veraltet (v7 != SOLL v9) -> genau das eine Update
 def fake_st2(inst, token, name):
     return {"list": [
         {"name": "TelefonieMonitoring", "installed": True,
@@ -162,9 +162,9 @@ check("push-all update: Meldung 'Update angestoßen'",
 def fake_st3(inst, token, name):
     return {"list": [
         {"name": "TelefonieMonitoring", "installed": True,
-         "status": "ok", "version_ist": 8},
+         "status": "ok", "version_ist": 9},
         {"name": "CallBlocker", "installed": True,
-         "status": "ok", "version_ist": 29},
+         "status": "ok", "version_ist": 30},
     ]}
 _mon._collect_module_status = fake_st3
 pushed.clear()
