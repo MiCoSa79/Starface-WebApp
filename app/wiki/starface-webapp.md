@@ -1,6 +1,7 @@
 ---
 title: STARFACE WebApp — Gesamtdokumentation & Versionshistorie
-description: Die WebApp selbst: Architektur, Betrieb, Routen, Konventionen und die vollständige Versionshistorie (v0.0.1–v0.0.182, aus Git-Tags).
+description: Die WebApp selbst: Architektur, Betrieb, Routen, Konventionen und die vollständige Versionshistorie (v0.0.1–v0.0.196, aus Git-Tags).
+updated: 2026-08-26
 ---
 
 # STARFACE WebApp
@@ -39,7 +40,9 @@ Modul-Updates (UpdateDeployer). Repo `MiCoSa79/Starface-WebApp`, Image
 | Wiki/API-Doku | `/wiki`, `/wiki/search`, `/wiki/{wiki_page}`, `/admin/api-doku`, `/sw.js` |
 | CallBlocker | `/installation/{id}/blocklist` (+ add/remove/update), `/installation/{id}/test` |
 
-**Stand 26.08. (F37/F38, v0.0.190):** Sammel-Buttons je Anlage auf der Modul-Updates-Seite (`POST /admin/updates/push-all`, Modi `install`/`update`) — Details [modul-auto-update](modul-auto-update.md). Modul-Seite: Download-Button **Icon-only**; neue Spalte **„Dokumentation“** (PDF-Badge → `/static/docs/<Modul>.pdf`: CallBlocker v29, TelefonieMonitoring v8, UpdateDeployer v6; Generator `app/scripts/generate_modul_pdfs.py` — nach Versions-Änderungen neu ausführen). Statusmeldungen auf der Modul-Updates-Seite mit **OK-Button** ausblendbar.
+**Stand 26.08. (F37/F38, v0.0.190):** Sammel-Buttons je Anlage auf der Modul-Updates-Seite (`POST /admin/updates/push-all`, Modi `install`/`update`) — Details [modul-auto-update](modul-auto-update.md). Modul-Seite: Download-Button **Icon-only**; neue Spalte **„Dokumentation“** (PDF-Badge → `/static/docs/<Modul>.pdf`: CallBlocker v30, TelefonieMonitoring v9, UpdateDeployer v7; Generator `app/scripts/generate_modul_pdfs.py` — nach Versions-Änderungen neu ausführen). Statusmeldungen auf der Modul-Updates-Seite mit **OK-Button** ausblendbar.
+
+**Stand 26.08. (F42, v0.0.196):** **Mobile-Fix Admin-URL-Felder** — auf Handys waren beide URL-Eingabefelder (Grafana-Basis-URL + Update-Server-Basis-URL) **380 px hoch**: das Inline-`flex:1 1 380px` wurde in der Mobile-`column`-Flexbox (`.form-row { flex-direction: column }`) als **Höhe** interpretiert (flex-basis wirkt auf die Hauptachse). Fix: CSS-Klasse `.url-field` (`flex: 1 1 380px; font-size:16px;` Desktop) + Media-Query-Override `.url-field { flex: 1 1 auto; min-height: 44px; }` (Mobile) — Inline-Styles entfernt. Beweis: Headless-Chrome-CDP-Test `tmp_tests/mobile_url_layout_cdp.mjs` (390×844): Höhe 380→44 px, Touch-Höhe 44 px, font-size 16 px (iOS-Zoom), Desktop-Breite ≥380 px bleibt.
 
 ## Wo stehen welche Details?
 
@@ -245,6 +248,20 @@ Quelle: `git for-each-ref refs/tags/v0.0.*` — Stichworte = Commit-Subject.
 | v0.0.180 | `66e1e82` | feat(updatedeployer): T7 v6 — Auto-Restart aller aktiven Instanzen nach Import |
 | v0.0.181 | `7864072` | feat(updates): Version (IST) auf Modul-Updates-Seite — frischer GetModuleStatus-Abruf |
 | v0.0.182 | `d533412` | docs(wiki): Version (IST) auf Modul-Updates-Seite — v0.0.180 (Commit 7864072) |
+| v0.0.183 | `4825e5a` | docs(wiki): eigener Artikel für die WebApp selbst — vollständige Versionshistorie v0.0.1–v0.0.182 aus Git-Tags |
+| v0.0.184 | `5528a47` | docs(wiki): Erst-Import-Fähigkeit von importModule verifiziert (Axel-Einwand, F31) |
+| v0.0.185 | `8186b5e` | docs(wiki): Instanz-Anlage programmatisch geprüft — machbar, nicht gebaut (F32) |
+| v0.0.186 | `0024f60` | docs(wiki): Ausblick Grafana-Ablösung durch WebApp-Dashboards (F33, Entscheidung offen) |
+| v0.0.187 | `f842c4b` | feat(webapp): Button 'Installation anstoßen' bei nicht installiertem Modul, sonst 'Update anstoßen' |
+| v0.0.188 | `9c768c2` | docs(wiki): Design-Redesign der WebApp angemeldet (F35, OFFEN) |
+| v0.0.189 | `6b133f8` | feat(updates): Sammel-Buttons je Anlage — 'Fehlende Module installieren' + 'Module aktualisieren' (push-all, F37) |
+| v0.0.190 | `4319b11` | feat(modules): PDF-Dokumentation je Modul + Icon-Download; Statusmeldungen mit OK-Button (F38) |
+| v0.0.191 | `8ec5d43` | fix(updates): Meldetext 'Installation angestoßen' bei Erst-Installation — Einzel-Button + push-all install (F39) |
+| v0.0.192 | `306f7eb` | docs: Doku-Bereinigung — keine Meiser-Domains (außer Vendor), Beispiel-URLs neutral |
+| v0.0.193 | `52093d5` | docs: GU_UPDATE_TOKEN — PowerShell-Varianten (CLM-konform mit New-Guid + .NET-Base64) in UpdateDeployer-Doku |
+| v0.0.194 | `deec7df` | docs: GU_UPDATE_TOKEN — New-Guid-Variante gekennzeichnet als NICHT CLM-tauglich, CLM-Hinweis ergänzt |
+| v0.0.195 | `374edbd` | feat(modules): alle 3 Module mit Passwortschutz neu gebaut (v30/v9/ud-v7, writeHash=sha1(id+pw), Env-Pflicht STARFACE_MODULE_PASSWORD) — F41 |
+| v0.0.196 | `96ac3c4` | feat(admin): Mobile-Fix URL-Eingabefelder — flex-basis 380px wurde in der column-Flexbox zur Höhe (380 px) → .url-field-Klasse + Media-Query-Override (44 px); Regressionstest mobile_url_layout_cdp.mjs (F42) |
 
 > Legende/Details: Lange Fachtexte zu Monitoring (v0.0.119 ff.) stehen im Hermes-Wiki
 > ([[telefonie-monitoring]]-Entity), zu Updates (v0.0.164 ff.) in [modul-auto-update](modul-auto-update.md).
