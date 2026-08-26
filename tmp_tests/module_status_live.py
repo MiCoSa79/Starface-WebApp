@@ -126,19 +126,7 @@ def fake_get_token_row_check(inst):
     return "tok"
 app_main._get_token = fake_get_token_row_check
 app_main._xmlrpc = fake_xmlrpc
-r = c.get("/api/monitoring/module-status-raw?installation=PBX-GUT")
-j = r.json()
-assert r.status_code == 200 and j["ok"] and j["fault"] is None \
-    and j["raw"] == INSTALLED_OK and j["expected"] == ["CallBlocker", "TelefonieMonitoring"], \
-    (r.status_code, j)
-assert "stats_diag" in j, j  # v7-Diagnosefeld vorhanden (Fake liefert kein moduleDiag -> None)
-r = c.get("/api/monitoring/module-status-raw?installation=PBX-ALT")
-j = r.json()
-assert j["ok"] and j["raw"] is None and "GetModuleStatus" in (j["fault"] or ""), j
-r = c.get("/api/monitoring/module-status-raw?installation=GIBTSNICHT")
-assert r.status_code == 404, r.status_code
-c2 = TestClient(app_main.app)  # ohne Login -> 401
-r = c2.get("/api/monitoring/module-status-raw?installation=PBX-GUT")
-assert r.status_code == 401, r.status_code
-print("OK   Diagnose-Route: raw=INSTALLED_OK (PBX-GUT) / fault GetModuleStatus (PBX-ALT) / 404 unbekannt / 401 ohne Login")
+# Diagnose-Route /api/monitoring/module-status-raw wurde in v0.0.148 entfernt
+# (Rohdaten-Block in der UI entfernt, Endpoint weg — der _collect_module_status-Pfad
+# oben deckt die GetModuleStatus-Verarbeitung ab).
 print("\nLIVE-BEWEIS MODUL-STATUS OK")

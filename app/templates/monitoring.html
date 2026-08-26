@@ -204,19 +204,6 @@
             <p style="color:#888;font-size:14px;margin:0;">Für keine Anlage liegen Modul-Status-Daten vor.</p>
             {% endif %}
         </div>
-        {% if user.is_admin %}
-        <div style="margin-top:16px;padding:14px;background:#20232a;border:1px solid #333;border-radius:8px;">
-            <details>
-                <summary style="cursor:pointer;color:#bbb;font-size:14px;">Diagnose: Rohdaten GetModuleStatus (Admin)</summary>
-                <p style="color:#888;font-size:13px;margin:10px 0 8px;">Zeigt die ungefilterte Antwort der Anlage auf <code>GetModuleStatus</code> — erkennt leere Listen, Namensabweichungen oder XML-RPC-Faults (Modul zu alt / nicht eingerichtet). <code>stats_diag</code> (Modul v7): rohe ModuleRegistry-Daten aus dem laufenden <code>GetStats</code>-Aufruf — die <code>Module.getVersion()</code>-Werte je Modul (getVersion()-Beweis); <code>null</code> = Anlage liefert das Feld nicht (alte Instanz-Konfiguration).</p>
-                <select id="raw-inst" style="padding:6px;border-radius:4px;background:#333;color:#ccc;">
-                    {% for name in status.installations %}<option value="{{ name }}">{{ name }}</option>{% endfor %}
-                </select>
-                <button id="raw-btn" style="padding:6px 12px;margin-left:8px;border-radius:6px;background:#333;color:#ccc;cursor:pointer;">Rohdaten abrufen</button>
-                <pre id="raw-out" style="background:#111;color:#9f9;padding:10px;border-radius:6px;overflow:auto;font-size:12px;white-space:pre-wrap;word-break:break-all;display:none;"></pre>
-            </details>
-        </div>
-        {% endif %}
     </div>
 
     <script>
@@ -416,22 +403,5 @@
         }
         setInterval(refreshMonitoring, 15000);
         refreshMonitoring(); // sofortiger erster Abgleich
-
-        // --- Diagnose: rohe GetModuleStatus-Antwort (Admin) ---
-        var rawBtn = document.getElementById('raw-btn');
-        if (rawBtn) {
-            rawBtn.addEventListener('click', function () {
-                var sel = document.getElementById('raw-inst');
-                var out = document.getElementById('raw-out');
-                if (!sel || !out) return;
-                var inst = sel.value || '';
-                out.style.display = 'block';
-                out.textContent = 'Lade ' + inst + ' …';
-                fetch('/api/monitoring/module-status-raw?installation=' + encodeURIComponent(inst))
-                    .then(function (r) { return r.json(); })
-                    .then(function (j) { out.textContent = JSON.stringify(j, null, 2); })
-                    .catch(function (e) { out.textContent = 'Abruf fehlgeschlagen: ' + e; });
-            });
-        }
     </script>
 {% endblock %}
