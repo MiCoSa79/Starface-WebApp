@@ -94,6 +94,9 @@ GitHub-Mirror `Fabian95qw/SFWiki`) — Details siehe
 
 ## Versionshistorie (kompakt)
 
+> ℹ️ Die **vollständige WebApp-Versionshistorie** (v0.0.1–v0.0.182, aus Git-Tags) steht im
+> Artikel [starface-webapp](starface-webapp.md). Hier nur Modul-nahe Ausschnitte.
+
 ### Modul
 
 | Version | Datum | Inhalt |
