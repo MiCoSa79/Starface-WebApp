@@ -15,6 +15,7 @@ import json
 import os
 import sqlite3
 import sys
+from urllib.parse import quote
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "app"))
 
@@ -113,6 +114,63 @@ idx = r.text.find("<td>CallBlocker</td>")
 check("Installation anstoßen bei fehlendem Modul", "Installation anstoßen" in r.text,
       repr(r.text[idx:idx + 420]) if idx >= 0 else "CallBlocker-Zeile nicht gefunden")
 check("Update anstoßen bei installiertem Modul", "Update anstoßen" in r.text)
+
+# --- 3c. Sammel-Buttons (push-all): Anzeige + Auswahl-Logik ---------------------
+check("Sammel-Button 'Fehlende Module installieren' sichtbar",
+      r.text.count("Fehlende Module installieren") >= 1)
+check("Sammel-Button 'Module aktualisieren' sichtbar",
+      r.text.count("Module aktualisieren") >= 1)
+check("Sammel-Buttons zeigen auf /admin/updates/push-all",
+      r.text.count("action=\"/admin/updates/push-all\"") == 2)
+
+pushed = []
+orig_push = app_main._push_module  # echte Funktion sichern (Restore am Ende von 3c)
+def rec_push(inst, module_name, filename, version):
+    pushed.append(module_name)
+    return "ok", f"{module_name}: Update angestoßen"
+app_main._push_module = rec_push
+
+# mode=install -> nur CallBlocker (fehlt), TelefonieMonitoring NICHT
+r = c.post("/admin/updates/push-all", data={
+    "installation_id": str(inst_id), "mode": "install"})
+check("push-all install -> Redirect wird gefolgt (200)", r.status_code == 200, str(r.status_code))
+check("push-all install: nur fehlende Module angestoßen",
+      pushed == ["CallBlocker"], repr(pushed))
+check("push-all install: Meldung im HTML",
+      "CallBlocker: Update angestoßen" in r.text, "msg-Banner fehlt")
+
+# mode=update -> TelefonieMonitoring veraltet (v7 != SOLL v8) -> genau das eine Update
+def fake_st2(inst, token, name):
+    return {"list": [
+        {"name": "TelefonieMonitoring", "installed": True,
+         "status": "ok", "version_ist": 7},
+        {"name": "CallBlocker", "installed": False,
+         "status": None, "version_ist": None},
+    ]}
+_mon._collect_module_status = fake_st2
+pushed.clear()
+r = c.post("/admin/updates/push-all", data={
+    "installation_id": str(inst_id), "mode": "update"})
+check("push-all update: nur veraltete installierte Module angestoßen",
+      pushed == ["TelefonieMonitoring"], repr(pushed))
+
+# mode=update, ALLE aktuell -> nichts anstoßen
+def fake_st3(inst, token, name):
+    return {"list": [
+        {"name": "TelefonieMonitoring", "installed": True,
+         "status": "ok", "version_ist": 8},
+        {"name": "CallBlocker", "installed": True,
+         "status": "ok", "version_ist": 29},
+    ]}
+_mon._collect_module_status = fake_st3
+pushed.clear()
+r = c.post("/admin/updates/push-all", data={
+    "installation_id": str(inst_id), "mode": "update"})
+check("push-all update: bei aktuellen Modulen kein Push",
+      pushed == [], repr(pushed))
+check("push-all update: Hinweis 'bereits aktuell' im HTML",
+      "Alle Module sind bereits aktuell." in r.text, "Hinweis-Banner fehlt")
+app_main._push_module = orig_push  # echte Implementierung wiederherstellen (Sektion 4 testet den Einzel-Push)
 
 # --- 4. POST /admin/updates/push (gemockt) -------------------------------------
 calls = {}

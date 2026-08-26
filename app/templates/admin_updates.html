@@ -71,6 +71,19 @@
     </p>
     {% endif %}
 
+    <div style="margin-bottom:16px">
+        <form method="post" action="/admin/updates/push-all" style="display:inline; margin:0">
+            <input type="hidden" name="installation_id" value="{{ inst.id }}">
+            <input type="hidden" name="mode" value="install">
+            <button type="submit" class="btn-primary">Fehlende Module installieren</button>
+        </form>
+        <form method="post" action="/admin/updates/push-all" style="display:inline; margin:0">
+            <input type="hidden" name="installation_id" value="{{ inst.id }}">
+            <input type="hidden" name="mode" value="update">
+            <button type="submit" class="btn-secondary">Module aktualisieren</button>
+        </form>
+    </div>
+
     {% set st = module_states.get(inst.id) if module_states else none %}
     {% if st and st.error %}
     <p class="hint" style="color:#d59595; margin-bottom:16px">

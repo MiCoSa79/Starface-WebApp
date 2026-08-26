@@ -1011,17 +1011,99 @@ async def admin_updates_push(request: Request):
     if not inst:
         return RedirectResponse(
             "/admin/updates?msg=" + quote("Unbekannte Anlage."), status_code=303)
+    status, msg = _push_module(inst, module_name, filename, version)
+    return RedirectResponse("/admin/updates?msg=" + quote(msg), status_code=303)
+
+
+def _norm_version(v):
+    """Version robust als int (Deskriptor-String '29' oder JSON-int kommen beide vor)."""
+    try:
+        return int(v)
+    except (TypeError, ValueError):
+        return None
+
+
+def _push_module(inst, module_name: str, filename: str, version: str):
+    """Ein Modul-Update/Install auf einer Anlage anstoßen (UpdateDeployer-RPC).
+
+    Rückgabe (status, msg): status in {"ok", "error"}. Genutzt von der
+    Einzel-Route /admin/updates/push UND den Sammel-Buttons (/admin/updates/push-all).
+    """
     try:
         token = _get_token(inst)
         update_token = _decrypt(inst["deployer_token"]) if inst["deployer_token"] else ""
-        res = module_updates.push_update(inst, token, module_name=module_name, filename=filename,
-                                         target_version=version, update_token=update_token)
+        res = module_updates.push_update(inst, token, module_name=module_name,
+                                         filename=filename, target_version=version,
+                                         update_token=update_token)
         if res["status"] == "ok":
-            msg = f"{module_name}: Update angestoßen"
-        else:
-            msg = f"{module_name}: FEHLER — {res['message']}"
+            return "ok", f"{module_name}: Update angestoßen"
+        return "error", f"{module_name}: FEHLER — {res['message']}"
     except Exception as e:  # OAuth/Verbindung defekt o. ä. → als Meldung, kein Crash
-        msg = f"{module_name}: FEHLER — {e}"
+        return "error", f"{module_name}: FEHLER — {e}"
+
+
+@app.post("/admin/updates/push-all")
+async def admin_updates_push_all(request: Request):
+    """Sammel-Buttons je Anlage: alle fehlenden Module installieren bzw.
+    alle installierten (veralteten) Module aktualisieren — in einem Klick."""
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user or not user["is_admin"]:
+        return RedirectResponse("/dashboard")
+    form = await request.form()
+    mode = form.get("mode", "")
+    try:
+        inst_id = int(form.get("installation_id", "0"))
+    except ValueError:
+        inst_id = 0
+    conn = _db()
+    inst = conn.execute("SELECT * FROM installations WHERE id=?", (inst_id,)).fetchone()
+    conn.close()
+    if not inst:
+        return RedirectResponse(
+            "/admin/updates?msg=" + quote("Unbekannte Anlage."), status_code=303)
+    if mode not in ("install", "update"):
+        return RedirectResponse(
+            "/admin/updates?msg=" + quote("Ungültiger Modus."), status_code=303)
+    # IST-Stand frisch auf der Anlage abfragen (gleiche Infrastruktur wie die Seite)
+    if not inst["monitoring_instance_name"]:
+        return RedirectResponse(
+            "/admin/updates?msg=" + quote(
+                "Version (IST) nicht verfügbar — Monitoring-Instanz nicht konfiguriert."),
+            status_code=303)
+    try:
+        from monitoring import _module_expectations, _collect_module_status
+    except ImportError:
+        from app.monitoring import _module_expectations, _collect_module_status
+    try:
+        token = _get_token(inst)
+        st = _collect_module_status(inst, token, inst["name"])
+    except Exception as e:  # Token-/Transportfehler: Meldung, kein Crash
+        return RedirectResponse(
+            "/admin/updates?msg=" + quote(f"Version (IST) nicht verfügbar — {e}"),
+            status_code=303)
+    by_name = {it["name"]: it for it in st.get("list") or []}
+    # Betroffene Module auswählen
+    rows = []
+    for name, info in _module_expectations().items():
+        it = by_name.get(name)
+        installed = it is not None and bool(it.get("installed"))
+        if mode == "install":
+            if it is not None and not installed:
+                rows.append((name, info))
+        else:  # update: installiert und (IST-Version unbekannt oder ≠ SOLL)
+            version_ist = _norm_version(it.get("version_ist")) if it else None
+            soll = _norm_version(info.get("version"))
+            if installed and version_ist != soll:
+                rows.append((name, info))
+    if not rows:
+        hint = ("Alle Module sind bereits installiert." if mode == "install"
+                else "Alle Module sind bereits aktuell.")
+        return RedirectResponse("/admin/updates?msg=" + quote(hint), status_code=303)
+    msgs = []
+    for name, info in rows:
+        _, m = _push_module(inst, name, info.get("file", ""), str(info.get("version", "")))
+        msgs.append(m)
+    msg = msgs[0] if len(msgs) == 1 else " · ".join(msgs)
     return RedirectResponse("/admin/updates?msg=" + quote(msg), status_code=303)
 
 
