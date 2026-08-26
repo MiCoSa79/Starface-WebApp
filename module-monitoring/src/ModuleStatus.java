@@ -3,7 +3,7 @@ import java.util.List;
 
 import de.vertico.starface.module.core.ModuleRegistry;
 import de.vertico.starface.module.core.model.Module;
-import de.vertico.starface.module.core.model.ModuleInstance;
+import de.vertico.starface.module.core.model.ModuleInstanceRO;
 import de.vertico.starface.module.core.model.VariableType;
 import de.vertico.starface.module.core.model.Visibility;
 import de.vertico.starface.module.core.runtime.IBaseExecutable;
@@ -17,12 +17,14 @@ import de.vertico.starface.module.core.runtime.functions.system.Log2;
  * und Instanz-Status (aktiv/deaktiviert) als JSON-String. Die WebApp gleicht
  * diese IST-Daten mit den SOLL-Modulen (app/modules/*.sfm) ab.
  *
- * API-Quelle (offizielles SFWiki-Beispiel GetAllModules.java, Bytecode-
- * verifiziert an STARFACE 10.0.2.5):
- *   ModuleRegistry MR = (ModuleRegistry) context.springApplicationContext()
- *       .getBean(ModuleRegistry.class);
- *   MR.getModules()            -> List<Module> (getId/getName/getVersion L/getVendor)
- *   MR.getInstances4Module(id) -> List<ModuleInstance> (getId/getName/getDisabled)
+ * API-Quelle (offizielles SFWiki-Beispiel GetAllModules.java) — ABER FALLE:
+ *   MR.getInstances4Module(id) ist im Interface ModuleRegistry deklariert, wird
+ *   von ModuleRegistryBase (Implementierung der Anlage) NICHT implementiert ->
+ *   Laufzeit-Fault "No item with that key" (Befund 2026-08-26, Testanlage).
+ *   FIX: Instanzen aus MR.getInstalledInstances() (ModuleInstanceRO: getModuleId/
+ *   getName/getDisabled — javap-verifiziert an der Extraktion) per getModuleId()
+ *   dem Modul zuordnen. Schutz: module-monitoring/verify_api_refs.py prüft jede
+ *   gerufene de.vertico-Methode gegen die Implementierungsklassen.
  *
  * Antwortformat (JSON, Output "moduleJson"):
  *   [{"id":"...","name":"CallBlocker","version":28,"vendor":"MiCoSa79",
@@ -65,7 +67,10 @@ public class ModuleStatus implements IBaseExecutable
 				sb.append(",\"vendor\":").append(json(vendor));
 				sb.append(",\"instances\":[");
 				boolean firstI = true;
-				for (ModuleInstance MIS : MR.getInstances4Module(M.getId())) {
+				for (ModuleInstanceRO MIS : MR.getInstalledInstances()) {
+					if (!MIS.getModuleId().equals(M.getId())) {
+						continue;
+					}
 					if (!firstI) {
 						sb.append(",");
 					}

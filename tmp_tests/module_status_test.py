@@ -60,7 +60,7 @@ check("expectations: beide echten Module gelesen",
       set(exp) == {"CallBlocker", "TelefonieMonitoring"}, str(sorted(exp)))
 check("expectations: CallBlocker v28 + Vendor", exp["CallBlocker"]["version"] == 28
       and exp["CallBlocker"]["vendor"] == "MiCoSa79", str(exp.get("CallBlocker")))
-check("expectations: TelefonieMonitoring v5", exp["TelefonieMonitoring"]["version"] == 5,
+check("expectations: TelefonieMonitoring v5 (Fakes)", exp["TelefonieMonitoring"]["version"] == 5,
       str(exp.get("TelefonieMonitoring")))
 check("expectations: nur TelefonieMonitoring exportiert GetModuleStatus",
       "GetModuleStatus" in exp["TelefonieMonitoring"].get("provides", [])
@@ -87,9 +87,9 @@ monitoring._EXPECT_CACHE["sig"], monitoring._EXPECT_CACHE["data"] = None, {}
 real_exp = monitoring._module_expectations()
 monitoring.MODULES_DIR = rollback
 monitoring._EXPECT_CACHE["sig"], monitoring._EXPECT_CACHE["data"] = None, {}
-check("expectations: echtes app/modules -> CallBlocker v28 + TelefonieMonitoring v5",
+check("expectations: echtes app/modules -> CallBlocker v28 + TelefonieMonitoring v6",
       real_exp.get("CallBlocker", {}).get("version") == 28
-      and real_exp.get("TelefonieMonitoring", {}).get("version") == 5,
+      and real_exp.get("TelefonieMonitoring", {}).get("version") == 6,
       str(real_exp))
 
 # ------------------------------------------------- 2. _compare_modules
@@ -182,7 +182,7 @@ m = monitoring._collect_module_status(inst_ok, "tok", "PBX-1")
 check("collect: Erfolg -> list + kein error", m["error"] is None and len(m["list"]) == 2, str(m)[:150])
 m = monitoring._collect_module_status(inst_fault, "tok", "PBX-2")
 msg_alt = (m.get("error") or {}).get("msg", "")
-check("collect: GetModuleStatus-Fehler nach GetStats -> module (zu alt), Update-Ziel v5",
+check("collect: GetModuleStatus-Fehler nach GetStats -> module (zu alt), Update-Ziel v5 (Fake-Modul)",
       m["error"] is not None and m["error"]["category"] == "module"
       and "zu alt" in msg_alt and "Update auf v5" in msg_alt
       and "v28" not in msg_alt, repr(msg_alt))
