@@ -11,8 +11,15 @@ das Signatur-Secret aus der Env `UPDATE_SIGNING_SECRET` (nie in UI/DB).
 """
 import os
 
-from main import _module_update_base, _xmlrpc
-from updatesign import build_signed_url
+# Container-Import-Muster: Im Image liegen App-Module unter /app/app/ und sind
+# NICHT top-level auflösbar (sys.path enthält nur /app). Deshalb Zwei-Wege-Import
+# — exakt wie monitoring/mirror in main.py (siehe F20/F21 im Hermes-Wiki).
+try:
+    from main import _module_update_base, _xmlrpc
+    from updatesign import build_signed_url
+except ImportError:
+    from app.main import _module_update_base, _xmlrpc
+    from app.updatesign import build_signed_url
 
 
 def _signing_secret() -> str:
