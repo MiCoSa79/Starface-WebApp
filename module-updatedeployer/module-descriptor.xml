@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<module lastChangedTime="1787770800000" moduleType="EXTENDED" createTime="1787767616269" id="ab50cee5-bae2-4cf4-9378-8ecfa7448791" name="UpdateDeployer" specVersion="5" vendor="Axel Meiser - Kraemer IT" version="2">
+<module lastChangedTime="1787770800000" moduleType="EXTENDED" createTime="1787767616269" id="ab50cee5-bae2-4cf4-9378-8ecfa7448791" name="UpdateDeployer" specVersion="5" vendor="Axel Meiser - Kraemer IT" version="3">
  <description>UpdateDeployer: zentrales HUB-Modul für automatische Modul-Updates. v1 = PingChannel (Kanal-Beweis). v2 = UpdateFromUrl: signierter Download + ModuleRegistry.importModule (echtes Update).</description>
     <descriptionURL />
     <disabled>false</disabled>
