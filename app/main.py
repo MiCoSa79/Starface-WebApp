@@ -465,6 +465,15 @@ def _get_token(inst) -> str:
     return access
 
 
+def _xml_escape(value) -> str:
+    """Escaped XML-Sonderzeichen (minimal: &, <, >) für Werte im XML-RPC-Body.
+
+    URLs mit Query (?md5=..&expires=..) im Param-Wert machten den
+    methodCall unparsbar (WstxUnexpectedCharException an der Anlage).
+    """
+    return str(value).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
 def _xmlrpc(url: str, token: str, method: str, params: dict = None,
             instance_name: str = None) -> dict:
     """Führt einen XML-RPC-Call gegen die STARFACE aus.
@@ -486,7 +495,7 @@ def _xmlrpc(url: str, token: str, method: str, params: dict = None,
         full_method = method
     params = params or {}
     members = "".join(
-        f"<member><name>{k}</name><value><string>{v}</string></value></member>"
+        f"<member><name>{_xml_escape(k)}</name><value><string>{_xml_escape(v)}</string></value></member>"
         for k, v in params.items()
     )
     body = (
