@@ -49,6 +49,11 @@ Modul-Updates (UpdateDeployer). Repo `MiCoSa79/Starface-WebApp`, Image
 | Admin Power Pack-RE (Import-API-Grundlage) | [admin-power-pack-re](admin-power-pack-re.md) |
 | Modul-Paketierung/Designer | [starface-modul-paketierung](starface-modul-paketierung.md), [starface-modul-designer](starface-modul-designer.md) |
 
+## Design-Anforderung (OFFEN, 26.08. — F35)
+
+- **Axel:** Die WebApp-Seite wird zunehmend unübersichtlich → **Redesign erforderlich**.
+- Weitere Infos folgen; bis dahin kein Umbau, keine Layout-/Stack-Entscheidung (Hermes-Wiki log.md F35).
+
 ## Versionshistorie (vollständig, aus Git-Tags)
 
 Quelle: `git for-each-ref refs/tags/v0.0.*` — Stichworte = Commit-Subject.
