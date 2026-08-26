@@ -183,6 +183,11 @@ def _module_expectations() -> dict:
                 "version": ver_i,
                 "vendor": (root.get("vendor") or "").strip(),
                 "file": f,
+                "provides": sorted({
+                    (ep.get("name") or "").strip()
+                    for ep in root.findall(".//rpcEntryPoint")
+                    if (ep.get("name") or "").strip()
+                }),
             }
         except Exception:
             # kaputte .sfm ignorieren — andere Module bleiben pruefbar
@@ -262,8 +267,11 @@ def _collect_module_status(inst, token, name) -> dict:
                        instance_name=inst["monitoring_instance_name"])
     except Exception as e:
         if "starface-fehler" in str(e).lower():
-            # GetStats lief, aber GetModuleStatus existiert nicht → Modul zu alt
-            tm = next(iter(expected.values()), None)
+            # GetStats lief, aber GetModuleStatus existiert nicht → Modul zu alt.
+            # Update-Ziel ist IMMER das Modul, das GetModuleStatus exportiert
+            # (TelefonieMonitoring) — nicht das erste erwartete Modul (CallBlocker)!
+            tm = next((m for m in expected.values()
+                       if "GetModuleStatus" in m.get("provides", [])), None)
             msg = "Monitoring-Modul-Version zu alt — GetModuleStatus fehlt"
             if tm:
                 msg += f" (Update auf v{tm['version']} erforderlich)"

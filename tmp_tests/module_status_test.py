@@ -30,10 +30,15 @@ MODDIR = os.path.join(os.path.dirname(__file__), "module_status_fakes")
 os.makedirs(MODDIR, exist_ok=True)
 os.environ["MODULES_DIR"] = MODDIR  # VOR dem Import — monitoring liest beim Laden
 
-def make_sfm(path, name, version, vendor="MiCoSa79"):
+def make_sfm(path, name, version, vendor="MiCoSa79", rpcs=()):
+    rpc_xml = ""
+    if rpcs:
+        rpc_xml = "<entryPoints>" + "".join(
+            f'<rpcEntryPoint name="{r}"><type>XMLRPC_auth</type></rpcEntryPoint>'
+            for r in rpcs) + "</entryPoints>"
     desc = (f"<?xml version='1.0' encoding='UTF-8'?>\n<module id=\"uuid-{name}\" "
             f"name=\"{name}\" specVersion=\"5\" vendor=\"{vendor}\" version=\"{version}\">"
-            f"<noLicenseId>x</noLicenseId></module>")
+            f"<noLicenseId>x</noLicenseId>{rpc_xml}</module>")
     with zipfile.ZipFile(path, "w") as z:
         z.writestr("META-INF/MANIFEST.MF",
                    f"Manifest-Version: 1.0\r\nObjectId: uuid-{name}\r\nStarfaceModule_SpecVersion: 5\r\n")
@@ -42,7 +47,8 @@ def make_sfm(path, name, version, vendor="MiCoSa79"):
 for f in os.listdir(MODDIR):
     os.remove(os.path.join(MODDIR, f))
 make_sfm(os.path.join(MODDIR, "CallBlocker.sfm"), "CallBlocker", 28)
-make_sfm(os.path.join(MODDIR, "TelefonieMonitoring.sfm"), "TelefonieMonitoring", 5)
+make_sfm(os.path.join(MODDIR, "TelefonieMonitoring.sfm"), "TelefonieMonitoring", 5,
+         rpcs=("GetStats", "GetModuleStatus"))
 with open(os.path.join(MODDIR, "kaputt.sfm"), "w") as f:  # keine JAR — muss ignoriert werden
     f.write("kein zip")
 
@@ -56,6 +62,10 @@ check("expectations: CallBlocker v28 + Vendor", exp["CallBlocker"]["version"] ==
       and exp["CallBlocker"]["vendor"] == "MiCoSa79", str(exp.get("CallBlocker")))
 check("expectations: TelefonieMonitoring v5", exp["TelefonieMonitoring"]["version"] == 5,
       str(exp.get("TelefonieMonitoring")))
+check("expectations: nur TelefonieMonitoring exportiert GetModuleStatus",
+      "GetModuleStatus" in exp["TelefonieMonitoring"].get("provides", [])
+      and "GetModuleStatus" not in exp["CallBlocker"].get("provides", []),
+      str({k: v.get("provides") for k, v in exp.items()}))
 check("expectations: kaputte .sfm ignoriert", "kaputt" not in exp)
 
 exp2 = monitoring._module_expectations()
@@ -171,10 +181,23 @@ inst_net = {"url": NET_URL, "monitoring_instance_name": "TelefonieMonitoring"}
 m = monitoring._collect_module_status(inst_ok, "tok", "PBX-1")
 check("collect: Erfolg -> list + kein error", m["error"] is None and len(m["list"]) == 2, str(m)[:150])
 m = monitoring._collect_module_status(inst_fault, "tok", "PBX-2")
-check("collect: GetModuleStatus-Fehler nach GetStats -> module (zu alt)",
+msg_alt = (m.get("error") or {}).get("msg", "")
+check("collect: GetModuleStatus-Fehler nach GetStats -> module (zu alt), Update-Ziel v5",
       m["error"] is not None and m["error"]["category"] == "module"
-      and "zu alt" in m["error"]["msg"] and "Update auf v28" in m["error"]["msg"],
-      str(m["error"]))
+      and "zu alt" in msg_alt and "Update auf v5" in msg_alt
+      and "v28" not in msg_alt, repr(msg_alt))
+# Ohne provides (kein Modul exportiert GetModuleStatus) -> Meldung ohne Versions-Klammer
+no_rpc_expected = {"CallBlocker": {"version": 28, "provides": []},
+                   "TelefonieMonitoring": {"version": 5, "provides": []}}
+mon_orig = monitoring._module_expectations
+monitoring._module_expectations = lambda: no_rpc_expected
+try:
+    m2 = monitoring._collect_module_status(inst_fault, "tok", "PBX-2b")
+finally:
+    monitoring._module_expectations = mon_orig
+msg2 = (m2.get("error") or {}).get("msg", "")
+check("collect: zu alt ohne provides-Info -> kein Versions-Zusatz",
+      "zu alt" in msg2 and "Update auf v" not in msg2, repr(msg2))
 m = monitoring._collect_module_status(inst_net, "tok", "PBX-3")
 check("collect: Verbindungsfehler -> unreachable", m["error"]["category"] == "unreachable", str(m["error"]))
 

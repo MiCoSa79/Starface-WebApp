@@ -36,6 +36,8 @@ conn.execute("INSERT INTO installations (name, url, monitoring_instance_name, is
              ("PBX-TEIL", "http://teil.invalid", "TelefonieMonitoring"))
 conn.execute("INSERT INTO installations (name, url, monitoring_instance_name, is_starface10) VALUES (?,?,?,1)",
              ("PBX-FAULT", "http://fault.invalid", "TelefonieMonitoring"))
+conn.execute("INSERT INTO installations (name, url, monitoring_instance_name, is_starface10) VALUES (?,?,?,1)",
+             ("PBX-ALT", "http://alt.invalid", "TelefonieMonitoring"))
 conn.commit(); conn.close()
 
 INSTALLED_OK = json.dumps([
@@ -52,6 +54,9 @@ INSTALLED_ALT = json.dumps([
 def fake_xmlrpc(url, token, method, params=None, instance_name=None):
     if "fault" in url:
         raise RuntimeError("STARFACE-Fehler: unknown method -> Monitoring-Modul fehlt")
+    if "alt" in url and method == "GetModuleStatus":
+        # Anlage hat Monitoring-Modul v4: GetStats lief, GetModuleStatus existiert nicht
+        raise RuntimeError("STARFACE-Fehler: unknown method GetModuleStatus")
     if method == "GetStats":
         return {"members": {"systemName": "pbx-demo", "systemVersion": "10.0.2.5",
                             "providerStatus": "sip01@pbx-demo=Registered"}}
@@ -79,6 +84,8 @@ checks = {
     "CallBlocker outdated (PBX-TEIL)": 'title="Auf der Anlage ist eine ältere Version installiert."' in h,
     "TelefonieMonitoring missing (PBX-TEIL)": "Nicht installiert" in h,
     "PBX-FAULT-Hinweis in Karte": "Monitoring-Modul nicht installiert oder eingerichtet" in h,
+    "PBX-ALT zu alt -> Update auf v5 (NICHT v28!)": ("Update auf v5 erforderlich" in h
+                                                     and "v28 erforderlich" not in h),
     "Version 27 → 28": "v27 → v28" in h,
     "keine Emojis": "✓" not in h and "⚠" not in h,
     "Instanz aktiv": "CallBlocker (aktiv)" in h,
@@ -96,6 +103,10 @@ assert insts["PBX-TEIL"]["modules"]["list"][0]["status"] == "outdated"
 assert insts["PBX-TEIL"]["modules"]["list"][1]["status"] == "missing"
 assert insts["PBX-FAULT"]["modules"]["list"] is None
 assert insts["PBX-FAULT"]["modules"]["error"]["category"] == "module"
+assert insts["PBX-ALT"]["modules"]["list"] is None
+assert insts["PBX-ALT"]["modules"]["error"]["msg"] == \
+    "Monitoring-Modul-Version zu alt — GetModuleStatus fehlt (Update auf v5 erforderlich)", \
+    insts["PBX-ALT"]["modules"]["error"]
 assert st["last_error"]["category"] == "module"
-print("OK   /api/monitoring/status: PBX-GUT ok / PBX-TEIL outdated+missing / PBX-FAULT module-Fehler (Kategorie)")
+print("OK   /api/monitoring/status: PBX-GUT ok / PBX-TEIL outdated+missing / PBX-FAULT module-Fehler / PBX-ALT zu-alt-nennt-v5 (Kategorie)")
 print("\nLIVE-BEWEIS MODUL-STATUS OK")
