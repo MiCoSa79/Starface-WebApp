@@ -14,7 +14,7 @@ updated: 2026-08-26
 - **v0.0.168:** „Download-Test (Ping)“-Button — Ping-RPC über WebApp-Token (kein Credential-Export); **v0.0.169:** Nav-Link „Modul-Updates“.
 - **v0.0.170–172 (Import-Fallen, im Container /app/app):** `monitoring`/`module_updates`/`updatesign` sind top-level NICHT auflösbar → **Zwei-Wege-Import-Muster** (`try import X / except from app import X`) ist für ALLE app-internen Module Pflicht; v0.0.171 war dadurch ein **Boot-Crash** (Zirkel `module_updates → from main import`); **permanenter Boot-Starttest** `tmp_tests/boot_app_pkg_test.py` (Container-Sicht) verhindert Wiederholung.
 - **v0.0.173:** **XML-Escaping** im XML-RPC-Body (`_xml_escape`: `&`→`&amp;` …) — signedUrl mit `?md5=..&expires=..` brach das Anlagen-Parsing (WstxUnexpectedCharException); Test `tmp_tests/xmlrpc_escape_test.py` (Body-Parsbarkeits-Beweis).
-- **Offen (Abnahme):** v0.0.173 deployen → „Download-Test“ klicken → erwartet `UpdateDeployer: Download-Test ok — HTTP 200 (4210 bytes)` → **P1 final**; danach T6: UpdateFromUrl (Import) + Token-Schutz.
+- **✅ P1 FINAL (26.08., v0.0.173):** „UpdateDeployer: Download-Test ok — HTTP 200 (4210 bytes)“ live bestätigt (Testanlage). **T5 abgenommen.** Nächster Schritt: **T6** — UpdateDeployer v2 mit `UpdateFromUrl` (Import auf der Anlage, Instanz-Token-Schutz, `push_update`-E2E).
 
 ## Ziel
 
