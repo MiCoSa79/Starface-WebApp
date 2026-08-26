@@ -1,0 +1,52 @@
+# nginx-updates.conf.template — Update-Server module-updates (Starface-WebApp-Stack)
+#
+# Wird vom offiziellen nginx:alpine-Image als /etc/nginx/templates/default.conf.template
+# eingebunden: Der docker-entrypoint rendert jede *.template per envsubst nach
+# /etc/nginx/conf.d/<name>. Da die Datei default.conf.template heißt, ÜBERSCHREIBT das
+# gerenderte Ergebnis die Image-Standard-default.conf -> kein Serverblock-Konflikt.
+#
+# ⚠️ ${UPDATE_SIGNING_SECRET} wird beim Container-Start aus der Env-Variable ersetzt
+#    (Compose: environment.UPDATE_SIGNING_SECRET, lokale Datei, NIE committen).
+#    nginx-Variablen wie $uri / $arg_md5 / $secure_link_expires bleiben unangetastet,
+#    weil der offizielle 20-envsubst-on-templates.sh nur in der Umgebung GESETZTE
+#    Variablen ersetzt — alle anderen $x-Formen passieren unverändert.
+#
+# Verhalten: ohne Signatur → 403 | abgelaufen → 410 | gültig → 200 (no-store)
+# Datei im Stack: /DATA/AppData/starface-webapp/update-server/default.conf.template
+
+limit_req_zone $binary_remote_addr zone=dl:10m rate=10r/m;
+
+server {
+    listen 80;
+    server_name _;
+
+    root /usr/share/nginx/html;
+    autoindex off;
+
+    # ── Modul-Pakete: NUR mit gültiger, zeitlich gültiger Signatur ──────────
+    location /modules/ {
+        limit_req zone=dl burst=5 nodelay;
+
+        secure_link $arg_md5,$arg_expires;
+        secure_link_md5 "$secure_link_expires$uri ${UPDATE_SIGNING_SECRET}";
+        if ($secure_link = "") { return 403; }   # fehlende/falsche Signatur
+        if ($secure_link = "0") { return 410; }  # abgelaufen
+
+        add_header Cache-Control "no-store";
+
+        # keine versteckten Dateien (.git, .htaccess …)
+        location ~ /\. { deny all; }
+    }
+
+    # ── versions.json (Manifest): ebenfalls nur signiert ────────────────────
+    location = /versions.json {
+        limit_req zone=dl burst=5 nodelay;
+
+        secure_link $arg_md5,$arg_expires;
+        secure_link_md5 "$secure_link_expires$uri ${UPDATE_SIGNING_SECRET}";
+        if ($secure_link = "") { return 403; }
+        if ($secure_link = "0") { return 410; }
+
+        add_header Cache-Control "no-store";
+    }
+}
