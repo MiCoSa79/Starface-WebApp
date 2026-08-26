@@ -59,6 +59,7 @@ Die ZimaOS-UI nutzt das **CasaOS-compose-Format** (x-casaos-Block, Ingress-Ports
 
 ## Offene Punkte
 
+- **Modul-Auto-Update (geplant, 2026-08-26):** Update-Server als 4. Stack-Service + zentrales Updater-Modul — Architektur & Plan: [[modul-auto-update]]
 - **v4-Import auf der Anlage** (TelefonieMonitoring.sfm v4 → STARFACE-Admin, Instanz neu speichern) — danach Statusseite grün + saubere `user@host`-Providernamen in Grafana
 - **InfluxDB-Bucket `telefonie`:** alte `providers`-Points (vor v0.0.119) enthalten rohe Wire-Settings-Strings mit SIP-Anmeldedaten → bereinigen/rotiert werden
 - Dashboard-Verfeinerung (z. B. CPU-Auslastung, Alerts, mehr Anlagen) nach Bedarf

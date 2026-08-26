@@ -10,6 +10,8 @@ updated: 2026-08-25
 
 **Analyse:** 2026-08-25, javap (JDK 21) + CFR 0.152. Alle 15 Root-Klassen + 15 Jar-Klassen + Descriptor-Verdrahtung rekonstruiert. Das Modul (o-byte/Hermstedt) liefert STARFACE-Monitoringdaten als **Checkmk-Text**, als **XML**, über **XML-RPC** und macht einen **täglichen Lizenz-Check** (olm.o-byte.com, Produkt `olm-10065`).
 
+> **Zweiter RE-Durchlauf (2026-08-26):** [[admin-power-pack-re]] — Fluxpunkt-Admin Power Pack mit seiner **Self-Update-Mechanik** (programmatische Import-API `ModuleRegistry.importModule`, Update-Server `updates.sf-app.de`, `<Instanzname>.xmlrpc`-Protokoll). Folgeprojekt: [[modul-auto-update]].
+
 ## Architektur (3 Ebenen)
 
 | Ebene | Inhalt |
