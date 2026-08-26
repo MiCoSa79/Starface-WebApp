@@ -82,6 +82,20 @@ input[type="checkbox"]{margin-right:6px;transform:scale(1.2)}
                 <div class="hint">Instanzname des Telefonie-Monitoring-Moduls (z. B. „TelefonieMonitoring") — der Sammler ruft [Instanzname].GetStats auf (System-Metriken + Provider-Status → Grafana)</div>
             </div>
         </div>
+        <div class="form-row">
+            <div>
+                <label for="deployer_instance_name">UpdateDeployer-Instanz</label>
+                <input type="text" id="deployer_instance_name" name="deployer_instance_name" value="{{ inst.deployer_instance_name }}" autocomplete="off">
+                <div class="hint">Instanzname des UpdateDeployer-Moduls (Phase 2, z. B. „UpdateDeployer") — die WebApp ruft [Instanzname].UpdateFromUrl auf, um Module zu aktualisieren</div>
+            </div>
+        </div>
+        <div class="form-row">
+            <div>
+                <label for="deployer_token">UpdateDeployer-Token</label>
+                <input type="password" id="deployer_token" name="deployer_token" value="" placeholder="…leer lassen = unverändert" autocomplete="off">
+                <div class="hint">Instanz-Token des UpdateDeployer-Moduls (Schutz gegen unautorisierte RPCs). Wird verschlüsselt gespeichert und beim Update-Aufruf als updateToken mitgegeben — nur setzen, wenn das Modul ein Token prüft</div>
+            </div>
+        </div>
         <div class="form-row" style="justify-content:flex-end;gap:12px">
             <a href="/admin" class="btn-secondary">Abbrechen</a>
             <button type="submit" class="btn-primary">Speichern</button>

@@ -204,6 +204,12 @@ def init_db():
         icols = [r[1] for r in conn.execute("PRAGMA table_info(installations)").fetchall()]
         if "monitoring_instance_name" not in icols:
             conn.execute("ALTER TABLE installations ADD COLUMN monitoring_instance_name TEXT DEFAULT ''")
+        # Migration (Phase 2 UpdateDeployer): Instanzname + Update-Token
+        icols = [r[1] for r in conn.execute("PRAGMA table_info(installations)").fetchall()]
+        if "deployer_instance_name" not in icols:
+            conn.execute("ALTER TABLE installations ADD COLUMN deployer_instance_name TEXT DEFAULT ''")
+        if "deployer_token" not in icols:
+            conn.execute("ALTER TABLE installations ADD COLUMN deployer_token TEXT DEFAULT ''")
     try:
         conn.execute("""
             CREATE TABLE IF NOT EXISTS oauth_auths (
@@ -933,6 +939,59 @@ async def admin_modules_page(request: Request):
                                        "mirror_base": _module_update_base()})
 
 
+@app.get("/admin/updates", response_class=HTMLResponse)
+async def admin_updates_page(request: Request):
+    """Admin-Seite: Modul-Updates über den UpdateDeployer (Phase 2)."""
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user or not user["is_admin"]:
+        return RedirectResponse("/dashboard")
+    from monitoring import _module_expectations
+    conn = _db()
+    installations = conn.execute("SELECT * FROM installations ORDER BY name").fetchall()
+    conn.close()
+    return TEMPLATES.TemplateResponse(
+        "admin_updates.html",
+        {"request": request, "user": user, "installations": installations,
+         "modules": _module_expectations(), "active": "updates",
+         "version": os.environ.get("APP_VERSION", "dev"),
+         "msg": request.query_params.get("msg", "")})
+
+
+@app.post("/admin/updates/push")
+async def admin_updates_push(request: Request):
+    """Stößt ein Modul-Update auf einer Anlage an (signierte URL + RPC)."""
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user or not user["is_admin"]:
+        return RedirectResponse("/dashboard")
+    form = await request.form()
+    try:
+        inst_id = int(form.get("installation_id", "0"))
+    except ValueError:
+        inst_id = 0
+    module_name = form.get("module_name", "")
+    filename = form.get("filename", "")
+    version = form.get("version", "")
+    conn = _db()
+    inst = conn.execute("SELECT * FROM installations WHERE id=?", (inst_id,)).fetchone()
+    conn.close()
+    if not inst:
+        return RedirectResponse(
+            "/admin/updates?msg=" + quote("Unbekannte Anlage."), status_code=303)
+    try:
+        from module_updates import push_update  # lazy: verhindert Import-Zirkel
+        token = _get_token(inst)
+        update_token = _decrypt(inst["deployer_token"]) if inst["deployer_token"] else ""
+        res = push_update(inst, token, module_name=module_name, filename=filename,
+                          target_version=version, update_token=update_token)
+        if res["status"] == "ok":
+            msg = f"{module_name}: Update angestoßen"
+        else:
+            msg = f"{module_name}: FEHLER — {res['message']}"
+    except Exception as e:  # OAuth/Verbindung defekt o. ä. → als Meldung, kein Crash
+        msg = f"{module_name}: FEHLER — {e}"
+    return RedirectResponse("/admin/updates?msg=" + quote(msg), status_code=303)
+
+
 @app.get("/admin/modules/{module_id}/download")
 async def admin_module_download(request: Request, module_id: int):
     """Download einer .sfm-Datei (nur Admins). Dateiname kommt aus der DB
@@ -1070,6 +1129,8 @@ async def admin_installation_update(request: Request, inst_id: int,
                                     client_secret: str = Form(""),
                                     module_instance_name: str = Form(""),
                                     monitoring_instance_name: str = Form(""),
+                                    deployer_instance_name: str = Form(""),
+                                    deployer_token: str = Form(""),
                                     is_starface10: int = Form(1)):
     """Update einer bestehenden Anlage."""
     user = verify_session(request.cookies.get(SESSION_COOKIE))
@@ -1084,9 +1145,12 @@ async def admin_installation_update(request: Request, inst_id: int,
     new_auth_id = _encrypt(auth_id) if auth_id else inst["auth_id"]
     new_auth_pass = _encrypt(auth_pass) if auth_pass else inst["auth_pass"]
     new_client_secret = _encrypt(client_secret) if client_secret else inst["client_secret"]
+    new_deployer_token = _encrypt(deployer_token) if deployer_token else inst["deployer_token"]
     conn.execute(
-        "UPDATE installations SET name=?, url=?, auth_id=?, auth_pass=?, client_secret=?, module_instance_name=?, monitoring_instance_name=?, is_starface10=? WHERE id=?",
-        (name, url, new_auth_id, new_auth_pass, new_client_secret, module_instance_name, monitoring_instance_name, bool(is_starface10), inst_id))
+        "UPDATE installations SET name=?, url=?, auth_id=?, auth_pass=?, client_secret=?, module_instance_name=?, monitoring_instance_name=?, deployer_instance_name=?, deployer_token=?, is_starface10=? WHERE id=?",
+        (name, url, new_auth_id, new_auth_pass, new_client_secret, module_instance_name,
+         monitoring_instance_name, deployer_instance_name, new_deployer_token,
+         bool(is_starface10), inst_id))
     conn.commit()
     conn.close()
     _log_event(inst_id, user["user_id"], "installation_update", name)

@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}STARFACE WebApp — Modul-Updates{% endblock %}
+{% block styles %}
+<style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+               background: #1a1a2e; color: #e0e0e0; }
+        .topbar { background: #16213e; padding: calc(16px + env(safe-area-inset-top, 0px)) 16px 16px;
+                  display: flex; justify-content: space-between; align-items: center;
+                  border-bottom: 1px solid #333; position: relative; z-index: 2; }
+        .topbar h1 { font-size: 20px; display: flex; align-items: center; gap: 8px; }
+        .topbar h1 span { color: #e94560; }
+        .topbar a { color: #e94560; text-decoration: none; margin-left: 16px; }
+        .container { max-width: 900px; margin: 0 auto; padding: 24px;
+                     padding-bottom: 60px; }
+        h2 { font-size: 18px; margin: 24px 0 12px; color: #e94560; }
+        h2:first-child { margin-top: 0; }
+        .msg { padding: 12px 16px; border-radius: 6px; margin: 16px 0; font-size: 14px;
+               border: 1px solid #333; }
+        .msg.ok { background: #1d3a2a; color: #95d5b2; border-color: #2d6a4f; }
+        .msg.err { background: #3a1d1d; color: #d59595; border-color: #6a2d2d; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+        th { text-align: left; padding: 10px 14px; background: #0f3460;
+             color: #aaa; font-size: 13px; font-weight: 500; border-bottom: 1px solid #333; }
+        td { padding: 12px 14px; border-bottom: 1px solid #222; vertical-align: top; font-size: 14px; }
+        tr:last-child td { border-bottom: none; }
+        .btn-primary { display: inline-block; padding: 6px 14px; border-radius: 6px;
+                       background: #e94560; color: #fff; font-size: 13px;
+                       border: none; cursor: pointer; }
+        .btn-primary:hover { background: #d63851; }
+        .btn-secondary { display: inline-block; padding: 6px 14px; border-radius: 6px;
+                         text-decoration: none; background: #333; color: #ccc;
+                         font-size: 13px; border: none; cursor: pointer; }
+        .btn-secondary:hover { background: #444; }
+        .empty { color: #666; text-align: center; padding: 24px; }
+        .muted { color: #888; font-size: 12px; }
+        .hint { color: #888; font-size: 12px; margin-top: 4px; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="topbar">
+    <h1>STARFACE WebApp <span>/ Modul-Updates</span></h1>
+    <div><a href="/admin">← Admin</a></div>
+</div>
+<div class="container">
+    {% if msg %}
+    <div class="msg {{ 'ok' if 'FEHLER' not in msg and 'Unbekannte' not in msg else 'err' }}">{{ msg }}</div>
+    {% endif %}
+
+    {% if not modules %}
+    <p class="empty">Keine Module im ausgelieferten Sortiment (app/modules/).<br>
+       Erst Module spiegeln/<code>versions.json</code> erzeugen (Admin → Modul-Verwaltung).</p>
+    {% endif %}
+
+    {% if not installations %}
+    <p class="empty">Keine Anlagen konfiguriert — bitte zuerst unter <a href="/admin" class="btn-secondary">Admin</a> eine Anlage anlegen.</p>
+    {% endif %}
+
+    {% for inst in installations %}
+    <h2>{{ inst.name }} <span class="muted">({{ inst.url }})</span></h2>
+    {% if not inst.deployer_instance_name %}
+    <p class="hint" style="margin-bottom:16px">
+        ⚠ Keine UpdateDeployer-Instanz gesetzt — bitte unter
+        <a href="/admin/installations/{{ inst.id }}/edit" style="color:#e94560">Anlage bearbeiten</a>
+        Instanzname (+ optional Token) hinterlegen. Ohne Instanzname schlägt der Update-Aufruf fehl.
+    </p>
+    {% else %}
+    <p class="hint" style="margin-bottom:16px">
+        UpdateDeployer-Instanz: <code>{{ inst.deployer_instance_name }}</code>
+        {% if inst.deployer_token %}· Token: gesetzt{% else %}· Token: nicht gesetzt (RPC ohne updateToken){% endif %}
+    </p>
+    {% endif %}
+
+    <table>
+        <tr><th>Modul</th><th>Version (SOLL)</th><th>Aktion</th></tr>
+        {% for name, info in modules.items() %}
+        <tr>
+            <td>{{ name }}</td>
+            <td>v{{ info.version }}</td>
+            <td>
+                <form method="post" action="/admin/updates/push" style="margin:0">
+                    <input type="hidden" name="installation_id" value="{{ inst.id }}">
+                    <input type="hidden" name="module_name" value="{{ name }}">
+                    <input type="hidden" name="filename" value="{{ info.file }}">
+                    <input type="hidden" name="version" value="{{ info.version }}">
+                    <button type="submit" class="btn-primary">Update anstoßen</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% endfor %}
+
+    <p class="hint">Signierte, zeitbegrenzte Download-URL (5 min) wird serverseitig erzeugt; der
+       UpdateDeployer auf der Anlage lädt das Paket direkt vom Update-Server
+       (modulupdates.meiser.family) und importiert es via
+       <code>ModuleRegistry.importModule()</code>. Geplante Updates erscheinen im
+       Anlagen-Log (Modul log).</p>
+</div>
+{% endblock %}
