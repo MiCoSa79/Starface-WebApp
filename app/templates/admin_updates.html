@@ -71,12 +71,34 @@
     </p>
     {% endif %}
 
+    {% set st = module_states.get(inst.id) if module_states else none %}
+    {% if st and st.error %}
+    <p class="hint" style="color:#d59595; margin-bottom:16px">
+        ⚠ Version (IST) nicht verfügbar: {{ st.error.msg }}</p>
+    {% elif st and st.list is none %}
+    <p class="hint" style="color:#888; margin-bottom:16px">⚠ Version (IST) unbekannt.</p>
+    {% endif %}
+
     <table>
-        <tr><th>Modul</th><th>Version (SOLL)</th><th>Aktion</th></tr>
+        <tr><th>Modul</th><th>Version (SOLL)</th><th>Version (IST)</th><th>Aktion</th></tr>
         {% for name, info in modules.items() %}
+        {% set ist = (st.by_name.get(name)) if st and st.by_name else none %}
         <tr>
             <td>{{ name }}</td>
             <td>v{{ info.version }}</td>
+            <td>
+                {% if not st or st.error %}
+                <span class="muted">—</span>
+                {% elif ist is none %}
+                <span class="muted">unbekannt</span>
+                {% elif not ist.installed %}
+                <span style="color:#d59595">nicht installiert</span>
+                {% elif ist.status == 'ok' %}
+                <span style="color:#95d5b2">v{{ ist.version_ist }}</span>
+                {% else %}
+                <span style="color:#ffb74d">v{{ ist.version_ist }} <span class="muted">(Update verfügbar)</span></span>
+                {% endif %}
+            </td>
             <td>
                 <form method="post" action="/admin/updates/push" style="margin:0">
                     <input type="hidden" name="installation_id" value="{{ inst.id }}">

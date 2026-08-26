@@ -960,15 +960,35 @@ async def admin_updates_page(request: Request):
     installations = conn.execute("SELECT * FROM installations ORDER BY name").fetchall()
     conn.close()
     try:
-        from monitoring import _module_expectations
+        from monitoring import _module_expectations, _collect_module_status
     except ImportError:
-        from app.monitoring import _module_expectations
+        from app.monitoring import _module_expectations, _collect_module_status
+    # IST-Versionen je Anlage — beim Seitenaufruf frisch abrufen (GetModuleStatus
+    # auf der Monitoring-Instanz, gleiche Fehlerklassen wie die Monitoring-Karte).
+    # Fehlertolerant: einzelne Anlagen dürfen die Seite nie blockieren.
+    module_states = {}
+    for inst in installations:
+        if not inst["monitoring_instance_name"]:
+            module_states[inst["id"]] = {"list": None, "by_name": {}, "error": {
+                "category": "config",
+                "msg": "Keine Monitoring-Instanz konfiguriert — unter Anlage bearbeiten "
+                      "den Instanznamen des TelefonieMonitoring-Moduls hinterlegen."}}
+            continue
+        try:
+            token = _get_token(inst)
+            st = _collect_module_status(inst, token, inst["name"])
+            st["by_name"] = {it["name"]: it for it in st.get("list") or []}
+            module_states[inst["id"]] = st
+        except Exception as e:  # Token-/Transportfehler: Seite zeigen, Status „—“
+            module_states[inst["id"]] = {"list": None, "by_name": {},
+                                         "error": {"category": "fetch", "msg": str(e)}}
     return TEMPLATES.TemplateResponse(
         "admin_updates.html",
         {"request": request, "user": user, "installations": installations,
          "modules": _module_expectations(), "active": "updates",
          "version": os.environ.get("APP_VERSION", "dev"),
-         "msg": request.query_params.get("msg", "")})
+         "msg": request.query_params.get("msg", ""),
+         "module_states": module_states})
 
 
 @app.post("/admin/updates/push")
