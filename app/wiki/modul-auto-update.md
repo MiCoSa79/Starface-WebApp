@@ -57,7 +57,7 @@ ZimaOS-Stack ───┐
 ## Umsetzung (5 Tasks, TDD — Details im Plan-Dokument)
 
 1. ✅ **Signatur-Bibliothek** `app/updatesign.py` (+ `tmp_tests/test_updatesign.py`) — `secure_link`-kompatible URLs (`_nginx_md5`, `build_signed_url`, `parse_parts`), 2 Known-Vektoren von Hand + Roundtrip/TTL/URI-Differenz, 8/8 grün; Suite unverändert grün (module_status_test, error_box_test, monitoring_rechte_e2e 17/17, module_status_live)
-2. **nginx-Config** `nginx-updates.conf` — `secure_link`, `limit_req`, read-only, 403/410/200-Verhalten lokal getestet (Docker-Testcontainer)
+2. **nginx-Config** `deploy/nginx-updates.conf` + Testskript `deploy/nginx-updates-test.sh` — `secure_link` (403/410/200), `limit_req`, read-only; **Broadcast-Test auf ZimaOS ausstehend**: Skript startet nginx:alpine-Testcontainer (Port 8896), signiert selbst per openssl (Kreuzcheck gegen `updatesign` ✅ identisch), prüft 403/410/200 + Inhalt
 3. **WebApp-Spiegel** `mirror_modules()` beim Startup — `.sfm` aus Image → `data/modules` + `versions.json` im `is`-Schema (MD5 je Datei)
 4. **Stack-Patch (Kopie!)** — Service `module-updates`, Env `UPDATE_SIGNING_SECRET` + `MODULE_UPDATE_BASE_URL`; `docker compose config` validieren (Skill docker-compose-pruefung)
 5. **Deploy + Abnahme** — 403 ohne Token / 200 mit frischer Signatur / WebApp-Log „mirror ok“; Rollback = nur neue Service-Definition zurück
