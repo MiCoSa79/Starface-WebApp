@@ -1650,3 +1650,37 @@ async def api_monitoring_status(request: Request):
             continue
         installations[name] = vals
     return JSONResponse({**mstatus, "installations": installations})
+
+
+@app.get("/api/monitoring/module-status-raw")
+async def api_monitoring_module_raw(request: Request, installation: str = ""):
+    """Diagnose (nur Admin): ROH-Antwort von GetModuleStatus einer Anlage — OHNE
+    Interpretation durch _compare_modules. Zeigt, was das Modul wirklich liefert:
+    JSON-Array, leere Liste [], Fehlerantwort oder XML-RPC-Fault (inst. zu alt).
+    Dient dem Fehlabgleich „Module werden trotz Installation als nicht installiert
+    angezeigt“ (Befund 2026-08-26)."""
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user:
+        return JSONResponse({"ok": False, "message": "Nicht autorisiert"}, status_code=401)
+    if not user.get("is_admin"):
+        return JSONResponse({"ok": False, "message": "Nur für Admins"}, status_code=403)
+
+    conn = _db()
+    row = conn.execute(
+        "SELECT name, url, monitoring_instance_name FROM installations WHERE name = ?",
+        (installation,)).fetchone()
+    conn.close()
+    if not row:
+        return JSONResponse({"ok": False, "message": "Anlage nicht gefunden"}, status_code=404)
+
+    expected = sorted(monitoring._module_expectations().keys())
+    try:
+        token = _get_token(row)
+        mres = _xmlrpc(row["url"], token, "GetModuleStatus",
+                       instance_name=row["monitoring_instance_name"])
+        raw = mres.get("moduleJson")
+        return JSONResponse({"ok": True, "installation": row["name"],
+                             "raw": raw, "fault": None, "expected": expected})
+    except Exception as e:
+        return JSONResponse({"ok": True, "installation": row["name"],
+                             "raw": None, "fault": str(e), "expected": expected})
