@@ -1,13 +1,14 @@
 ---
 title: STARFACE Anrufblocker (Modul + Verwaltungs-Web-App)
 description: Anrufblocker-Modul (Blacklist-Anrufabweisung) + Multi-User-Web-App zur Listenpflege — Architektur, Betrieb, Versionshistorie.
-updated: 2026-08-25
+updated: 2026-08-26
 ---
 
 # STARFACE Anrufblocker
 
-**Status: umgesetzt und live.** Modul **v28** (Anruf-Block E2E bestanden, Logbeleg
-`BLOCKED: Anruf von ... abgewiesen`) + Web-App, GitHub-Repo `MiCoSa79/Starface-WebApp`,
+**Status: umgesetzt und live.** Modul **v29** (Anruf-Block E2E bestanden, Log jetzt
+nur noch **einzeilig bei Treffern**: `Anruf von der Rufnummer <nr> wurde geblockt`;
+Vendor „Axel Meiser - Kraemer IT“) + Web-App, GitHub-Repo `MiCoSa79/Starface-WebApp`,
 CI → Docker Hub (`micosa79/starface-webapp`), Port 8895.
 
 Zwei Komponenten, die zusammen unerwünschte Anrufe (Spam/Werbung) abweisen:
@@ -26,7 +27,7 @@ Entwicklungs-Grundlage: Community-Doku von SI-Solutions (wiki.si-solutions.ch,
 GitHub-Mirror `Fabian95qw/SFWiki`) — Details siehe
 [[starface-modul-designer]].
 
-## Funktionsweise Modul (Stand v28)
+## Funktionsweise Modul (Stand v29)
 
 - **Einstieg:** AGI-Kernel-Entrypoint („on all incoming calls") auf einer
   Private-Wrapper-Funktion `CallBlockerEntry` — die Java-Funktion `CallBlocker`
@@ -101,6 +102,7 @@ GitHub-Mirror `Fabian95qw/SFWiki`) — Details siehe
 
 | Version | Datum | Inhalt |
 |---|---|---|
+| v29 | 2026-08-26 | **Vendor + Logging (Axel-Vorgabe, F34):** Vendor überall „Axel Meiser - Kraemer IT“; nur noch **GENAU EINE Logzeile, nur bei Treffern**: `Anruf von der Rufnummer <nr> wurde geblockt` (Log2 INFO nach erfolgreichem Hangup); alle übrigen Logs entfernt (EINTRITT, Caller-Nummer, Blocklist-Größe, kein-Match, BLOCKLIST-MATCH, BLOCKED, Hangup-/GetCaller2-/SimpleMatch-Fehler) — Fehlerpfade brechen still ab (BlockStatus=false). Tag `v29`. |
 | v28 | 2026-08-25 | **Blacklist-v64-Muster:** GetCaller2 → foreach über Modul-Liste → SimpleMatch → Hangup + Log2; Entrypoint-Wrapper `CallBlockerEntry` (Modul-Ebene-Variable per UUID, exakt Blacklists Verodrahtung). **LIVE-TEST BESTANDEN.** |
 | v27 | 2026-08-25 | Logging NUR über **Log2** (einziger dokumentierter Log-Baustein); Log4J-Fallback entfernt. |
 | v26 | 2026-08-25 | Logs auf **Log2**-Baustein umgestellt (Modul-/Instanz-Log) + Log4J-Fallback. |
@@ -116,7 +118,7 @@ GitHub-Mirror `Fabian95qw/SFWiki`) — Details siehe
 | v8 | 2026-08-24 | RPC-Wrapper-Funktionen nach XmlMonitoring-Muster (Parameter kommen sonst nicht an) + `<double>`-Parser-Fix. |
 | v4 | 2026-08-24 | Korrekter Instanz-Pfad `IRuntimeEnvironment.getInstanceDataDir()` statt `getenv(STARFACE_MODULE_ID)` + Logging. |
 
-Modul-Historie v4–v28 vollständig (inkl. UUIDs und Commit-Hashes) im Repo
+Modul-Historie v4–v29 vollständig (inkl. UUIDs und Commit-Hashes) im Repo
 `module/` und im Hermes-Wiki; hier die fachlichen Kernpunkte.
 
 ### Web-App

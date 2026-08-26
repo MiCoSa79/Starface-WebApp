@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<module lastChangedTime="1787742000000" moduleType="EXTENDED" createTime="1784793600000" id="cc487008-3504-44da-96cb-504d689c6cff" name="TelefonieMonitoring" specVersion="5" vendor="MiCoSa79" version="7">
+<module lastChangedTime="1787774400000" moduleType="EXTENDED" createTime="1784793600000" id="cc487008-3504-44da-96cb-504d689c6cff" name="TelefonieMonitoring" specVersion="5" vendor="Axel Meiser - Kraemer IT" version="8">
  <description>Telefonie-Monitoring: Systemmetriken (RAM, CPU-Last, STARFACE-Version, Hostname) und SIP-Provider-Status fuer InfluxDB/Grafana.</description>
     <descriptionURL />
     <disabled>false</disabled>
@@ -8,7 +8,7 @@
     <resources />
     <children>
         
-        <function visibility="Private" createTime="1784793600000" id="SystemStatsMonitor" name="SystemStatsMonitor" specVersion="0" vendor="MiCoSa79" version="0">
+        <function visibility="Private" createTime="1784793600000" id="SystemStatsMonitor" name="SystemStatsMonitor" specVersion="0" vendor="Axel Meiser - Kraemer IT" version="0">
             <description>Sammelt Systemmetriken (RAM, CPU-Last, Version, Hostname) und SIP-Provider-Status.</description>
             <descriptionURL />
             <disabled>false</disabled>
@@ -97,7 +97,7 @@
         </function>
 
         
-        <function visibility="Private" createTime="1784793600000" id="ModuleStatus" name="ModuleStatus" specVersion="0" vendor="MiCoSa79" version="0">
+        <function visibility="Private" createTime="1784793600000" id="ModuleStatus" name="ModuleStatus" specVersion="0" vendor="Axel Meiser - Kraemer IT" version="0">
             <description>Liefert installierte Module (Name, Version, Vendor) mit Instanz-Status als JSON.</description>
             <descriptionURL />
             <disabled>false</disabled>
@@ -114,7 +114,7 @@
         </function>
 
         
-        <function visibility="Private" createTime="1784793600000" id="dfd72ef9-94cd-4bbd-9f37-8ca0fc3cf286" name="GetStatsRpc" specVersion="0" vendor="MiCoSa79" version="0">
+        <function visibility="Private" createTime="1784793600000" id="dfd72ef9-94cd-4bbd-9f37-8ca0fc3cf286" name="GetStatsRpc" specVersion="0" vendor="Axel Meiser - Kraemer IT" version="0">
             <description>RPC-Wrapper: liefert alle Monitoring-Daten (Systemmetriken + Provider-Status).</description>
             <descriptionURL />
             <disabled>false</disabled>
@@ -199,7 +199,7 @@
             </outputVars>
             <resources />
             <children>
-                <functionCall createTime="1784793600000" id="748758d7-da58-41b4-b7aa-6aceb2376a4d" name="Call --&gt; SystemStatsMonitor" specVersion="0" vendor="MiCoSa79" version="0">
+                <functionCall createTime="1784793600000" id="748758d7-da58-41b4-b7aa-6aceb2376a4d" name="Call --&gt; SystemStatsMonitor" specVersion="0" vendor="Axel Meiser - Kraemer IT" version="0">
                     <description />
                     <descriptionURL />
                     <disabled>false</disabled>
@@ -289,7 +289,7 @@
         </function>
 
         
-        <function visibility="Private" createTime="1784793600000" id="8d4f2ab8-f025-4e2d-b16f-9f7e6a2a7487" name="GetModuleStatusRpc" specVersion="0" vendor="MiCoSa79" version="0">
+        <function visibility="Private" createTime="1784793600000" id="8d4f2ab8-f025-4e2d-b16f-9f7e6a2a7487" name="GetModuleStatusRpc" specVersion="0" vendor="Axel Meiser - Kraemer IT" version="0">
             <description>RPC-Wrapper: liefert installierte Module + Instanz-Status als JSON (Modul-Abgleich der WebApp).</description>
             <descriptionURL />
             <disabled>false</disabled>
@@ -302,7 +302,7 @@
             </outputVars>
             <resources />
             <children>
-                <functionCall createTime="1784793600000" id="f7ea4c69-4a6f-47b2-9dae-371ff1e38503" name="Call --&gt; ModuleStatus" specVersion="0" vendor="MiCoSa79" version="0">
+                <functionCall createTime="1784793600000" id="f7ea4c69-4a6f-47b2-9dae-371ff1e38503" name="Call --&gt; ModuleStatus" specVersion="0" vendor="Axel Meiser - Kraemer IT" version="0">
                     <description />
                     <descriptionURL />
                     <disabled>false</disabled>
@@ -347,4 +347,4 @@
     </resourceKeys>
     <shortDescription>Systemmetriken + SIP-Provider-Status fuer InfluxDB/Grafana</shortDescription>
     <writeHash>83396addf4bc54dd8b437ddf07934070d39f6b7b</writeHash>
-<noLicenseId>ad920cfbe373c73e1c06f4c57dbaac497688f902</noLicenseId></module>
+<noLicenseId>0a98918b8b2f5a911d3c7a7abb02aa087b1bb1a2</noLicenseId></module>

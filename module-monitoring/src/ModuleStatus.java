@@ -1,6 +1,3 @@
-import java.util.Collections;
-import java.util.List;
-
 import de.vertico.starface.module.core.ModuleRegistry;
 import de.vertico.starface.module.core.model.Module;
 import de.vertico.starface.module.core.model.ModuleInstanceRO;
@@ -10,7 +7,6 @@ import de.vertico.starface.module.core.runtime.IBaseExecutable;
 import de.vertico.starface.module.core.runtime.IRuntimeEnvironment;
 import de.vertico.starface.module.core.runtime.annotations.Function;
 import de.vertico.starface.module.core.runtime.annotations.OutputVar;
-import de.vertico.starface.module.core.runtime.functions.system.Log2;
 
 /**
  * Telefonie-Monitoring: liefert alle installierten Module mit Version, Vendor
@@ -27,7 +23,7 @@ import de.vertico.starface.module.core.runtime.functions.system.Log2;
  *   gerufene de.vertico-Methode gegen die Implementierungsklassen.
  *
  * Antwortformat (JSON, Output "moduleJson"):
- *   [{"id":"...","name":"CallBlocker","version":28,"vendor":"MiCoSa79",
+ *   [{"id":"...","name":"CallBlocker","version":29,"vendor":"Axel Meiser - Kraemer IT",
  *     "instances":[{"name":"CallBlocker","disabled":false}]}]
  * Bei internem Fehler: {"error":"<meldung>"} — die WebApp unterscheidet das
  * von der leeren Liste "[]" (Modul installiert, aber keine Module gemeldet).
@@ -85,16 +81,8 @@ public class ModuleStatus implements IBaseExecutable
 			moduleJson = sb.toString();
 		} catch (Exception e) {
 			moduleJson = "{\"error\":" + json(String.valueOf(e.getMessage())) + "}";
-			try {
-				Log2 l = new Log2();
-				l.logLevel = "ERROR";
-				l.messages = Collections.singletonList("ModuleStatus: " + e.getMessage());
-				l.execute(context);
-			} catch (Exception ignore) {
-				// Logging ist optional — Fehler steht bereits in moduleJson.
-			}
 		}
-	}
+		}
 
 	private static String json(String s)
 	{

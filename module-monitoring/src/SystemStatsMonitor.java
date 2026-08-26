@@ -1,7 +1,6 @@
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -17,7 +16,6 @@ import de.vertico.starface.module.core.runtime.annotations.Function;
 import de.vertico.starface.module.core.runtime.annotations.OutputVar;
 import de.vertico.starface.module.core.runtime.functions.entities.GetStarfaceVersion;
 import de.vertico.starface.module.core.runtime.functions.system.Execute4;
-import de.vertico.starface.module.core.runtime.functions.system.Log2;
 import de.vertico.starface.persistence.connector.WireSettingsHandler;
 
 /**
@@ -117,18 +115,18 @@ public class SystemStatsMonitor implements IBaseExecutable
 			systemVersion = "";
 		}
 
-		// 3) RAM aus /proc/meminfo
+		// 3) RAM aus /proc/meminfo (kein Modul-Log — Vorgabe v8)
 		try {
 			readMeminfo();
 		} catch (Exception e) {
-			log(context, "SystemStats: /proc/meminfo lesen fehlgeschlagen: " + e.getMessage());
+			// bewusst still
 		}
 
 		// 4) CPU-Last aus /proc/loadavg (letzte PID bewusst weggelassen)
 		try {
 			readLoadavg();
 		} catch (Exception e) {
-			log(context, "SystemStats: /proc/loadavg lesen fehlgeschlagen: " + e.getMessage());
+			// bewusst still
 		}
 
 		// 5) CPU-Kerne
@@ -144,9 +142,7 @@ public class SystemStatsMonitor implements IBaseExecutable
 			collectModuleDiag(context);
 		} catch (Exception e) {
 			moduleDiag = "{\"error\":" + json(String.valueOf(e.getMessage())) + "}";
-			log(context, "SystemStats: moduleDiag fehlgeschlagen: " + e.getMessage());
 		}
-		log(context, "SystemStats: moduleDiag=" + moduleDiag);
 	}
 
 	private String shell(IRuntimeEnvironment context, String command) throws Exception
@@ -242,7 +238,7 @@ public class SystemStatsMonitor implements IBaseExecutable
 				configNames.addAll(regs);
 			}
 		} catch (Exception e) {
-			log(context, "SystemStats: getRegisterForProviderLines fehlgeschlagen: " + e.getMessage());
+			// bewusst still (kein Modul-Log — Vorgabe v8)
 		}
 
 		StringBuilder names = new StringBuilder();
@@ -256,7 +252,6 @@ public class SystemStatsMonitor implements IBaseExecutable
 
 		// Status ueber die Asterisk-Registry (o-byte-Muster: "Registered")
 		String regOut = "";
-		int rc = -1;
 		try {
 			Execute4 exe = new Execute4();
 			exe.executeAs = "Asterisk CLI Command";
@@ -264,14 +259,12 @@ public class SystemStatsMonitor implements IBaseExecutable
 			exe.bufferSize = 0x100000;
 			exe.execute(context);
 			regOut = (exe.output == null) ? "" : exe.output;
-			rc = exe.resultCode;
 		} catch (Exception e) {
-			log(context, "SystemStats: 'sip show registry' fehlgeschlagen: " + e.getMessage());
+			// bewusst still (kein Modul-Log — Vorgabe v8)
 		}
 
-		// Rohdaten ins Modul-Log (erste Inbetriebnahme: Format-Check auf der Anlage)
-		log(context, "SystemStats: getRegisterForProviderLines=" + providerNames);
-		log(context, "SystemStats: sip show registry (rc=" + rc + "):\n" + regOut);
+		// Kein Modul-Log der Rohdaten mehr (Vorgabe v8) — Format-Check läuft
+		// ausschließlich über die WebApp-Auswertung (providerStatus/InfluxDB).
 
 		StringBuilder status = new StringBuilder();
 		java.util.List<String[]> registryLines = parseRegistryLines(regOut);
@@ -529,15 +522,5 @@ public class SystemStatsMonitor implements IBaseExecutable
 		return sb.toString();
 	}
 
-	private void log(IRuntimeEnvironment context, String msg)
-	{
-		try {
-			Log2 l = new Log2();
-			l.logLevel = "INFO";
-			l.messages = Collections.singletonList(msg);
-			l.execute(context);
-		} catch (Exception ignore) {
-			// Logging-Fehler duerfen die Funktion nicht brechen
-		}
-	}
+	// Logging komplett entfernt (Vorgabe v8): kein Modul-Log mehr.
 }

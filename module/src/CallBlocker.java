@@ -17,15 +17,17 @@ import de.vertico.starface.module.core.runtime.functions.system.Log2;
 /**
  * CallBlocker — weist Anrufe unerwünschter Rufnummern ab.
  *
- * Ablauf (Blacklist-v64-Muster, v28):
+ * Ablauf (Blacklist-v64-Muster, v29):
  *   1. Caller-ID ermitteln: GetCaller2 → callerSignallingNumber
  *   2. foreach über alle Listeneinträge der Modul-Liste (GUI_GEBLOCKTE_RUFNUMMERN,
  *      wird vom Modul-Editor an den @InputVar Blocklist verdrahtet)
  *   3. Vergleich per originalem STARFACE-SimpleMatch (Wildcard '*' = 0..n Zeichen,
  *      '?' = genau 1, kompletter String-Match)
  *   4. Beim ersten Treffer: Schleife beenden, hangup (Hangup-Baustein, nutzt den
- *      aktiven Call des Threads — Doku: hangup ohne Channel), Log2-Eintrag.
- *   5. Kein Treffer: Anruf läuft unangetastet weiter.
+ *      aktiven Call des Threads) und GENAU EINE Logzeile:
+ *      „Anruf von der Rufnummer <Nummer> wurde geblockt“ (Vorgabe Axel, v29:
+ *      Log nur noch einzeilig und nur bei Treffern — kein sonstiges Logging).
+ *   5. Kein Treffer: Anruf läuft unangetastet weiter, kein Log.
  *
  * Kompilieren (JDK21, Klassen der VM-Edition 10.0.2.5 = Version 65.0):
  *   javac -cp "classes:<PATH>/WEB-INF/classes:<PATH>/WEB-INF/lib/*" CallBlocker.java
@@ -51,15 +53,10 @@ public class CallBlocker implements IAGIJavaExecutable
     @Override
     public void execute(IAGIRuntimeEnvironment context) throws Exception
     {
-        logAll(context, "INFO", "CallBlocker: EINTRITT");
-
         // 1) Caller-ID ermitteln (integrierter GetCaller2-Baustein)
         String callerNumber = resolveCallerNumber(context);
-        logAll(context, "INFO", "CallBlocker: callerSignallingNumber = '"
-               + callerNumber + "'");
         if (callerNumber == null || callerNumber.isEmpty())
         {
-            logAll(context, "WARN", "CallBlocker: keine Anrufernummer -> Abbruch");
             BlockStatus = false;
             return;
         }
@@ -67,12 +64,9 @@ public class CallBlocker implements IAGIJavaExecutable
         // 2) foreach über alle Listeneinträge — SimpleMatch gegen die RAW-Nummer
         if (Blocklist == null)
         {
-            logAll(context, "WARN", "CallBlocker: Blocklist ist null -> Abbruch");
             BlockStatus = false;
             return;
         }
-        logAll(context, "INFO", "CallBlocker: Blocklist hat " + Blocklist.size()
-               + " Eintraege: " + Blocklist);
 
         for (String pattern : Blocklist)
         {
@@ -82,33 +76,26 @@ public class CallBlocker implements IAGIJavaExecutable
             }
             if (simpleMatch(context, callerNumber, pattern))
             {
-                // 3) Treffer: aufhören weiter zu prüfen → hangup + Log
-                logAll(context, "INFO", "BLOCKLIST-MATCH: Muster '" + pattern
-                       + "' traf auf '" + callerNumber + "'");
+                // 3) Treffer: aufhören weiter zu prüfen → hangup + genau EINE
+                //    Logzeile (Vorgabe v29: nur bei Treffern, nur einzeilig)
                 try
                 {
                     Hangup hangup = new Hangup();
                     hangup.execute(context);
-                    logAll(context, "INFO", "BLOCKED: Anruf von " + callerNumber
-                           + " abgewiesen (Blocklist)");
+                    logAll(context, "INFO", "Anruf von der Rufnummer " + callerNumber
+                           + " wurde geblockt");
                     BlockStatus = true;
                     return;
                 }
                 catch (Exception e)
                 {
-                    logAll(context, "ERROR", "CallBlocker: Hangup fehlgeschlagen: "
-                           + e.getClass().getName() + ": " + e.getMessage());
+                    // Hangup-Fehler: Anruf wurde nicht abgewiesen — bewusst
+                    // ohne Log (Vorgabe: Log nur bei Treffern)
                 }
-            }
-            else
-            {
-                logAll(context, "INFO", "CallBlocker: Muster '" + pattern
-                       + "' -> kein Match (Anrufer: '" + callerNumber + "')");
             }
         }
 
-        // 4) Kein Treffer: nichts tun — Anruf läuft normal weiter
-        logAll(context, "INFO", "CallBlocker: kein Treffer -> Anruf laeuft normal weiter");
+        // 4) Kein Treffer: nichts tun — Anruf läuft normal weiter, kein Log
         BlockStatus = false;
     }
 
@@ -126,8 +113,6 @@ public class CallBlocker implements IAGIJavaExecutable
         }
         catch (Exception e)
         {
-            logAll(context, "ERROR", "CallBlocker: GetCaller2 fehlgeschlagen: "
-                   + e.getClass().getName() + ": " + e.getMessage());
             return null;
         }
     }
@@ -152,9 +137,6 @@ public class CallBlocker implements IAGIJavaExecutable
         }
         catch (Exception e)
         {
-            logAll(context, "ERROR", "SimpleMatch-Fehler bei Muster '"
-                   + pattern + "' gegen '" + text + "': "
-                   + e.getClass().getName() + ": " + e.getMessage());
             return false;
         }
     }
