@@ -1,0 +1,109 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<module lastChangedTime="1787767616269" moduleType="EXTENDED" createTime="1787767616269" id="ab50cee5-bae2-4cf4-9378-8ecfa7448791" name="UpdateDeployer" specVersion="5" vendor="MiCoSa79" version="1">
+ <description>UpdateDeployer: zentrales HUB-Modul für automatische Modul-Updates (Phase 2). v1 = PingChannel: End-to-End-Beweis des Update-Kanals (signierter Download von modulupdates.meiser.family).</description>
+    <descriptionURL />
+    <disabled>false</disabled>
+    <inputVars />
+    <outputVars />
+    <resources />
+    <children>
+
+        <function visibility="Private" createTime="1787767616269" id="PingChannel" name="PingChannel" specVersion="0" vendor="MiCoSa79" version="0">
+            <description>Lädt eine signierte, zeitbegrenzte Download-URL und meldet HTTP-Status + gelesene Bytes (Kanal-Beweis).</description>
+            <descriptionURL />
+            <disabled>false</disabled>
+            <inputVars>
+                <variable id="signedUrl" label="signedUrl" name="signedUrl" type="STRING" valueByReference="false" valueByReferenceAllowed="false" valueByValueAllowed="true" visible="true">
+                    <description>Signierte Download-URL (nginx secure_link)</description>
+                    <value />
+                </variable>
+                <variable id="updateToken" label="updateToken" name="updateToken" type="STRING" valueByReference="false" valueByReferenceAllowed="false" valueByValueAllowed="true" visible="true">
+                    <description>Instanz-Token (v1: Echo, Prüfung ab v2)</description>
+                    <value />
+                </variable>
+            </inputVars>
+            <outputVars>
+                <variable id="response" label="response" name="response" type="STRING" valueByReference="false" valueByReferenceAllowed="false" valueByValueAllowed="true" visible="true">
+                    <description>HTTP code (bytes) oder ERROR-Meldung</description>
+                    <value />
+                </variable>
+            </outputVars>
+            <resources />
+            <children />
+            <implementationFile>PingChannel.class</implementationFile>
+        </function>
+
+
+        <function visibility="Private" createTime="1787767616269" id="8c64ecfd-ea58-482c-8670-3cbf121824c9" name="PingChannelRpc" specVersion="0" vendor="MiCoSa79" version="0">
+            <description>RPC-Wrapper: Ping (signedUrl, updateToken) — XmlMonitoring-Muster, verdrahtet auf die Java-Klasse PingChannel.</description>
+            <descriptionURL />
+            <disabled>false</disabled>
+            <inputVars>
+                <variable id="3fcd9a0c-e404-4fff-acc8-b2fb6c46f14d" label="signedUrl" name="signedUrl" type="STRING" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="true" visible="true">
+                    <description>Signierte Download-URL</description>
+                    <value />
+                </variable>
+                <variable id="42cd9042-2789-43de-9a1b-1087247abf53" label="updateToken" name="updateToken" type="STRING" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="true" visible="true">
+                    <description>Instanz-Token (optional)</description>
+                    <value />
+                </variable>
+            </inputVars>
+            <outputVars>
+                <variable id="a8b2311e-eada-48ee-908b-56f031b91c16" label="response" name="response" type="STRING" valueByReference="true" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="true">
+                    <description>HTTP code (bytes) oder ERROR-Meldung</description>
+                    <value />
+                </variable>
+            </outputVars>
+            <resources />
+            <children>
+                <functionCall createTime="1787767616269" id="252c4f19-6c0b-41f6-b96f-3e2529b0703c" name="Call --&gt; PingChannel" specVersion="0" vendor="MiCoSa79" version="0">
+                    <description />
+                    <descriptionURL />
+                    <disabled>false</disabled>
+                    <inputVars>
+                        <variable id="signedUrl" label="" name="signedUrl" type="STRING" valueByReference="true" valueByReferenceAllowed="true" valueByValueAllowed="true" visible="false">
+                            <description />
+                            <value>3fcd9a0c-e404-4fff-acc8-b2fb6c46f14d</value>
+                        </variable>
+                        <variable id="updateToken" label="" name="updateToken" type="STRING" valueByReference="true" valueByReferenceAllowed="true" valueByValueAllowed="true" visible="false">
+                            <description />
+                            <value>42cd9042-2789-43de-9a1b-1087247abf53</value>
+                        </variable>
+                    </inputVars>
+                    <outputVars>
+                        <variable id="response" label="" name="response" type="STRING" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
+                            <description />
+                            <value>a8b2311e-eada-48ee-908b-56f031b91c16</value>
+                        </variable>
+                    </outputVars>
+                    <resources />
+                    <children />
+                    <target targetDomainId="ab50cee5-bae2-4cf4-9378-8ecfa7448791" targetId="PingChannel" targetName="PingChannel" targetVersion="0" />
+                </functionCall>
+            </children>
+        </function>
+    </children>
+    <createdWith>STARFACE 10.0.2.5</createdWith>
+    <defaultLocale>de</defaultLocale>
+    <editable>true</editable>
+    <entryPoints>
+        <rpcEntryPoint id="045e3b6c-aa54-49dd-a05b-e8e87c700f33" name="Ping">
+            <functionReference targetDomainId="ab50cee5-bae2-4cf4-9378-8ecfa7448791" targetId="8c64ecfd-ea58-482c-8670-3cbf121824c9" targetName="PingChannelRpc" targetVersion="0" />
+            <type>XMLRPC_auth</type>
+        </rpcEntryPoint>
+    </entryPoints>
+    <resourceKeys>
+        <entries>
+            <key>en</key>
+            <value>Update Deployer</value>
+        </entries>
+        <entries>
+            <key>de</key>
+            <value>UpdateDeployer</value>
+        </entries>
+        <key>module.name{ab50cee5-bae2-4cf4-9378-8ecfa7448791}</key>
+        <propertyName>NAME</propertyName>
+    </resourceKeys>
+    <shortDescription>Zentraler Modul-Updater (v1: Kanal-Beweis)</shortDescription>
+    <writeHash>18d0f1ebd134c3ad360f7f7de2ac7b4960667804</writeHash>
+<noLicenseId>5158e7bdcb77f80c16a73346b6faa9e5f1040c86</noLicenseId></module>
