@@ -98,6 +98,16 @@ def _grafana_base() -> str:
     return _get_setting("grafana_base_url").strip() or os.environ.get("GRAFANA_BASE_URL", "http://10.0.25.60:8894")
 
 
+def _module_update_base() -> str:
+    """Basis-URL des Update-Servers: Admin-Einstellung > Env > leer (nur intern).
+
+    Leer bedeutet: versions.json-downloadUrl ist nur relativ (/modules/...) —
+    die WebApp ist dann nur im internen Netz erreichbar. Von außen muss hier
+    z. B. https://modulupdates.meiser.family stehen.
+    """
+    return _get_setting("module_update_base_url").strip() or os.environ.get("MODULE_UPDATE_BASE_URL", "")
+
+
 def init_db():
     conn = _db()
     conn.executescript("""
@@ -565,8 +575,10 @@ def _xmlrpc_value(el) -> object:
 
 try:
     import monitoring
+    import mirror
 except ImportError:
     from app import monitoring
+    from app import mirror
 
 
 # ─────────────────────────────────────────────────────────────
@@ -576,6 +588,19 @@ except ImportError:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
+    # Update-Server-Spiegel: .sfm aus dem Image nach <data>/modules + versions.json
+    # (nginx-Service module-updates serviert denselben Ordner read-only; Fehler
+    # hier dürfen den Container-Start NIEMALS brechen → try/except)
+    try:
+        manifest = mirror.mirror_modules(
+            str(Path(__file__).parent / "modules"),
+            str(Path(DB_PATH).parent / "modules"),
+            _module_update_base())
+        n = len(manifest.get("modules", []))
+        print(f"[UpdateServer] Spiegel ok: {n} Modul(e) -> {Path(DB_PATH).parent / 'modules'}, "
+              f"Basis: {_module_update_base() or '(leer, nur intern)'}")
+    except Exception as e:
+        print(f"[UpdateServer] Spiegel FEHLER (Start laeuft weiter): {e}")
     monitoring_task = asyncio.create_task(monitoring.run_loop())
     if ADMIN_USERNAME and ADMIN_PASSWORD:
         conn = _db()
@@ -850,15 +875,19 @@ async def admin_page(request: Request):
                                        "grafana_base": _grafana_base(),
                                        "grafana_admin_uid": "starface-admin-uebersicht",
                                        "grafana_base_url_value": _get_setting("grafana_base_url"),
-                                       "grafana_base_fallback": os.environ.get("GRAFANA_BASE_URL", "http://10.0.25.60:8894")})
+                                       "grafana_base_fallback": os.environ.get("GRAFANA_BASE_URL", "http://10.0.25.60:8894"),
+                                       "module_update_base_url_value": _get_setting("module_update_base_url"),
+                                       "module_update_base_fallback": os.environ.get("MODULE_UPDATE_BASE_URL", "")})
 
 
 @app.post("/admin/settings")
-async def admin_settings(request: Request, grafana_base_url: str = Form("")):
+async def admin_settings(request: Request, grafana_base_url: str = Form(""),
+                         module_update_base_url: str = Form("")):
     user = verify_session(request.cookies.get(SESSION_COOKIE))
     if not user or not user["is_admin"]:
         return RedirectResponse("/dashboard")
     _set_setting("grafana_base_url", (grafana_base_url or "").strip())
+    _set_setting("module_update_base_url", (module_update_base_url or "").strip())
     return RedirectResponse("/admin?set_ok=1", status_code=303)
 
 
@@ -878,11 +907,23 @@ async def admin_modules_page(request: Request):
     conn = _db()
     modules = conn.execute("SELECT * FROM modules ORDER BY name").fetchall()
     conn.close()
+    # Update-Server-Spiegel-Status (versions.json im geteilten data/modules-Ordner)
+    mirror_manifest = None
+    vjson = Path(DB_PATH).parent / "modules" / "versions.json"
+    try:
+        if vjson.is_file():
+            with open(vjson, encoding="utf-8") as fh:
+                mirror_manifest = json.load(fh)
+    except Exception:
+        mirror_manifest = None
     return TEMPLATES.TemplateResponse("modules.html",
                                       {"request": request, "user": user,
                                        "modules": modules,
                                        "active": "modules",
-                                       "version": os.environ.get("APP_VERSION", "dev")})
+                                       "version": os.environ.get("APP_VERSION", "dev"),
+                                       "mirror_active": bool(mirror_manifest),
+                                       "mirror_count": len(mirror_manifest.get("modules", [])) if mirror_manifest else 0,
+                                       "mirror_base": _module_update_base()})
 
 
 @app.get("/admin/modules/{module_id}/download")
