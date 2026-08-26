@@ -940,9 +940,13 @@ async def admin_modules_page(request: Request):
                 mirror_manifest = json.load(fh)
     except Exception:
         mirror_manifest = None
+    # Modul-Dokumentationen (PDF) — Spalte „Dokumentation“ nur bei vorhandener Datei
+    doc_dir = Path(__file__).parent / "static" / "docs"
+    docs = {p.stem: True for p in doc_dir.glob("*.pdf")} if doc_dir.is_dir() else {}
     return TEMPLATES.TemplateResponse("modules.html",
                                       {"request": request, "user": user,
                                        "modules": modules,
+                                       "docs": docs,
                                        "active": "modules",
                                        "version": os.environ.get("APP_VERSION", "dev"),
                                        "mirror_active": bool(mirror_manifest),

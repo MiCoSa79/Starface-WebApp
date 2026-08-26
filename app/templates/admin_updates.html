@@ -44,7 +44,10 @@
 </div>
 <div class="container">
     {% if msg %}
-    <div class="msg {{ 'ok' if 'FEHLER' not in msg and 'Unbekannte' not in msg else 'err' }}">{{ msg }}</div>
+    <div class="msg {{ 'ok' if 'FEHLER' not in msg and 'Unbekannte' not in msg else 'err' }}">
+        <button type="button" onclick="this.closest('.msg').style.display='none'"
+                style="float:right;padding:2px 10px;font-size:12px;cursor:pointer;"
+                class="btn-secondary">OK</button>{{ msg }}</div>
     {% endif %}
 
     {% if not modules %}

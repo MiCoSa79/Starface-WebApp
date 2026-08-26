@@ -26,18 +26,20 @@ Modul-Updates (UpdateDeployer). Repo `MiCoSa79/Starface-WebApp`, Image
 - **Tests:** `tmp_tests/<name>.py` mit eigenem `check()`-Muster (kein pytest);
   Fakes/Zweige für Container-Importe; E2E via TestClient.
 
-## Routen (Stand v0.0.182)
+## Routen (Stand v0.0.190)
 
 | Bereich | Routen |
 |---|---|
 | Dashboard/Login | `/`, `/dashboard`, `/api/login`, `/api/2fa/verify`, `/password`, `/logout`, `/oauth/callback` |
 | Monitoring | `/monitoring`, `/api/monitoring/status`, `/admin/monitoring`, `/health`, `/version` |
 | Anlagen | `/admin/installations` (+ `/…/{id}`, `/edit`, `/delete`, `/test-conn`, `/oauth-start`) |
-| Modul-Updates | `/admin/updates` (+ `/push`, `/ping`), Anlagen-RPC `[Instanz].UpdateFromUrl` |
+| Modul-Updates | `/admin/updates` (+ `/push`, `/push-all`, `/ping`), Anlagen-RPC `[Instanz].UpdateFromUrl` |
 | Modul-Verwaltung | `/admin/modules` (+ `/…/{id}/download`) |
 | Users/System | `/admin/users` (+ role/delete/totp-*), `/admin/settings`, `/admin/access`, `/admin` |
 | Wiki/API-Doku | `/wiki`, `/wiki/search`, `/wiki/{wiki_page}`, `/admin/api-doku`, `/sw.js` |
 | CallBlocker | `/installation/{id}/blocklist` (+ add/remove/update), `/installation/{id}/test` |
+
+**Stand 26.08. (F37/F38, v0.0.190):** Sammel-Buttons je Anlage auf der Modul-Updates-Seite (`POST /admin/updates/push-all`, Modi `install`/`update`) — Details [modul-auto-update](modul-auto-update.md). Modul-Seite: Download-Button **Icon-only**; neue Spalte **„Dokumentation“** (PDF-Badge → `/static/docs/<Modul>.pdf`: CallBlocker v29, TelefonieMonitoring v8, UpdateDeployer v6; Generator `app/scripts/generate_modul_pdfs.py` — nach Versions-Änderungen neu ausführen). Statusmeldungen auf der Modul-Updates-Seite mit **OK-Button** ausblendbar.
 
 ## Wo stehen welche Details?
 

@@ -197,6 +197,8 @@ check("push_update: Token aus Anlagen-Config", calls.get("update_token") == "geh
       str(calls))
 check("Erfolg in UI sichtbar", "Update angestoßen" in r.text,
       repr(r.url) + " | " + r.text[:600].replace("\n", " "))
+check("Statusmeldung hat OK-Button (ausblenden per onclick)",
+      "this.closest('.msg')" in r.text, "OK-Button fehlt")
 
 def fail_push(inst, token, **kw):
     return {"status": "error", "message": "Testanlage nicht erreichbar"}
@@ -215,6 +217,27 @@ r = c.post("/admin/updates/push", data={
 check("Unbekannte Anlage -> redirect ohne Crash",
       r.status_code in (200, 303) and "/admin/updates" in r.url.path,
       f"{r.status_code} {r.url}")
+
+# --- 6. Modul-Seite (/admin/modules): Icon-Download + Dokumentation (PDF) -----
+conn2 = sqlite3.connect(DB)
+conn2.execute(
+    "INSERT OR REPLACE INTO modules (name, filename, version, app_version, description, "
+    "file_size, file_hash, file_mtime) VALUES (?,?,?,?,?,?,?,?)",
+    ("CallBlocker", "CallBlocker.sfm", 29, "v0.0.188", "Test-Beschreibung",
+     12024, "a" * 64, "2026-08-26 20:24:48"))
+conn2.commit()
+conn2.close()
+r = c.get("/admin/modules")
+check("Modul-Seite: Spalte 'Dokumentation' vorhanden",
+      ">Dokumentation<" in r.text, "")
+check("Modul-Seite: PDF-Link je Modul (/static/docs/…)",
+      "/static/docs/CallBlocker.pdf" in r.text, "")
+check("Modul-Seite: Download-Button ohne Text 'Download'",
+      ">Download<" not in r.text, "alter Text-Link noch da")
+check("Modul-Seite: Download-Icon (Title '.sfm-Datei herunterladen')",
+      'title=".sfm-Datei herunterladen"' in r.text, "")
+check("Modul-Seite: Statusmeldung 'Verfügbare Module'",
+      "Verfügbare Module" in r.text, "")
 
 print("\n" + ("ERGEBNIS: ALLE ADMIN-UPDATES-TESTS OK"
               if not FAIL else f"FEHLGESCHLAGEN: {FAIL}"))

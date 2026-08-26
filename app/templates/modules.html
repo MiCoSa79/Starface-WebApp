@@ -95,8 +95,9 @@
         {% if modules %}
         <table>
             <tr>
-                <th style="width:25%">Modul</th>
-                <th style="width:60%">Details</th>
+                <th style="width:22%">Modul</th>
+                <th style="width:48%">Details</th>
+                <th style="width:15%">Dokumentation</th>
                 <th style="width:15%">Aktion</th>
             </tr>
             {% for m in modules %}
@@ -118,11 +119,22 @@
                     </div>
                     {% endif %}
                 </td>
+                <td style="text-align:center;">
+                    {% if docs.get(m.name) %}
+                    <a href="/static/docs/{{ m.name }}.pdf" download
+                       style="display:inline-block;border:1px solid #e94560;color:#e94560;border-radius:3px;padding:2px 6px;font-size:11px;font-weight:700;text-decoration:none;"
+                       title="Dokumentation herunterladen (PDF)">PDF</a>
+                    {% else %}
+                    <span class="muted">—</span>
+                    {% endif %}
+                </td>
                 <td>
-                    <a href="/admin/modules/{{ m.id }}/download?cache={{ m.file_hash[:8] or '0' }}" class="btn-secondary" title="Download">
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px;" aria-hidden="true">
+                    <a href="/admin/modules/{{ m.id }}/download?cache={{ m.file_hash[:8] or '0' }}"
+                       style="padding:4px 8px;display:inline-flex;align-items:center;"
+                       class="btn-secondary" title=".sfm-Datei herunterladen" aria-label=".sfm herunterladen">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                             <path d="M12 3v12"/><path d="m6 11 6 6 6-6"/><path d="M4 21h16"/>
-                        </svg>Download</a>
+                        </svg></a>
                 </td>
             </tr>
             {% endfor %}
