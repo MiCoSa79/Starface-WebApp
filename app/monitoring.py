@@ -116,6 +116,7 @@ def collect_installations() -> int:
     ).fetchall()
     conn.close()
     writes = 0
+    errors = []  # (name, exception, ts) — letzter Fehler gewinnt, sonst Reset
     for inst in rows:
         name = inst["name"]
         try:
@@ -135,8 +136,14 @@ def collect_installations() -> int:
             }
             print(f"[Monitoring] {name}: {len(points)} Points -> InfluxDB")
         except Exception as e:
-            _state["last_error"] = f"{name}: {e}"
+            errors.append((name, e, time.time()))
             print(f"[Monitoring] FEHLER {name}: {e}")
+    # Erfolgreicher Zyklus loescht den Fehler; Fehler tragen Zeitstempel (Anzeige + TTL)
+    if errors:
+        name, e, ts = errors[-1]
+        _state["last_error"] = {"msg": f"{name}: {e}", "ts": ts}
+    else:
+        _state["last_error"] = None
     return writes
 
 
@@ -150,7 +157,7 @@ async def run_loop():
         try:
             _state["total_writes"] += collect_installations()
         except Exception as e:
-            _state["last_error"] = str(e)
+            _state["last_error"] = {"msg": str(e), "ts": time.time()}
             print(f"[Monitoring] Loop-Fehler: {e}")
         await asyncio.sleep(INTERVAL)
 
@@ -184,7 +191,20 @@ def _provider_summary(raw: str) -> dict:
 
 
 def status() -> dict:
-    """Status für die API-Route /api/monitoring/status."""
+    """Status für die API-Route /api/monitoring/status.
+
+    last_error-Semantik: Er ist genau dann gesetzt, wenn der LETZTE Poll-Zyklus
+    einen Fehler hatte (collect_installations resettet ihn bei vollem Erfolg).
+    Ein sichtbarer Fehler "besteht" damit per Definition weiter und bleibt so
+    lange stehen, bis ein Zyklus fehlerfrei durchläuft — es gibt KEIN
+    automatisches Wegblenden nach Zeitablauf bei weiterbestehendem Fehler.
+    Undatierte Alt-Format-Strings (ohne ts) können nicht datiert werden -> None.
+    """
+    le = _state["last_error"]
+    if isinstance(le, dict) and le.get("msg"):
+        last_error = le
+    else:
+        last_error = None
     return {
         "running": _state["running"],
         "interval": INTERVAL,
@@ -192,7 +212,7 @@ def status() -> dict:
         "influx_bucket": INFLUXDB_BUCKET,
         "influx_configured": bool(INFLUXDB_TOKEN),
         "last_run": _state["last_run"],
-        "last_error": _state["last_error"],
+        "last_error": last_error,
         "total_runs": _state["total_runs"],
         "total_writes": _state["total_writes"],
         "installations": {

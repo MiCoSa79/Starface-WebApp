@@ -1,7 +1,7 @@
 ---
 title: STARFACE Telefonie-Monitoring (Modul + WebApp-Sammler)
 description: Modul TelefonieMonitoring (Systemmetriken + SIP-Provider-Status) und WebApp-Sammler nach InfluxDB — Import- und Betriebsanleitung für Admins.
-updated: 2026-08-25
+updated: 2026-08-26
 ---
 
 # STARFACE Telefonie-Monitoring
@@ -60,7 +60,12 @@ letzte Werte pro Installation.
 
 ## 5. Fehlersuche
 
-- **Status-Route**: `last_error` zeigt Poll-Fehler (Token, RPC, InfluxDB).
+- **Status-Route**: `last_error` zeigt Poll-Fehler (Token, RPC, InfluxDB) als
+  `{"msg": ..., "ts": ...}`. **Semantik (seit v0.0.136):** Der Fehler verschwindet
+  automatisch, sobald ein Poll-Zyklus komplett fehlerfrei durchläuft (letzter
+  erfolgreicher Poll ist dann neuer als der Fehler) — ein **weiterbestehender**
+  Fehler wird nie nach Zeitablauf weggeblendet, sondern bleibt mit seiner
+  Auftrittszeit (Europe/Berlin, Sommer-/Winterzeit automatisch) stehen.
 - **Modul-Log** (STARFACE Admin → Module → Instanzen → Log): Rohwerte von
   `getRegisterForProviderLines()` + `sip show registry` beim ersten Lauf.
 - **Grafana**: Datasource `InfluxDB` (Bucket `telefonie`) muss grün sein.
@@ -80,6 +85,9 @@ letzte Werte pro Installation.
 
 | Version | Datum | Inhalt |
 |---|---|---|
+| v0.0.136 | 2026-08-26 | **Fehlerbox-Semantik + Zeitangabe:** `last_error` wird beim ersten komplett fehlerfreien Poll-Zyklus gelöscht (ein „Letzter Fehler“ verschwindet, sobald er **nicht mehr besteht** — auch wenn er Minuten alt ist) und bei weiterbestehendem Fehler **nie** nach Zeitablauf ausgeblendet (bleibt mit aktuellem Zeitstempel stehen). Fehler tragen jetzt `{"msg", "ts"}` — die Box zeigt die Auftrittszeit, alle Zeiten der Monitoring-Seite explizit `Europe/Berlin` (Sommer-/Winterzeit automatisch via `timeZone`). |
+| v0.0.135 | 2026-08-25 | **Monitoring-Auto-Refresh (15 s):** Seitentext „aktualisiert sich alle 15 s“ war nur Text ohne Timer — jetzt `setInterval(refreshMonitoring, 15000)` + fetch `/api/monitoring/status` + DOM-Update (Browser-Beweis). Gleichzeitig Dashboard-Fehlalarm „Provider getrennt obwohl verbunden“ behoben (Ist-Panels nutzen 10-Minuten-Frische-Fenster statt 6h; Ursache: Serienbruch toter Legacy-Serien im Fenster) + Design-Umbau aller 3 Dashboards. |
+| v0.0.120 | 2026-08-25 | **Monitoring für alle eingeloggten Benutzer + rechtebasierte Grafana-Links:** Route `/monitoring` statt admin-only, Anlagen-Filter nach `can_read` (Admin: alle), API `/api/monitoring/status` gefiltert, dezenter SVG-Icon-Button je Anlage → `starface-anlage-detail` (auch auf Dashboard-Karten), `/admin/monitoring` redirectet, Nav-Link für alle. |
 | v0.0.119 | 2026-08-25 | **Provider-Parsing robust:** `_provider_summary` und `build_points` splitten am **letzten** `=` (rsplit) — Namen dürfen kein `=` brechen mehr den Status (Defense-in-Depth zu Modul v4, das ohnehin saubere `user@host`-Namen liefert); Regressionstests für „`=` im Namen“ ergänzt. |
 | v0.0.118 | 2026-08-25 | **Registered-Präfix-Toleranz:** Status-Verbunden-Check als `startswith("Registered")` (deckt „Registered (2 devices)“-Varianten ab); Modul v3-Download. |
 | v0.0.117 | 2026-08-25 | **Badge-Text eindeutig:** Roter Badge zählt Getrennte — „Provider getrennt (x von y)“ statt mehrdeutigem „0/2“. |

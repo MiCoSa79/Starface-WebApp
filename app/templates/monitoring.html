@@ -77,7 +77,9 @@
                 <div><div class="k">Bucket</div><div class="v codes" id="kv-bucket">{{ status.influx_bucket }}</div></div>
             </div>
             {% if status.last_error %}
-            <div style="margin-top:12px;" class="errbox" id="kv-error">Letzter Fehler: {{ status.last_error }}</div>
+            <div id="err-slot"><div class="errbox" style="margin-top:12px;">Letzter Fehler{% if status.last_error is mapping and status.last_error.ts %} (<span data-ts="{{ status.last_error.ts }}">—</span>){% endif %}: {{ status.last_error.msg if status.last_error is mapping else status.last_error }}</div></div>
+            {% else %}
+            <div id="err-slot"></div>
             {% endif %}
         </div>
 
@@ -141,9 +143,11 @@
     </div>
 
     <script>
+        // Zeiten IMMER in Europe/Berlin anzeigen, Sommer-/Winterzeit automatisch
+        // (timeZone-Option) — unabhängig von der Zeitzone des Client-Geräts.
         function fmtTs(ts) {
             if (!ts || ts <= 0) return '—';
-            try { return new Date(ts * 1000).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'medium' }); }
+            try { return new Date(ts * 1000).toLocaleString('de-DE', { timeZone: 'Europe/Berlin', dateStyle: 'short', timeStyle: 'medium' }); }
             catch (e) { return ts; }
         }
         document.querySelectorAll('[data-ts]').forEach(function (el) {
@@ -222,6 +226,21 @@
                 tbody.appendChild(tr);
             });
         }
+        // --- Fehlerbox: anzeigen, solange der Fehler BESTEHT. Der Server löscht
+        // ihn mit dem ersten fehlerfreien Poll-Zyklus (späteres Verschwinden
+        // wäre sonst irreführend); ein weiterbestehender Fehler bleibt stehen. ---
+        function renderError(slot, le) {
+            if (!slot) return;
+            slot.textContent = '';
+            if (!le) return;
+            var msg = (le && le.msg !== undefined) ? le.msg : le;
+            var ts = (le && le.ts) ? parseFloat(le.ts) : 0;
+            var box = document.createElement('div');
+            box.className = 'errbox';
+            box.style.marginTop = '12px';
+            box.textContent = 'Letzter Fehler' + (ts > 0 ? ' (' + fmtTs(ts) + '): ' : ': ') + msg;
+            slot.appendChild(box);
+        }
         function refreshMonitoring() {
             fetch('/api/monitoring/status', { cache: 'no-store' })
                 .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
@@ -233,8 +252,7 @@
                     setVal(document.getElementById('kv-lastrun'), fmtTs(st.last_run || 0));
                     setBadgeText(document.getElementById('kv-influx'), st.influx_configured ? 'konfiguriert' : 'kein Token', st.influx_configured ? 'badge-green' : 'badge-red');
                     setVal(document.getElementById('kv-bucket'), st.influx_bucket);
-                    var err = document.getElementById('kv-error');
-                    if (err) { if (st.last_error) err.textContent = 'Letzter Fehler: ' + st.last_error; else err.remove(); }
+                    renderError(document.getElementById('err-slot'), st.last_error);
                     renderRows(document.getElementById('inst-rows'), st.installations);
                 })
                 .catch(function (e) { console.warn('Monitoring-Refresh fehlgeschlagen:', e); });
