@@ -14,7 +14,9 @@ updated: 2026-08-26
 - **v0.0.168:** „Download-Test (Ping)“-Button — Ping-RPC über WebApp-Token (kein Credential-Export); **v0.0.169:** Nav-Link „Modul-Updates“.
 - **v0.0.170–172 (Import-Fallen, im Container /app/app):** `monitoring`/`module_updates`/`updatesign` sind top-level NICHT auflösbar → **Zwei-Wege-Import-Muster** (`try import X / except from app import X`) ist für ALLE app-internen Module Pflicht; v0.0.171 war dadurch ein **Boot-Crash** (Zirkel `module_updates → from main import`); **permanenter Boot-Starttest** `tmp_tests/boot_app_pkg_test.py` (Container-Sicht) verhindert Wiederholung.
 - **v0.0.173:** **XML-Escaping** im XML-RPC-Body (`_xml_escape`: `&`→`&amp;` …) — signedUrl mit `?md5=..&expires=..` brach das Anlagen-Parsing (WstxUnexpectedCharException); Test `tmp_tests/xmlrpc_escape_test.py` (Body-Parsbarkeits-Beweis).
-- **✅ P1 FINAL (26.08., v0.0.173):** „UpdateDeployer: Download-Test ok — HTTP 200 (4210 bytes)“ live bestätigt (Testanlage). **T5 abgenommen.** Nächster Schritt: **T6** — UpdateDeployer v2 mit `UpdateFromUrl` (Import auf der Anlage, Instanz-Token-Schutz, `push_update`-E2E).
+- **✅ P1 FINAL (26.08., v0.0.173):** „UpdateDeployer: Download-Test ok — HTTP 200 (4210 bytes)“ live bestätigt (Testanlage). **T5 abgenommen.**
+- **🛠 T6 gebaut (26.08. abends):** UpdateDeployer **v2** (Tag v2): `[Instanz].UpdateFromUrl(moduleName, signedUrl, targetVersion, updateToken)` — signierter Download + `ModuleRegistry.importModule(path, true)` + **GU_UPDATE_TOKEN-Instanz-Schutz** (F-C). WebApp-Button „Update anstoßen“ (POST /admin/updates/push) ist vorhanden. **v3** (Tag v3) = Self-Update-Zielpaket; Server-angebot in `app/modules/` ist v3 → im Image ab **v0.0.174**. Import-Paket für die Anlage: `UpdateDeployer_v2.sfm` (Uploads).
+- **⏳ Abnahme (T6, 27.08.):** v2 importieren → Instanz `GU_UPDATE_TOKEN` setzen → WebApp-Anlage `deployer_token` = gleicher Wert → WebApp auf v0.0.174 → „Update anstoßen“ → erwartet `OK: UpdateDeployer v3 importiert`; Beweis: Modul-Version 3 in Anlagen-Registry/Status.
 
 ## Ziel
 
