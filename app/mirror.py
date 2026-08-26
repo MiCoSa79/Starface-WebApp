@@ -79,6 +79,9 @@ def mirror_modules(src_dir: str, dst_dir: str, base_url: str = "") -> dict:
     Returns das geschriebene Manifest.
     """
     os.makedirs(dst_dir, exist_ok=True)
+    # versions.json gehört in den html-ROOT (/versions.json), NICHT nach modules/:
+    # nginx serviert <html-Root>/versions.json und <html-Root>/modules/*.sfm
+    html_root = os.path.dirname(dst_dir.rstrip(os.sep)) or os.sep
     sfm_files = []
     for fname in sorted(os.listdir(src_dir)):
         if not fname.endswith(".sfm"):
@@ -95,6 +98,14 @@ def mirror_modules(src_dir: str, dst_dir: str, base_url: str = "") -> dict:
         except (OSError, zipfile.BadZipFile):
             continue
     manifest = build_versions_json(sfm_files, base_url)
-    with open(os.path.join(dst_dir, "versions.json"), "w", encoding="utf-8") as fh:
+    with open(os.path.join(html_root, "versions.json"), "w", encoding="utf-8") as fh:
         json.dump(manifest, fh, indent=2, ensure_ascii=False)
+    # Legacy aufräumen: erste Version (v0.0.157) schrieb versions.json fälschlich
+    # nach modules/ — die Datei dort stammt von uns und wird entfernt.
+    legacy = os.path.join(dst_dir, "versions.json")
+    if os.path.exists(legacy):
+        try:
+            os.remove(legacy)
+        except OSError:
+            pass
     return manifest

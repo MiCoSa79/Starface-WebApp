@@ -32,8 +32,9 @@ def check(name, cond, detail=""):
 
 # ---------------------------------------------------------------- Vorbereitung
 SRC = os.path.join(tempfile.gettempdir(), "mirror_fakes_src")
-DST = os.path.join(tempfile.gettempdir(), "mirror_fakes_dst")
-for d in (SRC, DST):
+ROOT = os.path.join(tempfile.gettempdir(), "mirror_fakes_root")
+DST = os.path.join(ROOT, "modules")   # wie Produktion: dst = html-Root/modules
+for d in (SRC, ROOT):
     shutil.rmtree(d, ignore_errors=True)
     os.makedirs(d)
 
@@ -60,10 +61,14 @@ copied = sorted(os.listdir(DST))
 check("kopiert: beide .sfm im Ziel",
       "TelefonieMonitoring.sfm" in copied and "CallBlocker.sfm" in copied, str(copied))
 check("kaputte .sfm NICHT kopiert", "kaputt.sfm" not in copied, str(copied))
-check("versions.json geschrieben", "versions.json" in copied, str(copied))
+check("versions.json NICHT in modules/ (gehoert in den html-Root)",
+      "versions.json" not in copied, str(copied))
+root_files = os.listdir(ROOT)
+check("versions.json im html-ROOT neben modules/",
+      "versions.json" in root_files, str(root_files))
 
 # ------------------------------------------------- 2. versions.json-Schema
-with open(os.path.join(DST, "versions.json")) as fh:
+with open(os.path.join(ROOT, "versions.json")) as fh:
     manifest = json.load(fh)
 mods = {m["moduleName"]: m for m in manifest.get("modules", [])}
 
@@ -89,17 +94,24 @@ check("Manifest: md5 = echter Datei-MD5",
 second = mirror.mirror_modules(SRC, DST, "https://modulupdates.meiser.family")
 check("idempotent: 2. Lauf gleicher Manifest-Inhalt (keine Duplikate)",
       second == manifest, "Manifeste unterscheiden sich")
+# Legacy-Cleanup: frühere (falsche) Version lag in modules/ — muss weg
+legacy = os.path.join(DST, "versions.json")
+with open(legacy, "w") as fh:  # Fake-Legacy anlegen
+    fh.write("{}")
+third = mirror.mirror_modules(SRC, DST, "https://modulupdates.meiser.family")
+check("Legacy modules/versions.json wird beim Lauf entfernt",
+      not os.path.exists(legacy), legacy)
 
 # ------------------------------------------------- 4. base_url-Normalisierung
 no_base = mirror.mirror_modules(SRC, DST, "")
-u = json.load(open(os.path.join(DST, "versions.json")))["modules"][0]["versions"][0]["downloadUrl"]
+u = json.load(open(os.path.join(ROOT, "versions.json")))["modules"][0]["versions"][0]["downloadUrl"]
 check("base_url leer -> relativer Pfad", u == "/modules/CallBlocker.sfm" or u == "/modules/TelefonieMonitoring.sfm", u)
 slashed = mirror.mirror_modules(SRC, DST, "https://modulupdates.meiser.family/")
-u2 = json.load(open(os.path.join(DST, "versions.json")))["modules"][0]["versions"][0]["downloadUrl"]
+u2 = json.load(open(os.path.join(ROOT, "versions.json")))["modules"][0]["versions"][0]["downloadUrl"]
 check("trailing slash normalisiert (kein //)", "//modules/" not in u2 and u2.startswith("https://modulupdates.meiser.family/modules/"), u2)
 
 shutil.rmtree(SRC, ignore_errors=True)
-shutil.rmtree(DST, ignore_errors=True)
+shutil.rmtree(ROOT, ignore_errors=True)
 
 print()
 print("ERGEBNIS:", f"{len(FAIL)} FAIL" if FAIL else "ALLE TESTS BESTANDEN")
