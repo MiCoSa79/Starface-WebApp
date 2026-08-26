@@ -1015,7 +1015,8 @@ async def admin_updates_push(request: Request):
     if not inst:
         return RedirectResponse(
             "/admin/updates?msg=" + quote("Unbekannte Anlage."), status_code=303)
-    status, msg = _push_module(inst, module_name, filename, version)
+    is_install = form.get("is_install", "0") == "1"
+    status, msg = _push_module(inst, module_name, filename, version, is_install=is_install)
     return RedirectResponse("/admin/updates?msg=" + quote(msg), status_code=303)
 
 
@@ -1027,11 +1028,13 @@ def _norm_version(v):
         return None
 
 
-def _push_module(inst, module_name: str, filename: str, version: str):
+def _push_module(inst, module_name: str, filename: str, version: str, is_install: bool = False):
     """Ein Modul-Update/Install auf einer Anlage anstoßen (UpdateDeployer-RPC).
 
-    Rückgabe (status, msg): status in {"ok", "error"}. Genutzt von der
-    Einzel-Route /admin/updates/push UND den Sammel-Buttons (/admin/updates/push-all).
+    Rückgabe: (status, msg) mit status in {"ok", "error"}. Bei is_install=True
+    (Modul war noch nie installiert) lautet die Meldung „Installation angestoßen“.
+    Wird von der Einzel-Route /admin/updates/push und den Sammel-Buttons (push-all)
+    genutzt.
     """
     try:
         token = _get_token(inst)
@@ -1040,7 +1043,8 @@ def _push_module(inst, module_name: str, filename: str, version: str):
                                          filename=filename, target_version=version,
                                          update_token=update_token)
         if res["status"] == "ok":
-            return "ok", f"{module_name}: Update angestoßen"
+            aktion = "Installation angestoßen" if is_install else "Update angestoßen"
+            return "ok", f"{module_name}: {aktion}"
         return "error", f"{module_name}: FEHLER — {res['message']}"
     except Exception as e:  # OAuth/Verbindung defekt o. ä. → als Meldung, kein Crash
         return "error", f"{module_name}: FEHLER — {e}"
@@ -1105,7 +1109,8 @@ async def admin_updates_push_all(request: Request):
         return RedirectResponse("/admin/updates?msg=" + quote(hint), status_code=303)
     msgs = []
     for name, info in rows:
-        _, m = _push_module(inst, name, info.get("file", ""), str(info.get("version", "")))
+        _, m = _push_module(inst, name, info.get("file", ""), str(info.get("version", "")),
+                            is_install=(mode == "install"))
         msgs.append(m)
     msg = msgs[0] if len(msgs) == 1 else " · ".join(msgs)
     return RedirectResponse("/admin/updates?msg=" + quote(msg), status_code=303)

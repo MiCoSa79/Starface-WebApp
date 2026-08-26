@@ -124,10 +124,12 @@ check("Sammel-Buttons zeigen auf /admin/updates/push-all",
       r.text.count("action=\"/admin/updates/push-all\"") == 2)
 
 pushed = []
+pushed_flags = []
 orig_push = app_main._push_module  # echte Funktion sichern (Restore am Ende von 3c)
-def rec_push(inst, module_name, filename, version):
+def rec_push(inst, module_name, filename, version, **kw):
     pushed.append(module_name)
-    return "ok", f"{module_name}: Update angestoßen"
+    pushed_flags.append((module_name, kw.get("is_install", False)))
+    return "ok", f"{module_name}: {'Installation angestoßen' if kw.get('is_install') else 'Update angestoßen'}"
 app_main._push_module = rec_push
 
 # mode=install -> nur CallBlocker (fehlt), TelefonieMonitoring NICHT
@@ -137,7 +139,7 @@ check("push-all install -> Redirect wird gefolgt (200)", r.status_code == 200, s
 check("push-all install: nur fehlende Module angestoßen",
       pushed == ["CallBlocker"], repr(pushed))
 check("push-all install: Meldung im HTML",
-      "CallBlocker: Update angestoßen" in r.text, "msg-Banner fehlt")
+      "CallBlocker: Installation angestoßen" in r.text, "msg-Banner fehlt")
 
 # mode=update -> TelefonieMonitoring veraltet (v7 != SOLL v8) -> genau das eine Update
 def fake_st2(inst, token, name):
@@ -153,6 +155,8 @@ r = c.post("/admin/updates/push-all", data={
     "installation_id": str(inst_id), "mode": "update"})
 check("push-all update: nur veraltete installierte Module angestoßen",
       pushed == ["TelefonieMonitoring"], repr(pushed))
+check("push-all update: Meldung 'Update angestoßen'",
+      "TelefonieMonitoring: Update angestoßen" in r.text, "msg-Banner fehlt")
 
 # mode=update, ALLE aktuell -> nichts anstoßen
 def fake_st3(inst, token, name):
@@ -170,6 +174,26 @@ check("push-all update: bei aktuellen Modulen kein Push",
       pushed == [], repr(pushed))
 check("push-all update: Hinweis 'bereits aktuell' im HTML",
       "Alle Module sind bereits aktuell." in r.text, "Hinweis-Banner fehlt")
+
+# --- 3d. Einzel-Push: Meldetext nach Erst-Installation vs. Update --------------
+pushed.clear(); pushed_flags.clear()
+r = c.post("/admin/updates/push", data={
+    "installation_id": str(inst_id), "module_name": "CallBlocker",
+    "filename": "CallBlocker.sfm", "version": "29",
+    "is_install": "1"})
+check("Einzel-Push Erstinstallation: Meldung 'Installation angestoßen'",
+      "CallBlocker: Installation angestoßen" in r.text, r.text[-400:])
+check("Einzel-Push Erstinstallation: is_install=True übergeben",
+      ("CallBlocker", True) in pushed_flags, repr(pushed_flags))
+pushed.clear(); pushed_flags.clear()
+r = c.post("/admin/updates/push", data={
+    "installation_id": str(inst_id), "module_name": "CallBlocker",
+    "filename": "CallBlocker.sfm", "version": "29",
+    "is_install": "0"})
+check("Einzel-Push Update: Meldung 'Update angestoßen'",
+      "CallBlocker: Update angestoßen" in r.text, r.text[-400:])
+check("Einzel-Push Update: is_install=False übergeben",
+      ("CallBlocker", False) in pushed_flags, repr(pushed_flags))
 app_main._push_module = orig_push  # echte Implementierung wiederherstellen (Sektion 4 testet den Einzel-Push)
 
 # --- 4. POST /admin/updates/push (gemockt) -------------------------------------

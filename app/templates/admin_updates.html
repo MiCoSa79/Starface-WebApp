@@ -121,6 +121,7 @@
                     <input type="hidden" name="module_name" value="{{ name }}">
                     <input type="hidden" name="filename" value="{{ info.file }}">
                     <input type="hidden" name="version" value="{{ info.version }}">
+                    <input type="hidden" name="is_install" value="{{ '1' if missing else '0' }}">
                     {% set missing = ist is not none and not ist.installed %}
                     <button type="submit" class="btn-primary">{{ 'Installation anstoßen' if missing else 'Update anstoßen' }}</button>
                     <button type="submit" class="btn-secondary"
