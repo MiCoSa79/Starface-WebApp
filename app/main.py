@@ -1667,7 +1667,7 @@ async def api_monitoring_module_raw(request: Request, installation: str = ""):
 
     conn = _db()
     row = conn.execute(
-        "SELECT name, url, monitoring_instance_name FROM installations WHERE name = ?",
+        "SELECT * FROM installations WHERE name = ?",
         (installation,)).fetchone()
     conn.close()
     if not row:

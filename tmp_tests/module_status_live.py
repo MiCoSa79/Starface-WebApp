@@ -111,7 +111,20 @@ assert st["last_error"]["category"] == "module"
 print("OK   /api/monitoring/status: PBX-GUT ok / PBX-TEIL outdated+missing / PBX-FAULT module-Fehler / PBX-ALT zu-alt-nennt-v5 (Kategorie)")
 
 # --- Diagnose-Route: ungefilterte GetModuleStatus-Antwort (Admin) ---
-app_main._get_token = lambda inst: "tok"
+# Regression v0.0.144: Route holte nur name/url/monitoring_instance_name -> echter
+# _get_token(row) scheiterte mit KeyError (fehlende Auth-Spalten) -> "Kein Token".
+# Der bisherige Lambda-Mock hat das maskiert. Fake prüft jetzt die Spalten!
+def fake_get_token_row_check(inst):
+    # Achtung: bei sqlite3.Row prüft "k in inst" die WERTE (Sequenz), nicht die
+    # Keys — deshalb inst.keys() verwenden!
+    have = set(inst.keys())
+    missing = [k for k in ("auth_id", "auth_pass", "client_secret",
+                           "is_starface10", "oauth_access", "oauth_refresh",
+                           "oauth_expires") if k not in have]
+    if missing:
+        raise KeyError(f"fehlende Spalten in installations-Zeile: {missing}")
+    return "tok"
+app_main._get_token = fake_get_token_row_check
 app_main._xmlrpc = fake_xmlrpc
 r = c.get("/api/monitoring/module-status-raw?installation=PBX-GUT")
 j = r.json()
