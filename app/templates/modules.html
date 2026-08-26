@@ -90,7 +90,7 @@
         {% if mirror_active %}
         <div class="okmsg">Update-Server-Spiegel aktiv — {{ mirror_count }} Paket(e) unter <span class="codes">/modules</span>, Basis: {{ mirror_base or "(nur intern)" }}</div>
         {% else %}
-        <div class="err">Update-Server-Spiegel noch nicht aktiv — keine versions.json im data/modules-Ordner (Container-Neustart nach Update nötig).</div>
+        <div class="err">Update-Server-Spiegel noch nicht aktiv — keine versions.json im html-Root (&lt;data&gt;/versions.json). Container-Neustart nach Update nötig.</div>
         {% endif %}
         {% if modules %}
         <table>
