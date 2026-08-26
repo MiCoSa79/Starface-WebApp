@@ -105,7 +105,8 @@
                     <input type="hidden" name="module_name" value="{{ name }}">
                     <input type="hidden" name="filename" value="{{ info.file }}">
                     <input type="hidden" name="version" value="{{ info.version }}">
-                    <button type="submit" class="btn-primary">Update anstoßen</button>
+                    {% set missing = ist is not none and not ist.installed %}
+                    <button type="submit" class="btn-primary">{{ 'Installation anstoßen' if missing else 'Update anstoßen' }}</button>
                     <button type="submit" class="btn-secondary"
                             formaction="/admin/updates/ping"
                             title="Download-Beweis: Anlage lädt die signierte URL">

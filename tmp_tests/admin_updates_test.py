@@ -86,6 +86,34 @@ check("Anlagenname sichtbar", "Testanlage" in html)
 check("Deployer-Instanz sichtbar", "UpdateDeployer" in html)
 check("mind. ein Modul-Button", "Update anstoßen" in html)
 
+# --- 3b. Button-Beschriftung: Modul NICHT installiert -> "Installation anstoßen" --
+# Mock der IST-Status-Funktion: CallBlocker fehlt, TelefonieMonitoring ok.
+r = c.post(f"/admin/installations/{inst_id}", data={
+    "name": "Testanlage", "url": "https://anlage.example",
+    "auth_id": "", "auth_pass": "", "client_secret": "",
+    "module_instance_name": "", "monitoring_instance_name": "TelefonieMonitoring",
+    "deployer_instance_name": "UpdateDeployer", "deployer_token": "geheim123",
+    "is_starface10": "1"})
+check("Anlage mit Monitoring-Instanz aktualisiert", r.status_code in (200, 303),
+      f"{r.status_code}")
+
+import monitoring as _mon
+def fake_st(inst, token, name):
+    return {"list": [
+        {"name": "TelefonieMonitoring", "installed": True,
+         "status": "ok", "version_ist": 8},
+        {"name": "CallBlocker", "installed": False,
+         "status": None, "version_ist": None},
+    ]}
+_mon._collect_module_status = fake_st
+app_main._get_token = lambda inst: "oauthtok"  # OAuth-Flow ist hier nicht Gegenstand
+r = c.get("/admin/updates")
+check("GET /admin/updates nach Mock -> 200", r.status_code == 200, str(r.status_code))
+idx = r.text.find("<td>CallBlocker</td>")
+check("Installation anstoßen bei fehlendem Modul", "Installation anstoßen" in r.text,
+      repr(r.text[idx:idx + 420]) if idx >= 0 else "CallBlocker-Zeile nicht gefunden")
+check("Update anstoßen bei installiertem Modul", "Update anstoßen" in r.text)
+
 # --- 4. POST /admin/updates/push (gemockt) -------------------------------------
 calls = {}
 def fake_push(inst, token, **kw):
