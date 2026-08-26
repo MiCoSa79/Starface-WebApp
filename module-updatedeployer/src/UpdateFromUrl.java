@@ -4,9 +4,15 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
+
+import org.springframework.context.ApplicationContext;
 
 import de.vertico.starface.module.core.ModuleRegistry;
+import de.vertico.starface.module.core.model.ModuleInstanceProject;
+import de.vertico.starface.module.core.model.ModuleInstanceRO;
 import de.vertico.starface.module.core.model.VariableType;
 import de.vertico.starface.module.core.model.Visibility;
 import de.vertico.starface.module.core.runtime.IBaseExecutable;
@@ -17,7 +23,8 @@ import de.vertico.starface.module.core.runtime.annotations.OutputVar;
 import de.vertico.starface.module.core.runtime.functions.system.Log2;
 
 /**
- * UpdateDeployer v2 (UpdateFromUrl): echtes Modul-Update über die Anlage.
+ * UpdateDeployer v6 (UpdateFromUrl): echtes Modul-Update ueber die Anlage
+ * inkl. automatischem Neustart aller AKTIVEN Instanzen des Zielmoduls (T7).
  *
  * Ablauf (Anstoß immer von außen per XML-RPC):
  *   1. updateToken gegen Instanz-Variable GU_UPDATE_TOKEN pruefen (F-C-Schutz)
@@ -25,15 +32,27 @@ import de.vertico.starface.module.core.runtime.functions.system.Log2;
  *      validiert expires+md5 -> 403/410/200)
  *   3. Paket in Temp-Datei speichern (Cap 20 MB)
  *   4. ModuleRegistry.importModule(absPfad, true) -> Modul wird ersetzt/importiert
- *   5. Antwort: "OK: <moduleName> v<targetVersion> importiert" bzw. HTTP/ERROR
+ *   5. Alle AKTIVEN Instanzen des Zielmoduls (getModuleName() == moduleName,
+ *      !getDisabled()) automatisch NEU STARTEN — inaktiv bleibt inaktiv.
+ *      Neustart-Mechanik (Bytecode-verifiziert, Muster: Admin Power Pack iO$e
+ *      und Plattform-Baustein DeactivateModuleInstance):
+ *        ModuleRegistry.getInstance4Edit(instId)   -> ModuleInstanceProject
+ *        MR.activateModuleInstance(proj, false)    -> STOP  (Instanz deaktivieren)
+ *        Thread.sleep(500)                          -> warten bis wirklich gestoppt
+ *        MR.activateModuleInstance(proj, true)     -> START
+ *      Der Neustart laeuft in einem eigenen Thread mit 2 s Initial-Verzoegerung,
+ *      damit die XML-RPC-Antwort im Self-Update-Fall sicher den Aufrufer erreicht
+ *      (die aufrufende Instanz gehoert selbst zum Zielmodul und wird mitgestoppt).
+ *   6. Antwort: "OK: <name> v<version> importiert; <n> aktive Instanz(en)
+ *      werden neu gestartet"  bzw.  "OK: ... (keine aktiven Instanzen ...)"
  *
  * Antwortformat (Output "response"):
- *   OK: <name> v<version> importiert
- *   HTTP 403                       (Signatur abgelaufen/ungueltig)
- *   ERROR: <Klassenname>: <Meldung> (netz/io/import)
+ *   OK: ...                                     (Import + Neustart angestossen)
+ *   HTTP 403                                    (Signatur abgelaufen/ungueltig)
+ *   ERROR: <Klassenname>: <Meldung>             (netz/io/import/neustart)
  */
 @Function(visibility=Visibility.Private, rookieFunction=false,
-          description="UpdateDeployer v2: laedt ein signiertes .sfm-Paket und importiert es ueber ModuleRegistry (echtes Update).")
+          description="UpdateDeployer v6: laedt ein signiertes .sfm-Paket, importiert es ueber ModuleRegistry und startet alle aktiven Instanzen des Zielmoduls automatisch neu.")
 public class UpdateFromUrl implements IBaseExecutable
 {
 	@InputVar(label="moduleName", description="Name des Zielmoduls (Log/Status)", type=VariableType.STRING)
@@ -77,7 +96,7 @@ public class UpdateFromUrl implements IBaseExecutable
 			c.setConnectTimeout(15000);
 			c.setReadTimeout(30000);
 			c.setInstanceFollowRedirects(true);
-			c.setRequestProperty("User-Agent", "UpdateDeployer/2 (STARFACE)");
+			c.setRequestProperty("User-Agent", "UpdateDeployer/6 (STARFACE)");
 			int code = c.getResponseCode();
 			if (code != 200) {
 				c.disconnect();
@@ -108,7 +127,53 @@ public class UpdateFromUrl implements IBaseExecutable
 			// 3) Modul-Import (Spring-Bean, nur aus Modulcode erreichbar)
 			ModuleRegistry MR = (ModuleRegistry) context.springApplicationContext().getBean(ModuleRegistry.class);
 			MR.importModule(tmp.toString(), true);
-			response = "OK: " + moduleName + " v" + targetVersion + " importiert";
+			// 4) T7: aktive Instanzen des Zielmoduls ermitteln (inaktiv bleibt inaktiv!)
+			final List<String[]> toRestart = new ArrayList<String[]>();
+			try {
+				for (ModuleInstanceRO mi : MR.getInstalledInstances()) {
+					if (moduleName != null && moduleName.equals(mi.getModuleName()) && !mi.getDisabled()) {
+						toRestart.add(new String[] { mi.getId(), mi.getName() });
+					}
+				}
+			} catch (Exception e) {
+				log(context, "WARN", "UpdateFromUrl: Instanz-Ermittlung fehlgeschlagen: " + e);
+			}
+			if (!toRestart.isEmpty()) {
+				final ApplicationContext appCtx = context.springApplicationContext();
+				Thread t = new Thread(new Runnable() {
+					public void run() {
+						try {
+							Thread.sleep(2000L); // RPC-Antwort zuerst rauslassen
+						} catch (InterruptedException ie) {
+							// egal
+						}
+						try {
+							ModuleRegistry mr = (ModuleRegistry) appCtx.getBean(ModuleRegistry.class);
+							for (String[] inst : toRestart) {
+								try {
+									log(context, "INFO", "UpdateFromUrl: stoppe Instanz " + inst[1] + " (Modul " + moduleName + ") ...");
+									ModuleInstanceProject proj = mr.getInstance4Edit(inst[0]);
+									mr.activateModuleInstance(proj, false); // STOP
+									Thread.sleep(500L);                     // warten bis wirklich gestoppt
+									log(context, "INFO", "UpdateFromUrl: starte Instanz " + inst[1] + " neu ...");
+									mr.activateModuleInstance(proj, true);  // START
+									log(context, "INFO", "UpdateFromUrl: Instanz " + inst[1] + " neu gestartet (Modul " + moduleName + " v" + targetVersion + ")");
+								} catch (Exception e) {
+									log(context, "ERROR", "UpdateFromUrl: Neustart von Instanz " + inst[1] + " fehlgeschlagen: " + e);
+								}
+							}
+						} catch (Exception e) {
+							log(context, "ERROR", "UpdateFromUrl: Neustart-Fehler: " + e);
+						}
+					}
+				});
+				t.setDaemon(true);
+				t.start();
+				response = "OK: " + moduleName + " v" + targetVersion + " importiert; "
+					+ toRestart.size() + " aktive Instanz(en) werden neu gestartet";
+			} else {
+				response = "OK: " + moduleName + " v" + targetVersion + " importiert (keine aktiven Instanzen zum Neustart)";
+			}
 			log(context, "INFO", "UpdateFromUrl: " + response);
 		} catch (Exception e) {
 			response = "ERROR: " + e.getClass().getSimpleName() + ": " + e.getMessage();
