@@ -277,7 +277,7 @@ def _collect_module_status(inst, token, name) -> dict:
                 msg += f" (Update auf v{tm['version']} erforderlich)"
             return {**base, "error": {"category": "module", "msg": msg}}
         return {**base, "error": _classify_error(e)}
-    items = _compare_modules(expected, mres.get("moduleJson"))
+    items = _compare_modules(expected, (mres.get("members") or {}).get("moduleJson"))
     if items is None:
         return {**base, "error": {"category": "module",
                 "msg": "Modul-Status konnte nicht ausgewertet werden"}}

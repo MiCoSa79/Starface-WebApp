@@ -61,7 +61,7 @@ def fake_xmlrpc(url, token, method, params=None, instance_name=None):
         return {"members": {"systemName": "pbx-demo", "systemVersion": "10.0.2.5",
                             "providerStatus": "sip01@pbx-demo=Registered"}}
     if method == "GetModuleStatus":
-        return {"moduleJson": INSTALLED_OK if "gut" in url else INSTALLED_ALT}
+        return {"members": {"moduleJson": INSTALLED_OK if "gut" in url else INSTALLED_ALT}}
     raise AssertionError(f"unbekannte Methode {method}")
 
 monitoring._get_token = lambda inst: "tok"

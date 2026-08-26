@@ -1702,7 +1702,8 @@ async def api_monitoring_module_raw(request: Request, installation: str = ""):
             raise RuntimeError("Kein Token fuer die Anlage verfuegbar")
         mres = _xmlrpc(row["url"], token, "GetModuleStatus",
                        instance_name=row["monitoring_instance_name"])
-        raw = mres.get("moduleJson")
+        # echte Antwort: {"raw","values","members"} — moduleJson liegt unter members!
+        raw = (mres.get("members") or {}).get("moduleJson")
         return JSONResponse({"ok": True, "installation": row["name"],
                              "raw": raw, "fault": None, "stats_diag": stats_diag,
                              "expected": expected})

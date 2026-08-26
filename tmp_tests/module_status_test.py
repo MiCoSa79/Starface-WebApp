@@ -169,7 +169,7 @@ def fake_xmlrpc(url, token, method, params=None, instance_name=None):
     if method == "GetStats":
         return {"members": {"systemName": "pbx", "systemVersion": "10.0.2.5", "providerStatus": ""}}
     if method == "GetModuleStatus":
-        return {"moduleJson": INSTALLED_OK}
+        return {"members": {"moduleJson": INSTALLED_OK}}
     raise AssertionError(method)
 
 monitoring._xmlrpc = fake_xmlrpc
@@ -201,7 +201,7 @@ check("collect: zu alt ohne provides-Info -> kein Versions-Zusatz",
 m = monitoring._collect_module_status(inst_net, "tok", "PBX-3")
 check("collect: Verbindungsfehler -> unreachable", m["error"]["category"] == "unreachable", str(m["error"]))
 
-monitoring._xmlrpc = lambda url, token, method, **kw: {"moduleJson": '{"error":"boom"}'}
+monitoring._xmlrpc = lambda url, token, method, **kw: {"members": {"moduleJson": '{"error":"boom"}'}}
 m = monitoring._collect_module_status(inst_ok, "tok", "PBX-4")
 check("collect: Modul-Fehlerantwort -> error-Meldung",
       m["error"] is not None and "ausgewertet" in m["error"]["msg"], str(m["error"]))
