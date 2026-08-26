@@ -6,7 +6,7 @@ updated: 2026-08-26
 
 # Modul-Auto-Update — Architektur & Umsetzungsplan
 
-**Status:** 🛠 geplant — Umsetzungsplan liegt unter `profiles/axel/.hermes/plans/2026-08-26_152327-update-server-module-updates.md` (Hermes-Wiki), **noch nichts umgesetzt**. Grundlangen-RE: [[admin-power-pack-re]].
+**Status:** ✅ **Task 1 umgesetzt (26.08.):** Signatur-Bibliothek `app/updatesign.py` + Tests (8/8 grün, Vektor-geprüft). Vorbereitung A1–A4 + A6 erledigt (A1 via externem check-host.net-Beweis — Anlagen sind Cloud-Anlagen). Offen: Task 2 (nginx-Config) bis Task 5. Umsetzungsplan: `profiles/axel/.hermes/plans/2026-08-26_152327-update-server-module-updates.md` (Hermes-Wiki). Grundlagen-RE: [[admin-power-pack-re]].
 
 ## Ziel
 
@@ -39,7 +39,7 @@ ZimaOS-Stack ───┐
 ├─ grafana ────────── :8894
 ├─ influxdb (intern)
 └─ module-updates ─── :8896  nginx:alpine, secure_link, read-only
-      ▲ NPM: https://modulupdate.meiser.family → :8896
+      ▲ NPM: https://modulupdates.meiser.family → :8896
       STARFACE-Anlage lädt .sfm selbst (Pull) / WebApp schiebt per XML-RPC (Push-Fallback)
 ```
 
@@ -47,16 +47,16 @@ ZimaOS-Stack ───┐
 
 | # | Aufgabe | Detail |
 |---|---|---|
-| A1 | **Netz-Test (kritisch)** | Anlage muss `https://modulupdate.meiser.family` erreichen; Test vom Anlagen-Netz aus; ggf. Fritzbox-DNS-Eintrag → ZimaOS |
-| A2 | DNS | `modulupdate.meiser.family` (mind. intern; öffentlich + Port-Forward 443 optional) |
-| A3 | NPM-Host | `modulupdate.meiser.family` → `10.0.25.60:8896`, Let's Encrypt |
-| A4 | Secret | `openssl rand -hex 32` → `<UPDATE_SIGNING_SECRET>` in Stack (nicht committen) |
-| A5 | Ordner | `/DATA/AppData/starface-webapp/data/modules` vorab anlegen |
-| A6 | Dateien | aktuelle `.sfm` in `app/modules/` bestätigen |
+| A1 | **Netz-Test** ✅ | Cloud-Anlagen → öffentlicher Weg verifiziert (check-host.net, 5 Nodes weltweit: DNS → UDM/öffentl. IP → NPM → 502 = erwartet, da Backend fehlt) |
+| A2 | DNS ✅ | `modulupdates.meiser.family` → öffentl. IP (`176.126.73.130`, UDM-Firewall) |
+| A3 | NPM-Host ✅ | `modulupdates.meiser.family` → `10.0.25.60:8896`, Let's Encrypt + Force SSL |
+| A4 | Secret ✅ | liegt vor (PowerShell `New-Guid`-Variante) → `<UPDATE_SIGNING_SECRET>` in Stack bei Task 4 (nicht committen) |
+| A5 | Ordner | `/DATA/AppData/starface-webapp/data/modules` — optional, Docker legt an |
+| A6 | Dateien ✅ | `app/modules/TelefonieMonitoring.sfm` + `CallBlocker.sfm` vorhanden |
 
 ## Umsetzung (5 Tasks, TDD — Details im Plan-Dokument)
 
-1. **Signatur-Bibliothek** `app/updatesign.py` (+ Tests) — `secure_link`-kompatible URLs (base64url ohne Padding, `MD5(expires + uri + secret)`, Vektor-geprüft)
+1. ✅ **Signatur-Bibliothek** `app/updatesign.py` (+ `tmp_tests/test_updatesign.py`) — `secure_link`-kompatible URLs (`_nginx_md5`, `build_signed_url`, `parse_parts`), 2 Known-Vektoren von Hand + Roundtrip/TTL/URI-Differenz, 8/8 grün; Suite unverändert grün (module_status_test, error_box_test, monitoring_rechte_e2e 17/17, module_status_live)
 2. **nginx-Config** `nginx-updates.conf` — `secure_link`, `limit_req`, read-only, 403/410/200-Verhalten lokal getestet (Docker-Testcontainer)
 3. **WebApp-Spiegel** `mirror_modules()` beim Startup — `.sfm` aus Image → `data/modules` + `versions.json` im `is`-Schema (MD5 je Datei)
 4. **Stack-Patch (Kopie!)** — Service `module-updates`, Env `UPDATE_SIGNING_SECRET` + `MODULE_UPDATE_BASE_URL`; `docker compose config` validieren (Skill docker-compose-pruefung)
