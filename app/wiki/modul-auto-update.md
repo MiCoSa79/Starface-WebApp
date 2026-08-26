@@ -8,6 +8,14 @@ updated: 2026-08-26
 
 **Status:** ✅ **Task 1 umgesetzt (26.08.):** Signatur-Bibliothek `app/updatesign.py` + Tests (8/8 grün, Vektor-geprüft). ✅ **Task 2 umgesetzt + vollständig abgenommen (26.08.):** nginx-Service `module-updates` live im Stack (403/410/Durchlauf über beide Pfade — Tabelle unten). ✅ **Task 3 umgesetzt (26.08.):** WebApp-Spiegel `app/mirror.py` + Admin-Einstellung `module_update_base_url` (Priorität Einstellung > Env > leer), 23+ Tests grün, Suite komplett grün. ✅ **Task 4 deployed (26.08., Axel):** Stack-Übertragung inkl. `UPDATE_SIGNING_SECRET` (WebApp-Env + Service), Admin-Einstellung gesetzt. ✅ **TASK 5 KOMPLETT ABGENOMMEN (26.08.):** v0.0.161 live → `https://modulupdates.meiser.family/versions.json` signiert → **200** (is-Schema, absolute downloadUrls), `.sfm` → 200 + ZIP, Schutz bleibt 403. **v0.0.162:** Admin-UI-Fix (eigener Speichern-Button je Feld, Teil-POST-Sicherheit, Spiegel-Badge liest versions.json im html-Root), Suite 14/14 grün. Umsetzungsplan: `profiles/axel/.hermes/plans/2026-08-26_152327-update-server-module-updates.md` (Hermes-Wiki). Grundlagen-RE: [[admin-power-pack-re]].
 
+**Fortsetzung P1-Beweis (UpdateDeployer, 26.08.):**
+- **v0.0.164/165:** Dienst `app/module_updates.py` (push_update, signierte URL → RPC `UpdateFromUrl`-Muster) + Admin-UI `/admin/updates` mit „Update pushen“ + Deployer-Feldern je Anlage (`deployer_instance_name`, `deployer_token` verschlüsselt).
+- **v0.0.166/167:** Modul **UpdateDeployer v1 „PingChannel“** (Download-Beweis, read-only): `module-updatedeployer/`, Build via `build_sfm.py`; **Vendor: „Axel Meiser - Kraemer IT“** (nie MiCoSa79). Update-Server zeigt 3 Pakete (`versions.json` 200, `.sfm` 200/4210 B).
+- **v0.0.168:** „Download-Test (Ping)“-Button — Ping-RPC über WebApp-Token (kein Credential-Export); **v0.0.169:** Nav-Link „Modul-Updates“.
+- **v0.0.170–172 (Import-Fallen, im Container /app/app):** `monitoring`/`module_updates`/`updatesign` sind top-level NICHT auflösbar → **Zwei-Wege-Import-Muster** (`try import X / except from app import X`) ist für ALLE app-internen Module Pflicht; v0.0.171 war dadurch ein **Boot-Crash** (Zirkel `module_updates → from main import`); **permanenter Boot-Starttest** `tmp_tests/boot_app_pkg_test.py` (Container-Sicht) verhindert Wiederholung.
+- **v0.0.173:** **XML-Escaping** im XML-RPC-Body (`_xml_escape`: `&`→`&amp;` …) — signedUrl mit `?md5=..&expires=..` brach das Anlagen-Parsing (WstxUnexpectedCharException); Test `tmp_tests/xmlrpc_escape_test.py` (Body-Parsbarkeits-Beweis).
+- **Offen (Abnahme):** v0.0.173 deployen → „Download-Test“ klicken → erwartet `UpdateDeployer: Download-Test ok — HTTP 200 (4210 bytes)` → **P1 final**; danach T6: UpdateFromUrl (Import) + Token-Schutz.
+
 ## Ziel
 
 Admin kann aus der WebApp heraus **alle eigenen Module** (TelefonieMonitoring, CallBlocker …) auf der STARFACE-Anlage automatisch aktualisieren — ohne Admin-UI der Anlage, ohne manuellen `.sfm`-Import.

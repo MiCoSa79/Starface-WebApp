@@ -11,6 +11,10 @@ Wie man Module für die STARFACE-Telefonanlage (PBX) baut: mit dem eingebauten
 und mit **eigenen Java-Klassen** („Modulbausteine"), die als erweiterte
 Funktionen in Module eingespielt werden.
 
+**Konvention (Axel-Vorgabe 2026-08-26):** Vendor in `module-descriptor.xml`
+(Modul UND alle `<function>`-Elemente) IMMER **„Axel Meiser - Kraemer IT"** —
+nie MiCoSa79. Gilt für neue Module UND Version-Updates bestehender Module.
+
 **Quellen** (Community-Doku, bildet die ehemalige offizielle Entwickler-Doku ab):
 - Live-Wiki: https://wiki.si-solutions.ch/de/home
 - GitHub-Mirror (offline lesbar): https://github.com/Fabian95qw/SFWiki
