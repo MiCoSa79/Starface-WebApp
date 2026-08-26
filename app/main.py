@@ -992,6 +992,44 @@ async def admin_updates_push(request: Request):
     return RedirectResponse("/admin/updates?msg=" + quote(msg), status_code=303)
 
 
+@app.post("/admin/updates/ping")
+async def admin_updates_ping(request: Request):
+    """Download-Beweis (T5): [Deployer-Instanz].Ping(signedUrl) auf der Anlage.
+
+    Die WebApp holt das Anlagen-Token und die signierte URL selbst — keine
+    Credentials müssen die WebApp verlassen. Ergebnis erscheint als Statuszeile.
+    """
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user or not user["is_admin"]:
+        return RedirectResponse("/dashboard")
+    form = await request.form()
+    try:
+        inst_id = int(form.get("installation_id", "0"))
+    except (TypeError, ValueError):
+        inst_id = 0
+    module_name = form.get("module_name", "")
+    filename = form.get("filename", "")
+    conn = _db()
+    inst = conn.execute("SELECT * FROM installations WHERE id=?", (inst_id,)).fetchone()
+    conn.close()
+    if not inst:
+        return RedirectResponse(
+            "/admin/updates?msg=" + quote("Unbekannte Anlage."), status_code=303)
+    try:
+        from module_updates import ping_channel  # lazy: verhindert Import-Zirkel
+        token = _get_token(inst)
+        res = ping_channel(inst, token, filename=filename,
+                           instance_name=inst["deployer_instance_name"])
+        if res["status"] == "ok":
+            detail = res.get("response") or res.get("raw", "")[:120]
+            msg = f"{module_name}: Download-Test ok — {detail}"
+        else:
+            msg = f"{module_name}: FEHLER — {res['message']}"
+    except Exception as e:  # OAuth/Verbindung defekt o. ä. → als Meldung, kein Crash
+        msg = f"{module_name}: FEHLER — {e}"
+    return RedirectResponse("/admin/updates?msg=" + quote(msg), status_code=303)
+
+
 @app.get("/admin/modules/{module_id}/download")
 async def admin_module_download(request: Request, module_id: int):
     """Download einer .sfm-Datei (nur Admins). Dateiname kommt aus der DB

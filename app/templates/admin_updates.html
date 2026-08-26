@@ -84,6 +84,10 @@
                     <input type="hidden" name="filename" value="{{ info.file }}">
                     <input type="hidden" name="version" value="{{ info.version }}">
                     <button type="submit" class="btn-primary">Update anstoßen</button>
+                    <button type="submit" class="btn-secondary"
+                            formaction="/admin/updates/ping"
+                            title="Download-Beweis: Anlage lädt die signierte URL">
+                        Download-Test (Ping)</button>
                 </form>
             </td>
         </tr>
