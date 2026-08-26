@@ -51,8 +51,12 @@ def check(name, cond, detail=""):
 r = c.get("/admin")
 html = r.text
 check("GET /admin -> 200", r.status_code == 200, str(r.status_code))
-check("admin.html: Feld module_update_base_url vorhanden",
-      'name="module_update_base_url"' in html and "modulupdates.meiser.family" in html)
+has_g = 'name="grafana_base_url"' in html
+has_u = 'name="module_update_base_url"' in html
+ph = html.count('placeholder="https://www.sub.example.de"')
+check("admin.html: beide URL-Felder mit neutralen Platzhaltern",
+      has_g and has_u and ph == 2,
+      f"grafana={has_g}, update={has_u}, neutrale Placeholder={ph}")
 btn_count = html.count('class="btn-primary">Speichern')
 check("admin.html: jedes Feld mit eigenem Speichern-Button", btn_count == 2,
       str(btn_count) + " Button(s) gefunden")

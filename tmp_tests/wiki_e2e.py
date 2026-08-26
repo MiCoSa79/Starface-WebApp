@@ -41,7 +41,7 @@ print("Wiki-E2E: Renderer-Ebene (wiki_render)")
 import wiki_render  # noqa: E402
 
 pages = wiki_render.list_pages()
-check("Index listet die Wiki-Seiten (Repo-Wiki app/wiki/)", len(pages) == 8, f"gefunden: {[p['slug'] for p in pages]}")
+check("Index listet die Wiki-Seiten (Repo-Wiki app/wiki/)", len(pages) == 9, f"gefunden: {[p['slug'] for p in pages]}")
 for p in pages:
     check(f"Frontmatter vollständig: {p['slug']}",
           bool(p["title"]) and bool(p["description"]) and bool(p["updated"]))
@@ -50,7 +50,7 @@ page = wiki_render.render_page("starface-anrufblocker")
 check("anrufblocker rendert", page is not None and "<h2" in page["html"])
 check("TOC vorhanden (>= 5 Einträge)", len(page["toc"]) >= 5, f"{len(page['toc'])} Einträge")
 check("TOC-Anker-ID generiert",
-      'id="funktionsweise-modul-stand-v28"' in page["html"])
+      'id="funktionsweise-modul-stand-v30"' in page["html"])
 check("Wikilink aufgelöst",
       'href="/wiki/starface-modul-designer"' in page["html"])
 check("Kein roher Wikilink-Text im HTML", "[[starface" not in page["html"])
@@ -118,7 +118,7 @@ with c:
     r = c.get("/wiki/starface-anrufblocker")
     check("Admin: Seite 200", r.status_code == 200)
     check("Admin: TOC-Seitenleiste",
-          "Inhalt" in r.text and 'href="#funktionsweise-modul-stand-v28"' in r.text)
+          "Inhalt" in r.text and 'href="#funktionsweise-modul-stand-v30"' in r.text)
     check("Admin: gerenderter Wikilink",
           'href="/wiki/starface-modul-designer"' in r.text)
     check("Admin: kein roher Wikilink-Text", "[[starface-modul-paketierung]]" not in r.text)
