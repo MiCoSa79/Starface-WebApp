@@ -1,9 +1,14 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<module lastChangedTime="1787767616269" moduleType="EXTENDED" createTime="1787767616269" id="ab50cee5-bae2-4cf4-9378-8ecfa7448791" name="UpdateDeployer" specVersion="5" vendor="Axel Meiser - Kraemer IT" version="1">
- <description>UpdateDeployer: zentrales HUB-Modul für automatische Modul-Updates (Phase 2). v1 = PingChannel: End-to-End-Beweis des Update-Kanals (signierter Download von modulupdates.meiser.family).</description>
+<module lastChangedTime="1787770800000" moduleType="EXTENDED" createTime="1787767616269" id="ab50cee5-bae2-4cf4-9378-8ecfa7448791" name="UpdateDeployer" specVersion="5" vendor="Axel Meiser - Kraemer IT" version="2">
+ <description>UpdateDeployer: zentrales HUB-Modul für automatische Modul-Updates. v1 = PingChannel (Kanal-Beweis). v2 = UpdateFromUrl: signierter Download + ModuleRegistry.importModule (echtes Update).</description>
     <descriptionURL />
     <disabled>false</disabled>
-    <inputVars />
+    <inputVars>
+        <variable id="929c5d60-7afc-4d2c-b6ad-245b514ea039" name="GU_UPDATE_TOKEN" type="STRING" valueByReference="false" valueByReferenceAllowed="false" valueByValueAllowed="true" visible="true">
+            <accessRights>Read</accessRights>
+            <value />
+        </variable>
+    </inputVars>
     <outputVars />
     <resources />
     <children>
@@ -82,6 +87,114 @@
                 </functionCall>
             </children>
         </function>
+
+
+        <function visibility="Private" createTime="1787767616269" id="UpdateFromUrl" name="UpdateFromUrl" specVersion="0" vendor="Axel Meiser - Kraemer IT" version="0">
+            <description>Lädt ein signiertes .sfm-Paket und importiert es über ModuleRegistry (Modul-Update).</description>
+            <descriptionURL />
+            <disabled>false</disabled>
+            <inputVars>
+                <variable id="moduleName" label="moduleName" name="moduleName" type="STRING" valueByReference="false" valueByReferenceAllowed="false" valueByValueAllowed="true" visible="true">
+                    <description>Name des Zielmoduls</description>
+                    <value />
+                </variable>
+                <variable id="signedUrl" label="signedUrl" name="signedUrl" type="STRING" valueByReference="false" valueByReferenceAllowed="false" valueByValueAllowed="true" visible="true">
+                    <description>Signierte .sfm-URL (nginx secure_link)</description>
+                    <value />
+                </variable>
+                <variable id="targetVersion" label="targetVersion" name="targetVersion" type="STRING" valueByReference="false" valueByReferenceAllowed="false" valueByValueAllowed="true" visible="true">
+                    <description>Zielversion des Pakets</description>
+                    <value />
+                </variable>
+                <variable id="updateToken" label="updateToken" name="updateToken" type="STRING" valueByReference="false" valueByReferenceAllowed="false" valueByValueAllowed="true" visible="true">
+                    <description>Vom Aufrufer übergebenes Token</description>
+                    <value />
+                </variable>
+                <variable id="installedToken" label="installedToken" name="installedToken" type="STRING" valueByReference="false" valueByReferenceAllowed="false" valueByValueAllowed="true" visible="true">
+                    <description>Instanz-Variable GU_UPDATE_TOKEN (Vergleich)</description>
+                    <value />
+                </variable>
+            </inputVars>
+            <outputVars>
+                <variable id="response" label="response" name="response" type="STRING" valueByReference="false" valueByReferenceAllowed="false" valueByValueAllowed="true" visible="true">
+                    <description>OK/HTTP/ERROR-Meldung</description>
+                    <value />
+                </variable>
+            </outputVars>
+            <resources />
+            <children />
+            <implementationFile>UpdateFromUrl.class</implementationFile>
+        </function>
+
+
+        <function visibility="Private" createTime="1787767616269" id="bc617c70-d544-4e23-8ae2-1dce50ac6334" name="UpdateModuleRpc" specVersion="0" vendor="Axel Meiser - Kraemer IT" version="0">
+            <description>RPC-Wrapper: UpdateFromUrl (moduleName, signedUrl, targetVersion, updateToken) — verdrahtet auf die Java-Klasse UpdateFromUrl (installedToken aus GU_UPDATE_TOKEN).</description>
+            <descriptionURL />
+            <disabled>false</disabled>
+            <inputVars>
+                <variable id="6bacc4fc-745e-4dac-8538-1ff5f64e15d8" label="moduleName" name="moduleName" type="STRING" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="true" visible="true">
+                    <description>Name des Zielmoduls</description>
+                    <value />
+                </variable>
+                <variable id="fcb50999-1d25-4daa-b3fa-760deeb6a58d" label="signedUrl" name="signedUrl" type="STRING" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="true" visible="true">
+                    <description>Signierte .sfm-URL (nginx secure_link)</description>
+                    <value />
+                </variable>
+                <variable id="c6a59ab8-9a62-48dd-8a1e-d114f9968cd1" label="targetVersion" name="targetVersion" type="STRING" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="true" visible="true">
+                    <description>Zielversion des Pakets</description>
+                    <value />
+                </variable>
+                <variable id="e41a51a8-f1ad-440c-bb36-cba905ec4d3b" label="updateToken" name="updateToken" type="STRING" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="true" visible="true">
+                    <description>Instanz-Token (F-C-Schutz)</description>
+                    <value />
+                </variable>
+            </inputVars>
+            <outputVars>
+                <variable id="0b63f932-060c-45e4-848d-f37b1f64b40e" label="response" name="response" type="STRING" valueByReference="true" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="true">
+                    <description>OK/HTTP/ERROR-Meldung</description>
+                    <value />
+                </variable>
+            </outputVars>
+            <resources />
+            <children>
+                <functionCall createTime="1787767616269" id="cd73ff97-a592-43ac-b7d2-a7dec6453739" name="Call --&gt; UpdateFromUrl" specVersion="0" vendor="Axel Meiser - Kraemer IT" version="0">
+                    <description />
+                    <descriptionURL />
+                    <disabled>false</disabled>
+                    <inputVars>
+                        <variable id="moduleName" label="" name="moduleName" type="STRING" valueByReference="true" valueByReferenceAllowed="true" valueByValueAllowed="true" visible="false">
+                            <description />
+                            <value>6bacc4fc-745e-4dac-8538-1ff5f64e15d8</value>
+                        </variable>
+                        <variable id="signedUrl" label="" name="signedUrl" type="STRING" valueByReference="true" valueByReferenceAllowed="true" valueByValueAllowed="true" visible="false">
+                            <description />
+                            <value>fcb50999-1d25-4daa-b3fa-760deeb6a58d</value>
+                        </variable>
+                        <variable id="targetVersion" label="" name="targetVersion" type="STRING" valueByReference="true" valueByReferenceAllowed="true" valueByValueAllowed="true" visible="false">
+                            <description />
+                            <value>c6a59ab8-9a62-48dd-8a1e-d114f9968cd1</value>
+                        </variable>
+                        <variable id="updateToken" label="" name="updateToken" type="STRING" valueByReference="true" valueByReferenceAllowed="true" valueByValueAllowed="true" visible="false">
+                            <description />
+                            <value>e41a51a8-f1ad-440c-bb36-cba905ec4d3b</value>
+                        </variable>
+                        <variable id="installedToken" label="" name="installedToken" type="STRING" valueByReference="true" valueByReferenceAllowed="true" valueByValueAllowed="true" visible="false">
+                            <description />
+                            <value>929c5d60-7afc-4d2c-b6ad-245b514ea039</value>
+                        </variable>
+                    </inputVars>
+                    <outputVars>
+                        <variable id="response" label="" name="response" type="STRING" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
+                            <description />
+                            <value>0b63f932-060c-45e4-848d-f37b1f64b40e</value>
+                        </variable>
+                    </outputVars>
+                    <resources />
+                    <children />
+                    <target targetDomainId="ab50cee5-bae2-4cf4-9378-8ecfa7448791" targetId="UpdateFromUrl" targetName="UpdateFromUrl" targetVersion="0" />
+                </functionCall>
+            </children>
+        </function>
     </children>
     <createdWith>STARFACE 10.0.2.5</createdWith>
     <defaultLocale>de</defaultLocale>
@@ -89,6 +202,10 @@
     <entryPoints>
         <rpcEntryPoint id="045e3b6c-aa54-49dd-a05b-e8e87c700f33" name="Ping">
             <functionReference targetDomainId="ab50cee5-bae2-4cf4-9378-8ecfa7448791" targetId="8c64ecfd-ea58-482c-8670-3cbf121824c9" targetName="PingChannelRpc" targetVersion="0" />
+            <type>XMLRPC_auth</type>
+        </rpcEntryPoint>
+        <rpcEntryPoint id="f01fff83-0e35-4aba-a0e5-5bb92b392dcb" name="UpdateFromUrl">
+            <functionReference targetDomainId="ab50cee5-bae2-4cf4-9378-8ecfa7448791" targetId="bc617c70-d544-4e23-8ae2-1dce50ac6334" targetName="UpdateModuleRpc" targetVersion="0" />
             <type>XMLRPC_auth</type>
         </rpcEntryPoint>
     </entryPoints>
@@ -104,6 +221,6 @@
         <key>module.name{ab50cee5-bae2-4cf4-9378-8ecfa7448791}</key>
         <propertyName>NAME</propertyName>
     </resourceKeys>
-    <shortDescription>Zentraler Modul-Updater (v1: Kanal-Beweis)</shortDescription>
+    <shortDescription>Zentraler Modul-Updater (v2: UpdateFromUrl + Token-Schutz)</shortDescription>
     <writeHash>18d0f1ebd134c3ad360f7f7de2ac7b4960667804</writeHash>
-<noLicenseId>5158e7bdcb77f80c16a73346b6faa9e5f1040c86</noLicenseId></module>
+<noLicenseId>3d7ac59620a69465bb5359940e90b02d7013d12e</noLicenseId></module>
