@@ -54,6 +54,18 @@ ZimaOS-Stack ───┐
 | A5 | Ordner | `/DATA/AppData/starface-webapp/data/modules` — optional, Docker legt an |
 | A6 | Dateien ✅ | `app/modules/TelefonieMonitoring.sfm` + `CallBlocker.sfm` vorhanden |
 
+## Abnahmetest (26.08. — nginx-Service live)
+
+| Test | Direkt `10.0.25.60:8896` | NPM `https://modulupdates.meiser.family` |
+|---|---|---|
+| `versions.json` ohne Token | **403** ✅ | **403** ✅ |
+| `/modules/Test.sfm` ohne Token | **403** ✅ | **403** ✅ |
+| Gefälschte Signatur (`md5=gefälscht`) | **403** ✅ | **403** ✅ |
+| Abgelaufene Signatur | ⏳ (Secret nötig) | ⏳ |
+| Gültige Signatur → 200 + Inhalt | ⏳ (Secret + Spiegel, Task 3) | ⏳ |
+
+→ Stack: Service läuft, secure_link greift, NPM-Pfad inkl. SSL korrekt. Rest-Abnahme sobald `UPDATE_SIGNING_SECRET` in `/opt/data/.env` (= Stack-Wert) hinterlegt und Task-3-Spiegel existiert.
+
 ## Umsetzung (5 Tasks, TDD — Details im Plan-Dokument)
 
 1. ✅ **Signatur-Bibliothek** `app/updatesign.py` (+ `tmp_tests/test_updatesign.py`) — `secure_link`-kompatible URLs (`_nginx_md5`, `build_signed_url`, `parse_parts`), 2 Known-Vektoren von Hand + Roundtrip/TTL/URI-Differenz, 8/8 grün; Suite unverändert grün (module_status_test, error_box_test, monitoring_rechte_e2e 17/17, module_status_live)
