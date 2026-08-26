@@ -16,9 +16,10 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "app"))
 
-DB = "/tmp/admin_settings_test.db"
+DB = "/tmp/admin_settings_test/test.db"
 if os.path.exists(DB):
     os.remove(DB)
+os.makedirs(os.path.dirname(DB), exist_ok=True)
 os.environ["STARFACE_DB"] = DB
 os.environ["ADMIN_USERNAME"] = "admin"
 os.environ["ADMIN_PASSWORD"] = "test1234"
@@ -52,6 +53,9 @@ html = r.text
 check("GET /admin -> 200", r.status_code == 200, str(r.status_code))
 check("admin.html: Feld module_update_base_url vorhanden",
       'name="module_update_base_url"' in html and "modulupdates.meiser.family" in html)
+btn_count = html.count('class="btn-primary">Speichern')
+check("admin.html: jedes Feld mit eigenem Speichern-Button", btn_count == 2,
+      str(btn_count) + " Button(s) gefunden")
 
 # 2) POST speichert die Einstellung
 # Starlette >=0.27 folgt Redirects automatisch (hartkodiert) → 303-POST endet
@@ -60,6 +64,18 @@ r = c.post("/admin/settings", data={"grafana_base_url": "", "module_update_base_
 check("POST /admin/settings gespeichert (Redirect gefolgt)", r.status_code in (200, 303) and "/admin" in r.url.path, f"{r.status_code} {r.url}")
 got = app_main._get_setting("module_update_base_url")
 check("Einstellung gespeichert", got == "https://modulupdates.meiser.family", str(got))
+
+# 2b) Teil-POSTs (je Feld ein eigenes Formular/Button) dürfen das jeweils
+#     andere Feld NICHT überschreiben (None = nicht gepostet = unangetastet)
+app_main._set_setting("grafana_base_url", "https://grafana.example")
+r = c.post("/admin/settings", data={"module_update_base_url": "https://modulupdates.meiser.family"})
+check("Teil-POST (nur Update-URL) lässt Grafana-URL unangetastet",
+      app_main._get_setting("grafana_base_url") == "https://grafana.example",
+      str(app_main._get_setting("grafana_base_url")))
+r = c.post("/admin/settings", data={"grafana_base_url": "https://grafana.example"})
+check("Teil-POST (nur Grafana-URL) lässt Update-URL unangetastet",
+      app_main._get_setting("module_update_base_url") == "https://modulupdates.meiser.family",
+      str(app_main._get_setting("module_update_base_url")))
 
 # 3) Priorität: Einstellung > Env > leer
 os.environ["MODULE_UPDATE_BASE_URL"] = "https://env.example"
@@ -71,18 +87,19 @@ check("Fallback: Env, wenn Einstellung leer",
 os.environ.pop("MODULE_UPDATE_BASE_URL", None)
 check("leer, wenn beides fehlt", app_main._module_update_base() == "")
 
-# 4) /admin/modules: Spiegel-Status
-moddir = os.path.join(os.path.dirname(DB), "modules")
-os.makedirs(moddir, exist_ok=True)
+# 4) /admin/modules: Spiegel-Status (versions.json liegt im html-ROOT,
+#    NICHT in modules/ — Pfad-Fix b34e94d / v0.0.160)
+modroot = os.path.dirname(DB)  # entspricht <data> = html-Root des nginx
+os.makedirs(modroot, exist_ok=True)
 r = c.get("/admin/modules")
 check("GET /admin/modules -> 200 (ohne Spiegel)", r.status_code == 200, str(r.status_code))
 check("Hinweis ohne versions.json", "nicht aktiv" in r.text)
-with open(os.path.join(moddir, "versions.json"), "w") as fh:
+with open(os.path.join(modroot, "versions.json"), "w") as fh:
     json.dump({"modules": [{"moduleName": "Fake", "versions": []}]}, fh)
 r = c.get("/admin/modules")
 check("GET /admin/modules -> 200 (mit Spiegel)", r.status_code == 200, str(r.status_code))
-check("Badge aktiv bei versions.json", "Spiegel aktiv" in r.text and "1 Paket(e)" in r.text)
-shutil.rmtree(moddir, ignore_errors=True)
+check("Badge aktiv bei versions.json (html-Root)", "Spiegel aktiv" in r.text and "1 Paket(e)" in r.text)
+shutil.rmtree(modroot, ignore_errors=True)
 
 print()
 print("ERGEBNIS:", f"{len(FAIL)} FAIL" if FAIL else "ALLE ADMIN-SETTINGS-TESTS OK")

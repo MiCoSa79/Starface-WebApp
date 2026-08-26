@@ -6,7 +6,7 @@ updated: 2026-08-26
 
 # Modul-Auto-Update — Architektur & Umsetzungsplan
 
-**Status:** ✅ **Task 1 umgesetzt (26.08.):** Signatur-Bibliothek `app/updatesign.py` + Tests (8/8 grün, Vektor-geprüft). ✅ **Task 2 umgesetzt + vollständig abgenommen (26.08.):** nginx-Service `module-updates` live im Stack (403/410/Durchlauf über beide Pfade — Tabelle unten). ✅ **Task 3 umgesetzt (26.08.):** WebApp-Spiegel `app/mirror.py` + Admin-Einstellung `module_update_base_url` (Priorität Einstellung > Env > leer), 22 neue Tests grün (mirror 11 + admin-settings 11), Suite komplett grün. ✅ **Task 4 deployed (26.08., Axel):** Stack-Übertragung inkl. `UPDATE_SIGNING_SECRET` (WebApp-Env + Service), Admin-Einstellung gesetzt. 🔄 **Task 5 (Live-Abnahme 26.08.):** vollständige Signatur-Kette über die Domain verifiziert (`.sfm` → **200 + ZIP-Inhalt** signed!). Dabei Bug gefunden: `versions.json` landete in `modules/` statt im html-ROOT → nur als `/modules/versions.json` abrufbar (200), `/versions.json` = 404. **Fix `b34e94d` + Repo-Wiki (`v0.0.161` erwartet):** versions.json wird in den html-Root geschrieben, Legacy-Datei in `modules/` wird beim Lauf entfernt (TDD rot→grün, 13 Checks). ⏳ **Finaler 200-Test `https://modulupdates.meiser.family/versions.json` nach WebApp-Deploy auf v0.0.161.** Umsetzungsplan: `profiles/axel/.hermes/plans/2026-08-26_152327-update-server-module-updates.md` (Hermes-Wiki). Grundlagen-RE: [[admin-power-pack-re]].
+**Status:** ✅ **Task 1 umgesetzt (26.08.):** Signatur-Bibliothek `app/updatesign.py` + Tests (8/8 grün, Vektor-geprüft). ✅ **Task 2 umgesetzt + vollständig abgenommen (26.08.):** nginx-Service `module-updates` live im Stack (403/410/Durchlauf über beide Pfade — Tabelle unten). ✅ **Task 3 umgesetzt (26.08.):** WebApp-Spiegel `app/mirror.py` + Admin-Einstellung `module_update_base_url` (Priorität Einstellung > Env > leer), 23+ Tests grün, Suite komplett grün. ✅ **Task 4 deployed (26.08., Axel):** Stack-Übertragung inkl. `UPDATE_SIGNING_SECRET` (WebApp-Env + Service), Admin-Einstellung gesetzt. ✅ **TASK 5 KOMPLETT ABGENOMMEN (26.08.):** v0.0.161 live → `https://modulupdates.meiser.family/versions.json` signiert → **200** (is-Schema, absolute downloadUrls), `.sfm` → 200 + ZIP, Schutz bleibt 403. **v0.0.162:** Admin-UI-Fix (eigener Speichern-Button je Feld, Teil-POST-Sicherheit, Spiegel-Badge liest versions.json im html-Root), Suite 14/14 grün. Umsetzungsplan: `profiles/axel/.hermes/plans/2026-08-26_152327-update-server-module-updates.md` (Hermes-Wiki). Grundlagen-RE: [[admin-power-pack-re]].
 
 ## Ziel
 
@@ -63,11 +63,12 @@ ZimaOS-Stack ───┐
 | Gefälschte Signatur (`md5=gefälscht`) | **403** ✅ | **403** ✅ |
 | **Abgelaufene Signatur** (expires −1h, echtes Secret) | **410** ✅ | **410** ✅ |
 | **Gültige Signatur**, Datei fehlt (`__existiert_nicht__.sfm`) | — | **404** ✅ (= Prüfung läuft grün durch, nur Datei fehlt) |
-| `versions.json` im html-ROOT (`/versions.json`) | — | vor Fix: **404** (Datei lag in `modules/`) → nach v0.0.161-Deploy: **200** ⏳ |
+| `versions.json` im html-ROOT (`/versions.json`) | — | vor Fix: **404** (Datei lag in `modules/`) → nach v0.0.161: **200** ✅ |
 | Gültige Signatur auf `/modules/versions.json` | — | **200** ✅ (Beweis des Pfad-Bugs: Datei lag in `modules/`) |
 | **Gültige Signatur → 200 + Inhalt** (`.sfm`) | — | **200** ✅ (TelefonieMonitoring v7 + CallBlocker v28, ZIP-Magic `PK` geprüft) |
+| `/versions.json` ohne Token | — | **403** ✅ (Schutz bleibt aktiv) |
 
-→ **Task 2 vollständig abgenommen:** 403 (keine/falsche Signatur), 410 (abgelaufen), Durchlauf (grün → 404 statt 403) — direkt und über NPM/SSL. **Task 5 live (26.08.):** `.sfm`-Downloads über die Domain mit gültiger Signatur → **200 + ZIP-Inhalt** (versions.json inkl. korrektem Manifest unter `/modules/versions.json`); Pfad-Bug für `/versions.json` gefunden (Datei lag in `modules/`), Fix in v0.0.160/161 (html-Root + Legacy-Cleanup). Einziger offener Fall: finaler **200 auf `/versions.json`** nach WebApp-Deploy auf v0.0.161.
+→ **Task 2 vollständig abgenommen:** 403 (keine/falsche Signatur), 410 (abgelaufen), Durchlauf (grün → 404 statt 403) — direkt und über NPM/SSL. **Task 5 komplett abgenommen (26.08.):** mit v0.0.161 live: `/versions.json` signiert → **200** (is-Schema, absolute downloadUrls aus der Admin-Einstellung), `.sfm` → 200 + ZIP, Schutz ohne Token weiterhin 403.
 
 ## Umsetzung (5 Tasks, TDD — Details im Plan-Dokument)
 

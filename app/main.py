@@ -881,13 +881,19 @@ async def admin_page(request: Request):
 
 
 @app.post("/admin/settings")
-async def admin_settings(request: Request, grafana_base_url: str = Form(""),
-                         module_update_base_url: str = Form("")):
+async def admin_settings(request: Request):
     user = verify_session(request.cookies.get(SESSION_COOKIE))
     if not user or not user["is_admin"]:
         return RedirectResponse("/dashboard")
-    _set_setting("grafana_base_url", (grafana_base_url or "").strip())
-    _set_setting("module_update_base_url", (module_update_base_url or "").strip())
+    # Je Feld ein eigenes Formular (eigener Speichern-Button) → Feld fehlt im
+    # POST = unangetastet lassen; "" = explizit leeren. Prüfung über die
+    # request.form()-Keys ist robust (str|None = Form(None) kollabiert
+    # explizit leere Werte zu None — dann wäre „leeren" unmöglich).
+    form = await request.form()
+    if "grafana_base_url" in form:
+        _set_setting("grafana_base_url", (form["grafana_base_url"] or "").strip())
+    if "module_update_base_url" in form:
+        _set_setting("module_update_base_url", (form["module_update_base_url"] or "").strip())
     return RedirectResponse("/admin?set_ok=1", status_code=303)
 
 
@@ -907,9 +913,10 @@ async def admin_modules_page(request: Request):
     conn = _db()
     modules = conn.execute("SELECT * FROM modules ORDER BY name").fetchall()
     conn.close()
-    # Update-Server-Spiegel-Status (versions.json im geteilten data/modules-Ordner)
+    # Update-Server-Spiegel-Status (versions.json im html-ROOT <data>/,
+    # NICHT in modules/ — der nginx serviert sie als /versions.json)
     mirror_manifest = None
-    vjson = Path(DB_PATH).parent / "modules" / "versions.json"
+    vjson = Path(DB_PATH).parent / "versions.json"
     try:
         if vjson.is_file():
             with open(vjson, encoding="utf-8") as fh:

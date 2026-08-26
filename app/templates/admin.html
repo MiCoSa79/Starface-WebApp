@@ -245,12 +245,15 @@
                     <button type="submit" class="btn-primary">Speichern</button>
                 </div>
                 <div class="hint">Grafana-Basis-URL für die Dashboard-Links (Startseite + Monitoring), z. B. die per NPM durchgeleitete Domäne <span class="codes">https://monitoring.meiser.family</span>. Leer lassen = interne Standard-URL (<span class="codes">{{ grafana_base_fallback }}</span>). Änderungen wirken sofort.</div>
-                <div class="form-row" style="margin-top:12px;">
+            </form>
+            <form method="POST" action="/admin/settings" style="margin-top:12px;">
+                <div class="form-row">
                     <label class="sr-only" for="module_update_base_url">Update-Server-Basis-URL (extern)</label>
                     <input type="url" id="module_update_base_url" name="module_update_base_url"
                            placeholder="https://modulupdates.meiser.family"
                            value="{{ module_update_base_url_value }}"
                            autocomplete="url" style="flex:1 1 380px; font-size:16px;">
+                    <button type="submit" class="btn-primary">Speichern</button>
                 </div>
                 <div class="hint">Update-Server-Basis-URL für die signierten Modul-Downloads (versions.json), z. B. <span class="codes">https://modulupdates.meiser.family</span>. Leer lassen = nur intern erreichbar.{% if module_update_base_fallback %} Env-Fallback: <span class="codes">{{ module_update_base_fallback }}</span>.{% endif %} Änderungen wirken beim nächsten Containerstart (Spiegel).</div>
             </form>
