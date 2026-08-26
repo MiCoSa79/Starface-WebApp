@@ -383,7 +383,15 @@ def main() -> int:
                              "(Empfehlung: 43+ Zeichen).",
                              "URL-sicher erzeugen: python3 -c \"import secrets; "
                              "print(secrets.token_urlsafe(32))\" oder openssl rand -base64 24.",
-                             "Zeichensatz automatisch URL-sicher (A–Z, a–z, 0–9, „_“, „-“).",
+                             "PowerShell (CLM-konform — nur Cmdlet + Operatoren, "
+                             "keine .NET-API): (New-Guid).Guid -replace '-', '' "
+                             "= 32 Hex-Zeichen, URL-sicher.",
+                             "PowerShell mit .NET-API (nicht CLM): $b = New-Object byte[] 24; "
+                             "[Security.Cryptography.RNGCryptoServiceProvider]::Create().GetBytes($b); "
+                             "[Convert]::ToBase64String($b) = 32 Zeichen Base64.",
+                             "Zeichensatz: Python token_urlsafe, openssl und die GUID-Variante liefern "
+                             "URL-sichere Zeichen; Base64 kann +, / und = enthalten — für den RPC-Aufruf "
+                             "unkritisch, beide Felder (Anlage ↔ WebApp) identisch füllen.",
                              "Wie ein Master-Passwort behandeln: nicht in Mails/Screenshots/Logs; "
                              "bei Verdacht auf beiden Seiten neu setzen (Anlage + WebApp)."]},
                 {"nummer": 6, "titel": "Versionen",
