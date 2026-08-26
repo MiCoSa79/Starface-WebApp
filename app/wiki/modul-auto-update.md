@@ -1,6 +1,6 @@
 ---
 title: Modul-Auto-Update — Architektur & Umsetzungsplan (Update-Server im Stack)
-description: Design für automatisches Modul-Install/Update über die WebApp — Update-Server (nginx:alpine) als 4. Docker-Stack-Service, signierte zeitbegrenzte URLs (secure_link), zentrales Updater-Modul. Entscheidungen F1–F3, Vorbereitung A1–A6, offene Punkte.
+description: Design für automatisches Modul-Install/Update über die WebApp — Update-Server (nginx:alpine) als 4. Docker-Stack-Service, signierte zeitbegrenzte URLs (secure_link), zentrales Updater-Modul. Entscheidungen F1–F4, Vorbereitung A1–A6, offene Punkte.
 updated: 2026-08-26
 ---
 
@@ -26,6 +26,12 @@ Admin kann aus der WebApp heraus **alle eigenen Module** (TelefonieMonitoring, C
 ### F3: Deployment → eigener Update-Server als 4. Service im bestehenden Stack
 - `nginx:alpine` (offizielles Image, `secure_link` + `limit_req` eingebaut) — kein Eigenbau-Image, nur Config-Volume.
 - Statisch + read-only; **kein** `x-casaos`-Eintrag (reiner Helper wie influxdb), Zugriff nur über NPM.
+
+### F4: Update-Server-URL ist eine ADMIN-EINSTELLUNG (wie Grafana-Basis-URL v0.0.121)
+- **Nicht hartcodiert** und nicht nur Env: Neue Einstellung `module_update_base_url` in der `settings`-Tabelle (Helper `_get_setting`/`_set_setting`, Admin-UI `/admin` → „Einstellungen").
+- Priorität: **Admin-Einstellung > Env `MODULE_UPDATE_BASE_URL` > Default leer** (leer = kein Update-Kanal sichtbar/aktiv bis gesetzt).
+- Die Einstellung steuert beides: die `downloadUrl` in `versions.json` UND die Signatur-Erzeugung (Task 1).
+- Das Update-Modul (Phase 3) bekommt die URL stets von der WebApp übergeben — nie selbst fest verdrahtet.
 
 ```
 ZimaOS-Stack ───┐
