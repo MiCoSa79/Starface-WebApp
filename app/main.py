@@ -582,9 +582,11 @@ def _xmlrpc_value(el) -> object:
 try:
     import monitoring
     import mirror
+    import module_updates
 except ImportError:
     from app import monitoring
     from app import mirror
+    from app import module_updates
 
 
 # ─────────────────────────────────────────────────────────────
@@ -981,11 +983,10 @@ async def admin_updates_push(request: Request):
         return RedirectResponse(
             "/admin/updates?msg=" + quote("Unbekannte Anlage."), status_code=303)
     try:
-        from module_updates import push_update  # lazy: verhindert Import-Zirkel
         token = _get_token(inst)
         update_token = _decrypt(inst["deployer_token"]) if inst["deployer_token"] else ""
-        res = push_update(inst, token, module_name=module_name, filename=filename,
-                          target_version=version, update_token=update_token)
+        res = module_updates.push_update(inst, token, module_name=module_name, filename=filename,
+                                         target_version=version, update_token=update_token)
         if res["status"] == "ok":
             msg = f"{module_name}: Update angestoßen"
         else:
@@ -1019,10 +1020,9 @@ async def admin_updates_ping(request: Request):
         return RedirectResponse(
             "/admin/updates?msg=" + quote("Unbekannte Anlage."), status_code=303)
     try:
-        from module_updates import ping_channel  # lazy: verhindert Import-Zirkel
         token = _get_token(inst)
-        res = ping_channel(inst, token, filename=filename,
-                           instance_name=inst["deployer_instance_name"])
+        res = module_updates.ping_channel(inst, token, filename=filename,
+                                          instance_name=inst["deployer_instance_name"])
         if res["status"] == "ok":
             detail = res.get("response") or res.get("raw", "")[:120]
             msg = f"{module_name}: Download-Test ok — {detail}"

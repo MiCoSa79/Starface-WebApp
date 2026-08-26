@@ -144,6 +144,28 @@ check("Fallback-Import (app.monitoring) -> Seite 200",
       r.status_code == 200 and "Download-Test" in r.text,
       f"status={r.status_code}")
 
+# --- 8. module_updates-Fallback (Container: Modul liegt unter /app/app/) ----
+import importlib as _il
+_saved2 = _sys.modules.pop("module_updates", None)
+_sys.modules["module_updates"] = None   # erzwingt ImportError auf Weg 1
+_sys.path.insert(0, os.getcwd())        # repo-root, damit 'from app import ...' greift
+try:
+    try:
+        _il.import_module("module_updates")
+        _fb_ok = False                  # Weg 1 hat überraschend funktioniert
+    except ImportError:
+        _from_app = _il.import_module("app.module_updates")
+        _fb_ok = callable(getattr(_from_app, "ping_channel", None)) and \
+                 callable(getattr(_from_app, "push_update", None))
+finally:
+    _sys.path.pop(0)
+    if _saved2 is not None:
+        _sys.modules["module_updates"] = _saved2
+    else:
+        _sys.modules.pop("module_updates", None)
+check("module_updates-Fallback 'from app import ...' -> ping/push nutzbar",
+      _fb_ok, "Fallback-Weg nicht aufloesbar")
+
 print()
 if FAIL:
     print("FEHLGESCHLAGEN:", ", ".join(FAIL))
