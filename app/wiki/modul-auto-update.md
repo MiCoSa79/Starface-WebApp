@@ -61,10 +61,12 @@ ZimaOS-Stack ───┐
 | `versions.json` ohne Token | **403** ✅ | **403** ✅ |
 | `/modules/Test.sfm` ohne Token | **403** ✅ | **403** ✅ |
 | Gefälschte Signatur (`md5=gefälscht`) | **403** ✅ | **403** ✅ |
-| Abgelaufene Signatur | ⏳ (Secret nötig) | ⏳ |
-| Gültige Signatur → 200 + Inhalt | ⏳ (Secret + Spiegel, Task 3) | ⏳ |
+| **Abgelaufene Signatur** (expires −1h, echtes Secret) | **410** ✅ | **410** ✅ |
+| **Gültige Signatur**, Datei fehlt (`__existiert_nicht__.sfm`) | — | **404** ✅ (= Prüfung läuft grün durch, nur Datei fehlt) |
+| Gültige Signatur auf `versions.json` (fehlt noch) | — | **404** ✅ |
+| **Gültige Signatur → 200 + Inhalt** | ⏳ Spiegel (Task 3) | ⏳ |
 
-→ Stack: Service läuft, secure_link greift, NPM-Pfad inkl. SSL korrekt. Rest-Abnahme sobald `UPDATE_SIGNING_SECRET` in `/opt/data/.env` (= Stack-Wert) hinterlegt und Task-3-Spiegel existiert.
+→ **Task 2 vollständig abgenommen:** 403 (keine/falsche Signatur), 410 (abgelaufen), Durchlauf (grün → 404 statt 403) — direkt und über NPM/SSL. Signatur-Kette end-to-end mit `updatesign.py` + echtem Secret (`/opt/data/.env`) verifiziert. Einziger offener Fall: 200 = sobald Task-3-Spiegel Dateien nach `/data/modules` legt. Stack indes unverändert produktiv.
 
 ## Umsetzung (5 Tasks, TDD — Details im Plan-Dokument)
 
