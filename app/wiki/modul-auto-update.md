@@ -6,7 +6,7 @@ updated: 2026-08-26
 
 # Modul-Auto-Update — Architektur & Umsetzungsplan
 
-**Status:** ✅ **Task 1 umgesetzt (26.08.):** Signatur-Bibliothek `app/updatesign.py` + Tests (8/8 grün, Vektor-geprüft). ✅ **Task 2 umgesetzt + vollständig abgenommen (26.08.):** nginx-Service `module-updates` live im Stack (403/410/Durchlauf über beide Pfade — Tabelle unten). ✅ **Task 3 umgesetzt (26.08.):** WebApp-Spiegel `app/mirror.py` + Admin-Einstellung `module_update_base_url` (Priorität Einstellung > Env > leer), 22 neue Tests grün (mirror 11 + admin-settings 11), Suite komplett grün. Offen: Task 4-Deploy auf ZimaOS (Stack-Übertragung durch Axel) + Task 5 (200-Test). Umsetzungsplan: `profiles/axel/.hermes/plans/2026-08-26_152327-update-server-module-updates.md` (Hermes-Wiki). Grundlagen-RE: [[admin-power-pack-re]].
+**Status:** ✅ **Task 1 umgesetzt (26.08.):** Signatur-Bibliothek `app/updatesign.py` + Tests (8/8 grün, Vektor-geprüft). ✅ **Task 2 umgesetzt + vollständig abgenommen (26.08.):** nginx-Service `module-updates` live im Stack (403/410/Durchlauf über beide Pfade — Tabelle unten). ✅ **Task 3 umgesetzt (26.08.):** WebApp-Spiegel `app/mirror.py` + Admin-Einstellung `module_update_base_url` (Priorität Einstellung > Env > leer), 22 neue Tests grün (mirror 11 + admin-settings 11), Suite komplett grün. ✅ **Task 4 deployed (26.08., Axel):** Stack-Übertragung inkl. `UPDATE_SIGNING_SECRET` (WebApp-Env + Service), Admin-Einstellung gesetzt. 🔄 **Task 5 (Live-Abnahme 26.08.):** vollständige Signatur-Kette über die Domain verifiziert (`.sfm` → **200 + ZIP-Inhalt** signed!). Dabei Bug gefunden: `versions.json` landete in `modules/` statt im html-ROOT → nur als `/modules/versions.json` abrufbar (200), `/versions.json` = 404. **Fix `b34e94d` + Repo-Wiki (`v0.0.161` erwartet):** versions.json wird in den html-Root geschrieben, Legacy-Datei in `modules/` wird beim Lauf entfernt (TDD rot→grün, 13 Checks). ⏳ **Finaler 200-Test `https://modulupdates.meiser.family/versions.json` nach WebApp-Deploy auf v0.0.161.** Umsetzungsplan: `profiles/axel/.hermes/plans/2026-08-26_152327-update-server-module-updates.md` (Hermes-Wiki). Grundlagen-RE: [[admin-power-pack-re]].
 
 ## Ziel
 
@@ -35,7 +35,7 @@ Admin kann aus der WebApp heraus **alle eigenen Module** (TelefonieMonitoring, C
 
 ```
 ZimaOS-Stack ───┐
-├─ starface-webapp ─ :8895   spiegelt app/modules/*.sfm + versions.json → data/modules
+├─ starface-webapp ─ :8895   spiegelt app/modules/*.sfm → data/modules + versions.json → data/ (html-Root)
 ├─ grafana ────────── :8894
 ├─ influxdb (intern)
 └─ module-updates ─── :8896  nginx:alpine, secure_link, read-only
@@ -63,23 +63,24 @@ ZimaOS-Stack ───┐
 | Gefälschte Signatur (`md5=gefälscht`) | **403** ✅ | **403** ✅ |
 | **Abgelaufene Signatur** (expires −1h, echtes Secret) | **410** ✅ | **410** ✅ |
 | **Gültige Signatur**, Datei fehlt (`__existiert_nicht__.sfm`) | — | **404** ✅ (= Prüfung läuft grün durch, nur Datei fehlt) |
-| Gültige Signatur auf `versions.json` (fehlt noch) | — | **404** ✅ |
-| **Gültige Signatur → 200 + Inhalt** | ⏳ Spiegel (Task 3) | ⏳ |
+| `versions.json` im html-ROOT (`/versions.json`) | — | vor Fix: **404** (Datei lag in `modules/`) → nach v0.0.161-Deploy: **200** ⏳ |
+| Gültige Signatur auf `/modules/versions.json` | — | **200** ✅ (Beweis des Pfad-Bugs: Datei lag in `modules/`) |
+| **Gültige Signatur → 200 + Inhalt** (`.sfm`) | — | **200** ✅ (TelefonieMonitoring v7 + CallBlocker v28, ZIP-Magic `PK` geprüft) |
 
-→ **Task 2 vollständig abgenommen:** 403 (keine/falsche Signatur), 410 (abgelaufen), Durchlauf (grün → 404 statt 403) — direkt und über NPM/SSL. Signatur-Kette end-to-end mit `updatesign.py` + echtem Secret (`/opt/data/.env`) verifiziert. Einziger offener Fall: 200 = sobald Task-3-Spiegel Dateien nach `/data/modules` legt. Stack indes unverändert produktiv.
+→ **Task 2 vollständig abgenommen:** 403 (keine/falsche Signatur), 410 (abgelaufen), Durchlauf (grün → 404 statt 403) — direkt und über NPM/SSL. **Task 5 live (26.08.):** `.sfm`-Downloads über die Domain mit gültiger Signatur → **200 + ZIP-Inhalt** (versions.json inkl. korrektem Manifest unter `/modules/versions.json`); Pfad-Bug für `/versions.json` gefunden (Datei lag in `modules/`), Fix in v0.0.160/161 (html-Root + Legacy-Cleanup). Einziger offener Fall: finaler **200 auf `/versions.json`** nach WebApp-Deploy auf v0.0.161.
 
 ## Umsetzung (5 Tasks, TDD — Details im Plan-Dokument)
 
 1. ✅ **Signatur-Bibliothek** `app/updatesign.py` (+ `tmp_tests/test_updatesign.py`) — `secure_link`-kompatible URLs (`_nginx_md5`, `build_signed_url`, `parse_parts`), 2 Known-Vektoren von Hand + Roundtrip/TTL/URI-Differenz, 8/8 grün; Suite unverändert grün (module_status_test, error_box_test, monitoring_rechte_e2e 17/17, module_status_live)
 2. ✅ **nginx-Config** `deploy/nginx-updates.conf.template` — als envsubst-**Template** fürs offizielle nginx-Image (`default.conf.template` → ersetzt beim Start die Image-default.conf, `${UPDATE_SIGNING_SECRET}` aus `environment`); `secure_link` (403/410/200), `limit_req`, read-only. Mechanismus simuliert & verifiziert (Secret wird ersetzt, `$uri`/`$arg_md5` bleiben). ~~Testskript~~ → ersetzt durch **Stack-Integration** (Task 4 vorgezogen): nginx:alpine wird direkt als Service `module-updates` in den ZimaOS-Stack aufgenommen, Test = Deploy + Fern-Abnahme über 10.0.25.60:8896 (403 ohne Token sofort prüfbar; 410/200 nach Secret-Ablage in `/opt/data/.env` bzw. Task-3-Spiegel)
-3. ✅ **WebApp-Spiegel** `app/mirror.py` — beim Startup kopiert er `.sfm` aus `app/modules` → `<data>/modules` (geteiltes Volume mit nginx) und schreibt `versions.json` im `is`-Schema (`moduleName`, `moduleVersion` aus dem `version`-Attribut der `module-descriptor.xml`, `ring=stable`, `downloadUrl` aus Admin-Einstellung `module_update_base_url`, `md5` je Datei). Fehler brechen den Containerstart nie (try/except + Log). Admin-UI: `/admin` hat das Feld **„Update-Server-Basis-URL“** (wie Grafana-Basis-URL — die Einstellung IST die einzige gesetzte Quelle, Env-Fallback `MODULE_UPDATE_BASE_URL` bleibt reine Code-Option und wird im Stack NICHT gesetzt), `/admin/modules` zeigt Spiegel-Badge (aktiv + Paketanzahl). Tests: `tmp_tests/test_module_mirror.py` (11, Fake-.sfm-ZIPs inkl. kaputte Datei, Idempotenz, Schema, trailing-slash) + `tmp_tests/admin_settings_test.py` (11, Render admin.html/modules.html, POST speichert, Priorität) — Suite komplett grün (module_status_test, error_box_test, monitoring_rechte_e2e 17/17)
+3. ✅ **WebApp-Spiegel** `app/mirror.py` — beim Startup kopiert er `.sfm` aus `app/modules` → `<data>/modules` (geteiltes Volume mit nginx) und schreibt `versions.json` im `is`-Schema (`moduleName`, `moduleVersion` aus dem `version`-Attribut der `module-descriptor.xml`, `ring=stable`, `downloadUrl` aus Admin-Einstellung `module_update_base_url`, `md5` je Datei) — **im html-ROOT (`<data>/versions.json`)**, NICHT in `modules/` (Fix `b34e94d`, v0.0.160); beim Lauf wird eine Legacy-`versions.json` in `modules/` entfernt. Fehler brechen den Containerstart nie (try/except + Log). Admin-UI: `/admin` hat das Feld **„Update-Server-Basis-URL“** (wie Grafana-Basis-URL — die Einstellung IST die einzige gesetzte Quelle, Env-Fallback `MODULE_UPDATE_BASE_URL` bleibt reine Code-Option und wird im Stack NICHT gesetzt), `/admin/modules` zeigt Spiegel-Badge (aktiv + Paketanzahl). Tests: `tmp_tests/test_module_mirror.py` (13 inkl. html-Root-Check, Legacy-Cleanup; Fake-.sfm-ZIPs inkl. kaputte Datei, Idempotenz, Schema, trailing-slash) + `tmp_tests/admin_settings_test.py` (11, Render admin.html/modules.html, POST speichert, Priorität) — Suite komplett grün (module_status_test, error_box_test, monitoring_rechte_e2e 17/17)
 4. 🔄 **Stack-Patch (Kopie!)** — Service `module-updates` EINGEBAUT in `starface-webapp-compose-zimaos.yaml` (nginx:alpine, Port 8896, Env `UPDATE_SIGNING_SECRET`; Volumes: Host-`data` → html-Root ro, `update-server/` → `/etc/nginx/templates` ro); YAML + Service-Asserts validiert (uv+PyYAML). **Ausstehend: Übertragung auf ZimaOS + Deploy durch Axel** (Datei `default.conf.template` per Dateimanager ablegen, Stack ersetzen, `<UPDATE_SIGNING_SECRET>` an 2 Stellen ersetzen — WebApp-Env + Service). **Nur das Secret als Env** — die Basis-URL wird in den WebApp-Admin-Einstellungen gesetzt (wie die Grafana-Basis-URL), KEINE `MODULE_UPDATE_BASE_URL`-Env im Stack
 5. **Deploy + Abnahme** — 403 ohne Token / 200 mit frischer Signatur / WebApp-Log „mirror ok“; Rollback = nur neue Service-Definition zurück
 
 ## Offene Punkte
 
 - **P1:** Anlage → Update-Domäne ungetestet; Fallback = Base64-Push (Phase 1 trotzdem baubar)
-- **P2:** `secure_link`-`$uri`-Normalisierung → im Roundtrip-Test gegen echten nginx absichern
+- ~~**P2:** `secure_link`-`$uri`-Normalisierung~~ → ✅ erledigt: Live-Test 26.08. lieferte signierte 200er auf `modules/<datei>.sfm` und `modules/versions.json` über NPM/SSL
 - **P3:** Tomcat-`maxPostSize` (>5-MB-Base64-Pakete) nur beim Push-Weg relevant — ggf. `ARC`-Kompression (Admin-Power-Pack-Muster)
 - **P4:** Phasen 2/3: zentrales Updater-Modul (RPCs `GetModuleVersions`/`UpdateModule`/`UpdateAll` + `importModule`), optional GUI-Tab-Button — separater Plan nach Freigabe
 
