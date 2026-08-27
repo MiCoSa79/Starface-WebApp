@@ -26,6 +26,13 @@ input[type="checkbox"]{margin-right:6px;transform:scale(1.2)}
         ::-webkit-scrollbar-corner { background: transparent; }
         * { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.25) transparent; }
 
+    .token-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .token-row input { flex: 1; min-width: 240px; }
+    .token-gen-msg { margin-top: 6px; font-size: .85em; }
+    .token-gen-msg.ok { color: #2e7d32; }
+    .token-gen-msg.err { color: #c62828; }
+    .btn-working { opacity: .55; }
+    .btn-working::after { content: " …"; }
 </style>
 {% endblock %}
 {% block content %}
@@ -92,8 +99,12 @@ input[type="checkbox"]{margin-right:6px;transform:scale(1.2)}
         <div class="form-row">
             <div>
                 <label for="deployer_token">Deployment-Modul-Token</label>
-                <input type="password" id="deployer_token" name="deployer_token" value="" placeholder="…leer lassen = unverändert" autocomplete="off">
-                <div class="hint">Instanz-Token des Deployment-Moduls (Schutz gegen unautorisierte RPCs). Wird verschlüsselt gespeichert und beim Update-Aufruf als updateToken mitgegeben — nur setzen, wenn das Modul ein Token prüft</div>
+                <div class="token-row">
+                    <input type="password" id="deployer_token" name="deployer_token" value="" placeholder="…leer lassen = unverändert" autocomplete="off">
+                    <button type="button" id="token-generate-btn" class="btn-secondary">🔑 64-Zeichen-Token generieren</button>
+                </div>
+                <div class="hint">Instanz-Token des Deployment-Moduls (Schutz gegen unautorisierte RPCs). Wird verschlüsselt gespeichert und beim Update-Aufruf als updateToken mitgegeben — nur setzen, wenn das Modul ein Token prüft. Der Generator erzeugt serverseitig 64 Hex-Zeichen (256 Bit).</div>
+                <div id="token-gen-msg" class="token-gen-msg" style="display:none"></div>
             </div>
         </div>
         <div class="form-row" style="justify-content:flex-end;gap:12px">
@@ -101,5 +112,30 @@ input[type="checkbox"]{margin-right:6px;transform:scale(1.2)}
             <button type="submit" class="btn-primary">Speichern</button>
         </div>
     </form>
+    <script>
+        document.getElementById('token-generate-btn').addEventListener('click', async function () {
+            var btn = this, msg = document.getElementById('token-gen-msg');
+            msg.style.display = 'none';
+            btn.classList.add('btn-working');
+            try {
+                var res = await fetch('/admin/api/generate-token', {method: 'POST'});
+                var data = await res.json();
+                if (res.ok && data.status === 'ok') {
+                    document.getElementById('deployer_token').value = data.token;
+                    msg.textContent = 'Neuer Token (64 Zeichen, 256 Bit) erzeugt — bitte „Speichern" klicken, damit er übernommen wird.';
+                    msg.className = 'token-gen-msg ok';
+                } else {
+                    msg.textContent = 'Fehler: ' + (data.message || 'unbekannt (HTTP ' + res.status + ')');
+                    msg.className = 'token-gen-msg err';
+                }
+            } catch (e) {
+                msg.textContent = 'Fehler: ' + e.message;
+                msg.className = 'token-gen-msg err';
+            } finally {
+                btn.classList.remove('btn-working');
+            }
+            msg.style.display = 'block';
+        });
+    </script>
 </div>
 {% endblock %}

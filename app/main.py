@@ -1470,6 +1470,21 @@ async def admin_installation_edit_page(request: Request, inst_id: int):
          "active": "admin", "version": os.environ.get("APP_VERSION", "dev")})
 
 
+@app.post("/admin/api/generate-token")
+async def api_generate_token(request: Request):
+    """Erzeugt serverseitig einen sicheren 64-Zeichen-Token (Hex, 256 Bit).
+
+    Wird in den Anlagen-Einstellungen als Deployment-Modul-Token genutzt
+    (Schutz gegen unautorisierte UpdateFromUrl-RPCs). Bewusst serverseitig
+    via secrets.token_hex(32) — niemals clientseitig erzeugen.
+    """
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user or not user["is_admin"]:
+        return JSONResponse({"status": "error", "message": "Nicht autorisiert"},
+                            status_code=403)
+    return JSONResponse({"status": "ok", "token": secrets.token_hex(32)})
+
+
 @app.post("/admin/installations/{inst_id}")
 async def admin_installation_update(request: Request, inst_id: int,
                                     name: str = Form(...),

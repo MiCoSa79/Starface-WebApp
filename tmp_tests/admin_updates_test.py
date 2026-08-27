@@ -291,6 +291,18 @@ check("Stale-Cleanup: Drittanbieter unangetastet",
       conn3.execute("SELECT id FROM modules WHERE name='ThirdPartyGhost' AND source='third_party'").fetchone() is not None)
 conn3.close()
 
+# --- 8. Token-Generator (F48): sichere 64-Zeichen-Tokens ----------------------
+import re
+r = c.post("/admin/api/generate-token")
+tok = r.json().get("token", "")
+check("Token-Generator: liefert 64 Hex-Zeichen",
+      re.fullmatch(r"[0-9a-f]{64}", tok) is not None, tok)
+tok2 = c.post("/admin/api/generate-token").json().get("token", "")
+check("Token-Generator: zufällig (2. Aufruf verschieden)", tok2 != tok)
+anon = TestClient(app_main.app)
+ra = anon.post("/admin/api/generate-token")
+check("Token-Generator: ohne Session 403", ra.status_code == 403, str(ra.status_code))
+
 print("\n" + ("ERGEBNIS: ALLE ADMIN-UPDATES-TESTS OK"
               if not FAIL else f"FEHLGESCHLAGEN: {FAIL}"))
 sys.exit(0 if not FAIL else 1)
