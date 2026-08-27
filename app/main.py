@@ -1072,7 +1072,7 @@ async def passkey_register_options(request: Request):
             {"type": "public-key", "alg": -257},
         ],
         "authenticatorSelection": {"residentKey": "required", "userVerification": "preferred"},
-        "attestation": "none",
+        "attestation": "indirect",
         "timeout": 60000,
     })
 

@@ -83,6 +83,7 @@ Quelle: `git for-each-ref refs/tags/v0.0.*` — Stichworte = Commit-Subject.
 
 | Version | Commit | Änderung |
 |---|---|---|
+| v1.0.12 | (27.08.) | fix(F58): iOS-Registrierung — attestation `indirect` (WebKit-Hang bei `none`); NotAllowedError zeigt Hinweis statt stillem Abbruch — Hash folgt |
 | v1.0.11 | (27.08.) | fix: Signatur-Kompatibilität für ALLE Passkey-Anbieter — Bitwarden u.a. liefern DER statt RAW (70/71 B) → normalisiert; Passkey-Seite auf Admin-Design (base.html, rote Buttons, Card-Palette) — Hash folgt |
 | v1.0.10 | `2251956` | fix: Passkey-Entfernen committete nie (execute auf Conn A, commit auf Conn B) — offene Transaktion blockierte DB dauerhaft („database is locked" — auch Logout-500); busy_timeout 30 s |
 | v1.0.9 | `be3b2be` | Härtung: WAL-Journal + busy_timeout — Wurzel des Logout-500 war in Wahrheit die offene Transaktion aus dem Entfernen-Bug (v1.0.10) |

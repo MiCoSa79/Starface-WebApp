@@ -104,7 +104,7 @@
                 if (!r2.ok || j.status !== 'ok') throw new Error(j.message || 'Registrierung fehlgeschlagen');
                 window.location.reload();
             } catch (e) {
-                if (e && e.name === 'NotAllowedError') { setMsg('', false); return; }
+                if (e && e.name === 'NotAllowedError') { setMsg('Passkey-Dialog wurde abgebrochen oder ist abgelaufen — bitte erneut versuchen.', true); return; }
                 setMsg((e && e.message) || 'Registrierung fehlgeschlagen', true);
             } finally { btn.disabled = false; }
         }
