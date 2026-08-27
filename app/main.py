@@ -1113,8 +1113,10 @@ async def passkey_register_verify(request: Request):
         conn.close()
         return JSONResponse({"status": "ok", "credential_id": _b64u(cred_data.credential_id)})
     except ValueError:
+        logger.exception("Passkey-Registrierung abgelehnt (ValueError)")
         return JSONResponse({"status": "error", "message": "Registrierung fehlgeschlagen."}, status_code=400)
     except sqlite3.IntegrityError:
+        logger.warning("Passkey-Registrierung: Duplikat (IntegrityError)")
         return JSONResponse({"status": "error", "message": "Dieser Passkey ist bereits registriert."}, status_code=409)
     except Exception:
         logger.exception("Passkey-Registrierung fehlgeschlagen")
