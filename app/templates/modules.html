@@ -12,7 +12,7 @@
         .topbar h1 img { height: 24px; width: auto; }
         .topbar h1 span { color: #e94560; }
         .topbar a { color: #e94560; text-decoration: none; margin-left: 16px; }
-        .container { max-width: 900px; margin: 0 auto; padding: 24px;
+        .container { max-width: 1400px; margin: 0 auto; padding: 24px;
                      padding-bottom: 60px; }
         h2 { font-size: 18px; margin: 24px 0 12px; color: #e94560; }
         h2:first-child { margin-top: 0; }
@@ -29,6 +29,9 @@
                       text-decoration: none; background: #4a1e1e; color: #e08a8a;
                       font-size: 13px; border: none; cursor: pointer; }
         .btn-danger:hover { background: #5e2626; }
+        /* Aktion-Zellen: Buttons auf Desktop immer nebeneinander (nie untereinander) */
+        td form { display: flex; gap: 8px; flex-wrap: nowrap; white-space: nowrap; }
+        @media (max-width: 640px) { td form { flex-wrap: wrap; } }
         .empty { color: #666; text-align: center; padding: 24px; }
         .badge { display: inline-block; background: #2d6a4f; color: #95d5b2;
                  padding: 2px 8px; border-radius: 4px; font-size: 12px; margin-left: 8px; }
