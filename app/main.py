@@ -87,7 +87,7 @@ def _decrypt(stored: str) -> str:
 def _db():
     conn = sqlite3.connect(DB_PATH, timeout=10)
     conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA busy_timeout = 10000")
+    conn.execute("PRAGMA busy_timeout = 30000")
     return conn
 
 
@@ -1135,8 +1135,12 @@ async def passkey_delete(request: Request):
         pk_id = int(body.get("id") or 0)
     except Exception:
         return JSONResponse({"status": "error", "message": "Ungültige Anfrage."}, status_code=400)
-    cur = _db().execute("DELETE FROM passkeys WHERE id = ? AND user_id = ?", (pk_id, user["user_id"]))
-    _db().commit()
+    db = _db()
+    try:
+        cur = db.execute("DELETE FROM passkeys WHERE id = ? AND user_id = ?", (pk_id, user["user_id"]))
+        db.commit()
+    finally:
+        db.close()
     if cur.rowcount == 0:
         return JSONResponse({"status": "error", "message": "Passkey nicht gefunden."}, status_code=404)
     return JSONResponse({"status": "ok"})
