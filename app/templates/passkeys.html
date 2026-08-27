@@ -72,8 +72,11 @@
 {% endblock %}
 {% block scripts %}
 <script>
-        async function pkB64(buf) {
-            const bytes = new Uint8Array(buf);
+        async function pkB64(buf, byteOffset = 0, byteLength) {
+            // ArrayBuffer ODER View (Safari liefert teils Uint8Array-Views mit byteOffset!)
+            const bytes = byteLength !== undefined
+                ? new Uint8Array(buf, byteOffset, byteLength)
+                : new Uint8Array(buf);
             let bin = '';
             for (const b of bytes) bin += String.fromCharCode(b);
             return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -82,7 +85,7 @@
             const resp = {};
             for (const [k, v] of Object.entries(cred.response)) {
                 resp[k] = v instanceof ArrayBuffer ? await pkB64(v)
-                    : (ArrayBuffer.isView(v) ? await pkB64(v.buffer) : v);
+                    : (ArrayBuffer.isView(v) ? await pkB64(v.buffer, v.byteOffset, v.byteLength) : v);
             }
             return { id: cred.id, rawId: await pkB64(cred.rawId), type: cred.type, response: resp };
         }

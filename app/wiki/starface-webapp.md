@@ -83,6 +83,7 @@ Quelle: `git for-each-ref refs/tags/v0.0.*` — Stichworte = Commit-Subject.
 
 | Version | Commit | Änderung |
 |---|---|---|
+| v1.0.16 | (27.08.) | fix(F58): pkB64-Enkodierung berücksichtigt View-Offsets — Safari/iOS liefert WebAuthn-Response-Felder teils als Uint8Array-Views (byteOffset>0); vorher wurde der ganze Puffer (inkl. Vorlauf) enkodiert → kaputtes attestationObject → „Registrierung fehlgeschlagen“ bei iOS trotz Face-ID-OK. Hash folgt |
 | v1.0.15 | (27.08.) | fix(F58): `register/verify` loggt jetzt ValueError + IntegrityError per `logger.exception` — iOS-Registrierung: Face-ID-OK, aber „Registrierung fehlgeschlagen“ (Server-400) → Grund künftig direkt im Container-Log statt stillem 400. Hash folgt |
 | v1.0.14 | `c08c85e` | fix(F58): iOS-Passkey-Registrierung — `userVerification: required` (erzwingt Face-ID-Prompt; `preferred` ließ iOS nach Namensdialog still mit NotAllowedError abbrechen), `attestation: none` (Standard; `indirect`-Wechsel war wirkungslos), `timeout: 180 s` (vorher 60 s zu knapp → „abgelaufen“): Inline-Gerätename statt `prompt()` (iOS-tot, gibt immer null) — Fehleranzeige jetzt mit Diagnose-Detail (name/message) + iOS-Checkliste; Button bleibt klickbar (busy-Flag statt disabled); Login-Options analog required+180 s; Suite: UV-Flag im Mock, Options-Vertrag required |
 | v1.0.13 | `26eeb31` | fix(F58): iOS-Registrierung — attestation `indirect` (WebKit-Hang-Verdacht bei `none`; erklärt das Symptom nicht dauerhaft → v1.0.14); NotAllowedError zeigt Hinweis statt stillem Abbruch |
