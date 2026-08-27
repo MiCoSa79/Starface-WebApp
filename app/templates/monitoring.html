@@ -105,7 +105,7 @@
                     <th style="width:44px;"></th>
                     <th style="width:56px;">Detail</th>
                 </tr>
-                <tbody id="inst-rows" data-ghref="{{ grafana_base }}/d/{{ grafana_uid }}/?var-installation=" data-gsuffix="&from=now-6h&to=now&kiosk=1&hideLogo">
+                <tbody id="inst-rows" data-ghref="{{ grafana_base }}/d/{{ grafana_uid }}/?var-installation=" data-gsuffix="&from=now-6h&to=now&kiosk=1&hideLogo" data-idmap="{{ id_by_name|default({})|tojson }}">
                 {% for name, vals in status.installations.items() %}
                 <tr>
                     <td>{{ name }}</td>
@@ -143,7 +143,7 @@
             </table>
             {% else %}
             <table id="tbl-inst" style="border:0;">
-                <tbody id="inst-rows" data-ghref="{{ grafana_base }}/d/{{ grafana_uid }}/?var-installation=" data-gsuffix="&from=now-6h&to=now&kiosk=1&hideLogo">
+                <tbody id="inst-rows" data-ghref="{{ grafana_base }}/d/{{ grafana_uid }}/?var-installation=" data-gsuffix="&from=now-6h&to=now&kiosk=1&hideLogo" data-idmap="{{ id_by_name|default({})|tojson }}">
                 <tr><td colspan="8" style="border:0;padding:0;">
                 {% if user and user.is_admin %}
                 <p style="color:#888;font-size:14px;margin:0;">Noch keine Werte. Hinweis: Der Sammler pollt nur Installationen, bei denen unter <b>Bearbeiten</b> das Feld <b>Monitoring-Modul-Instanz</b> gesetzt ist.</p>
@@ -267,11 +267,13 @@
             tbody.textContent = '';
             var ghref = tbody.getAttribute('data-ghref') || '';
             var gsuffix = tbody.getAttribute('data-gsuffix') || '';
+            var idmap = {};
+            try { idmap = JSON.parse(tbody.getAttribute('data-idmap') || '{}'); } catch (e) { /* Anlagen-ID-Map fehlt (z. B. alter Kontext) */ }
             var names = Object.keys(insts || {});
             if (names.length === 0) {
                 var tr0 = document.createElement('tr');
                 var td0 = document.createElement('td');
-                td0.colSpan = 7;
+                td0.colSpan = 8;
                 td0.style.border = '0';
                 td0.style.padding = '0';
                 var p = document.createElement('p');
@@ -296,8 +298,17 @@
                 a.href = ghref + encodeURIComponent(name) + gsuffix;
                 a.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 15.5l2.8-3.2 2.4 2.2L15.6 9"/><path d="M16.5 14.5h1.2"/></svg>';
                 tdLink.appendChild(a);
+                // F60: Detail-Link zur Anlagen-Monitoring-Seite (Auge) — beim
+                // Auto-Refresh mit neu bauen, sonst verschwindet die Spalte (Live-Bug)
+                var tdDetail = document.createElement('td');
+                var ad = document.createElement('a');
+                ad.className = 'detail-dl';
+                ad.title = 'Detail-Monitoring der Anlage ' + name + ' öffnen';
+                ad.href = '/monitoring/installations/' + (idmap[name] !== undefined ? idmap[name] : '');
+                ad.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.8"/></svg>';
+                tdDetail.appendChild(ad);
                 tr.appendChild(tdName); tr.appendChild(tdHost); tr.appendChild(tdVer);
-                tr.appendChild(tdProv); tr.appendChild(tdPts); tr.appendChild(tdTs); tr.appendChild(tdLink);
+                tr.appendChild(tdProv); tr.appendChild(tdPts); tr.appendChild(tdTs); tr.appendChild(tdLink); tr.appendChild(tdDetail);
                 tbody.appendChild(tr);
             });
         }

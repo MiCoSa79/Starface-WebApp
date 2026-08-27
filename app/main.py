@@ -2462,12 +2462,21 @@ async def monitoring_page(request: Request):
             continue
         installations[name] = vals
 
+    # Anlagen-ID-Map NUR mit sichtbaren Anlagen ins Template (data-idmap für die
+    # JS-Detail-Links) — sonst würde der HTML-Quelltext Anlagen-Namen ohne
+    # Leserecht verraten (monitoring_rechte_e2e prüft das). (F60-Folge)
+    visible_id_by_name = {}
+    for name, iid in id_by_name.items():
+        acc = get_access(user["user_id"], iid)
+        if acc["can_read"] or acc["is_admin"]:
+            visible_id_by_name[name] = iid
+
     mstatus_copy = dict(mstatus)
     mstatus_copy["installations"] = installations
     return TEMPLATES.TemplateResponse("monitoring.html",
         {"request": request, "user": user, "active": "monitoring",
          "status": mstatus_copy,
-         "id_by_name": id_by_name,
+         "id_by_name": visible_id_by_name,
          "grafana_base": _grafana_base(),
          "grafana_uid": "starface-anlage-detail",
          "grafana_admin_uid": "starface-admin-uebersicht"})

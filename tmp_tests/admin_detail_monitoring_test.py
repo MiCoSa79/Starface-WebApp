@@ -186,6 +186,14 @@ check("/monitoring 200 (bob)", r.status_code == 200, str(r.status_code))
 check("Detail-Link Anlage A (bob)", f'href="/monitoring/installations/{a_id}"' in r.text)
 check("KEIN Detail-Link Anlage B (bob)", f'href="/monitoring/installations/{b_id}"' not in r.text)
 
+# 4b) renderRows (JS) baut die Detail-Zelle mit — Live-Bug v1.0.27: Beim
+# Auto-Refresh ersetzte renderRows die Zeilen OHNE Detail-Link (Spalte rutschte,
+# Grafana-Icon rückte in "Detail"). Fix: data-idmap am tbody + tdDetail in JS.
+check("idmap am tbody übergeben", 'data-idmap=' in r.text and f'"Anlage A": {a_id}' in r.text)
+check("renderRows baut Detail-Zelle (tdDetail)", "var tdDetail" in r.text
+      and "ad.href = '/monitoring/installations/'" in r.text)
+check("renderRows No-Data-colSpan 8", "td0.colSpan = 8" in r.text)
+
 # 5) Admin: Dropdown vorhanden (4 Anlagen) + Kacheln ohne Systemdaten bei C
 login("admin")
 r = c.get(f"/monitoring/installations/{a_id}")
