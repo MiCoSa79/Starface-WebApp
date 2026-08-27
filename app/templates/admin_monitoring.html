@@ -83,15 +83,10 @@
         body.kiosk .header-wrap, body.kiosk .footer { display: none; }
         body.kiosk .monitor-head { display: none; }
         body.kiosk .kiosk-hide { display: none; }  /* z. B. InfluxDB-Hinweis */
-        /* Kiosk-Refresh-Countdown: kleines festes Element oben links (Im Kiosk sichtbar) */
+        /* Kiosk-Refresh-Countdown: erscheint im Kiosk an der Stelle des ausgeblendeten
+           InfluxDB-Hinweises (Sammler-Zeile, Axel-Korrektur v1.0.24) */
         .kiosk-countdown { display: none; }
-        body.kiosk .kiosk-countdown {
-            display: block !important; /* schlägt inline display:none */
-            position: fixed;
-            top: calc(12px + env(safe-area-inset-top, 0px));
-            left: 16px;
-            z-index: 199; /* unter dem Beenden-Button (200) */
-        }
+        body.kiosk .kiosk-countdown { display: inline; }
         body.kiosk .container { max-width: 100%;
                                 padding: 16px 24px calc(12px + env(safe-area-inset-bottom, 0px)); }
         body.kiosk .kpis { margin-bottom: 12px; }
@@ -124,9 +119,6 @@
         <span style="color:#666;font-size:12px;margin-left:10px;">Seite aktualisiert sich automatisch in <b id="refresh-countdown" style="color:#bbb;">5</b> s</span>
         </div>
     </div>
-
-    <!-- Kiosk-Refresh-Countdown: nur im Kiosk-Modus sichtbar (fest oben links) -->
-    <span class="kiosk-countdown" style="display:none;color:#666;font-size:12px;">Aktualisiert in <b id="refresh-countdown-kiosk-num" style="color:#bbb;">5</b> s</span>
 
     <!-- KPI-Karten: 3 Kennzahlen -->
     <div class="kpis">
@@ -167,6 +159,7 @@
         <span>Sammler: <b id="sum-running">{% if summary.running %}<span class="badge badge-green">Läuft</span>{% else %}<span class="badge badge-red">Gestoppt</span>{% endif %}</b></span>
         <span>Letzter Poll: <b id="sum-lastrun" data-ts="{{ summary.last_run or 0 }}">—</b></span>
         <span class="kiosk-hide">InfluxDB: <b id="sum-influx">{% if summary.influx_configured %}<span class="badge badge-green">konfiguriert</span>{% else %}<span class="badge badge-red">kein Token</span>{% endif %}</b></span>
+        <span class="kiosk-countdown">Aktualisiert in <b id="refresh-countdown-kiosk-num" style="color:#bbb;">5</b> s</span>
     </div>
     {% if summary.last_error %}
     <div id="err-slot"><div class="errbox">Letzter Fehler{% if summary.last_error.ts %} (<span data-ts="{{ summary.last_error.ts }}">—</span>){% endif %}: {{ summary.last_error.msg }}</div></div>
