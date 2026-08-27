@@ -30,8 +30,9 @@
                   white-space: pre-wrap; margin-top: 12px; }
 
         /* ── KPI-Karten ── */
-        .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        .kpis { display: grid; grid-template-columns: repeat(2, 1fr); /* 2 Kacheln breit (Axel) */
                 gap: 16px; margin-bottom: 16px; }
+        @media (max-width: 700px) { .kpis { grid-template-columns: 1fr; } }
         .kpi { margin: 0; padding: 22px 24px; display: flex; flex-direction: column;
                gap: 4px; transition: border-color .2s ease; }
         .kpi .kpi-top { display: flex; align-items: center; justify-content: space-between; }
@@ -95,6 +96,8 @@
         .mod-tbl th { color: #8ab4f8; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .4px; }
         .mod-tbl .version-soll { color: #9e9e9e; }
         .mod-outdated .version-ist { color: #ff6b6b; font-weight: 600; }
+        .mod-grp { background: #263238; color: #8ab4f8; font-weight: 700; text-transform: uppercase;
+                   letter-spacing: .6px; font-size: 12px; }
         .mod-badge { display: inline-block; margin-left: 8px; padding: 1px 7px; border-radius: 10px; background: rgba(255, 107, 107, .15); color: #ff6b6b; font-size: 11px; font-weight: 600; vertical-align: middle; }
         .mod-hint { color: #8a9aa8; font-size: 14px; }
         .mod-note { font-size: 12px; color: #8a9aa8; margin-top: 8px; }
@@ -221,13 +224,34 @@
             <div class="chart" id="chart-mem-total"><p class="chart-empty">Lade Verlaufsdaten…</p></div>
         </div>
 
-        <!-- Module: Ist-Version vs. aktuellste Version — NUR installierte (Axel) -->
+        <!-- Module: Ist-Version vs. aktuellste Version — NUR installierte (Axel);
+             eigene Module oben, Drittanbietermodule darunter -->
+        {% set mods_own = (modules or []) | selectattr('source', 'equalto', 'own') | list %}
+        {% set mods_third = (modules or []) | selectattr('source', 'ne', 'own') | list %}
         <div class="card" id="card-inst-modules">
             <h3>Installierte Module</h3>
-            <table class="mod-tbl" id="mod-tbl"{% if not modules %} style="display:none"{% endif %}>
-                <thead><tr><th>Modul</th><th>Ist-Version</th><th>Aktuellste Version</th></tr></thead>
-                <tbody id="mod-rows">
-                {% for m in modules or [] %}
+            <table class="mod-tbl" id="mod-tbl-own"{% if not mods_own %} style="display:none"{% endif %}>
+                <thead>
+                    <tr><th colspan="3" class="mod-grp">Eigene Module</th></tr>
+                    <tr><th>Modul</th><th>Ist-Version</th><th>Aktuellste Version</th></tr>
+                </thead>
+                <tbody id="mod-rows-own">
+                {% for m in mods_own %}
+                    <tr class="mod-{{ 'ok' if m.current else 'outdated' }}">
+                        <td>{{ m.name }}</td>
+                        <td class="version-ist">{{ m.version_ist }}{% if not m.current %}<span class="mod-badge">Update verfügbar</span>{% endif %}</td>
+                        <td class="version-soll">{{ m.version_soll }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            <table class="mod-tbl" id="mod-tbl-third"{% if not mods_third %} style="display:none"{% endif %}>
+                <thead>
+                    <tr><th colspan="3" class="mod-grp">Drittanbietermodule</th></tr>
+                    <tr><th>Modul</th><th>Ist-Version</th><th>Aktuellste Version</th></tr>
+                </thead>
+                <tbody id="mod-rows-third">
+                {% for m in mods_third %}
                     <tr class="mod-{{ 'ok' if m.current else 'outdated' }}">
                         <td>{{ m.name }}</td>
                         <td class="version-ist">{{ m.version_ist }}{% if not m.current %}<span class="mod-badge">Update verfügbar</span>{% endif %}</td>
@@ -562,14 +586,21 @@
         fetch('/api/monitoring/modules/' + INST_ID, { headers: { 'Accept': 'application/json' } })
         .then(function (r) { return r.json(); })
         .then(function (data) {
-            var tbl = document.getElementById('mod-tbl');
             var hint = document.getElementById('mod-hint');
-            var tbody = document.getElementById('mod-rows');
             var has = data && data.ok && data.modules && data.modules.length;
-            if (!has) { if (tbl) tbl.style.display = 'none'; if (hint) hint.style.display = ''; return; }
-            if (tbody) {
+            if (!has) {
+                ['mod-tbl-own', 'mod-tbl-third'].forEach(function (id) {
+                    var t = document.getElementById(id); if (t) t.style.display = 'none';
+                });
+                if (hint) hint.style.display = '';
+                return;
+            }
+            var own = [], third = [];
+            data.modules.forEach(function (m) { (m.source === 'own' ? own : third).push(m); });
+            function fill(tbl, tbody, list) {
+                if (!tbl || !tbody) return;
                 tbody.innerHTML = '';
-                data.modules.forEach(function (m) {
+                list.forEach(function (m) {
                     var tr = document.createElement('tr');
                     tr.className = 'mod-' + (m.current ? 'ok' : 'outdated');
                     var tdN = document.createElement('td'); tdN.textContent = m.name || '';
@@ -584,8 +615,14 @@
                     tr.appendChild(tdN); tr.appendChild(tdI); tr.appendChild(tdS);
                     tbody.appendChild(tr);
                 });
+                tbl.style.display = '';
             }
-            if (tbl) tbl.style.display = '';
+            var tOwn = document.getElementById('mod-tbl-own');
+            var tThird = document.getElementById('mod-tbl-third');
+            if (tOwn) tOwn.style.display = 'none';
+            if (tThird) tThird.style.display = 'none';
+            fill(tOwn, document.getElementById('mod-rows-own'), own);
+            fill(tThird, document.getElementById('mod-rows-third'), third);
             if (hint) hint.style.display = 'none';
         }).catch(function () { /* alte Anzeige behalten */ });
     }

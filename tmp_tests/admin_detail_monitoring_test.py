@@ -93,7 +93,11 @@ def fake_status():
                              {"name": "NichtInstalliert", "installed": False, "current": False,
                               "version_ist": None, "version_soll": 42,
                               "vendor": "X", "instances": [], "source": "own",
-                              "status": "missing"}]}},
+                              "status": "missing"},
+                             {"name": "ThirdPartyConnector", "installed": True, "current": False,
+                              "version_ist": 2, "version_soll": 3,
+                              "vendor": "Example GmbH", "instances": [],
+                              "source": "third-party", "status": "outdated"}]}},
             "Anlage B": {"systemName": "pbx-b", "systemVersion": "10.0.1.9", "points": 90,
                          "ts": 1725000000,
                          "system": {"load1": 1.85, "load5": 1.52, "load15": 1.31,
@@ -197,8 +201,11 @@ check("Kiosk-Banner: Anlagen-Name + URL zentriert (Axel)", all(x in body for x i
 check("Kiosk-Name in Rot wie Überschriften (Axel)", '.kiosk-name { font-size: 24px; font-weight: 700; color: #e94560;' in body)
 check("Modul-Tabelle unten (Axel): Karte + Spalten im Template", all(x in tsrc for x in (
     'id="card-inst-modules"', '>Ist-Version</th>', '>Aktuellste Version</th>',
-    'id="mod-tbl"', 'id="mod-rows"', 'id="mod-hint"', 'mod-badge')))
-check("Modul-Karte rendert: Tabelle mit Modulen (Anlage A)", all(x in body for x in ('id="card-inst-modules"', 'CallBlocker', 'TelefonieMonitoring', 'id="mod-rows"')))
+    'id="mod-tbl-own"', 'id="mod-tbl-third"', 'id="mod-rows-own"', 'id="mod-rows-third"',
+    'id="mod-hint"', 'mod-badge')))
+check("Modul-Gruppen: eigene oben, Drittanbieter unten (Axel)", all(x in body for x in (
+    'Eigene Module', 'Drittanbietermodule', 'ThirdPartyConnector', 'mod-grp')))
+check("Modul-Karte rendert: Tabelle mit Modulen (Anlage A)", all(x in body for x in ('id="card-inst-modules"', 'CallBlocker', 'TelefonieMonitoring', 'id="mod-rows-own"')))
 check("Modul-Karte: nur installierte Module (Axel) — kein 'NichtInstalliert'", 'NichtInstalliert' not in body and '>42<' not in body)
 check("Modul-Karte: outdated-Zeile rot + Badge 'Update verfügbar'", all(x in body for x in ('mod-outdated', 'Update verfügbar', '>8<')))
 check("Modul-Refresh alle 5 min, nicht alle 10 s (Axel)", all(x in body for x in ('refreshModules', 'setInterval(refreshModules, 300000)', '/api/monitoring/modules/')))
@@ -216,7 +223,9 @@ rj = {}
 try: rj = rm.json()
 except Exception: pass
 check("API Modul-Liste 200 + ok:true + modules-Key", rm.status_code == 200 and rj.get("ok") is True and "modules" in rj)
-check("API Modul-Liste: nur installierte (2 statt 3)", isinstance(rj.get("modules"), list) and len(rj.get("modules")) == 2)
+check("API Modul-Liste: nur installierte (3 statt 4)", isinstance(rj.get("modules"), list) and len(rj.get("modules")) == 3)
+check("API Modul-Liste: Drittanbieter getrennt lieferbar (source)", any(m.get("source") == "third-party" for m in (rj.get("modules") or [])))
+check("Kacheln: 2 Kacheln breit (Axel)", 'grid-template-columns: repeat(2, 1fr)' in body)
 rmc = c.get(f"/api/monitoring/modules/{c_id}")
 rjc = {}
 try: rjc = rmc.json()
