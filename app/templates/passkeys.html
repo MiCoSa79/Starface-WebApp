@@ -16,6 +16,12 @@
         .hint { color: #666; font-size: 12px; margin-top: 8px; }
         .error { color: #ff8080; font-size: 13px; margin-top: 10px; }
         .hidden { display: none; }
+        .pk-create-row { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+        .pk-create-row input {
+            flex: 1; min-width: 180px; padding: 8px 12px; border-radius: 6px;
+            border: 1px solid #333; background: #0f172a; color: #eee; font-size: 13px;
+        }
+        .pk-create-row input:focus { outline: none; border-color: #e94560; }
         @media (max-width: 640px) {
             .card { padding: 16px; }
             table { display: block; overflow-x: auto; white-space: nowrap; }
@@ -28,8 +34,19 @@
         <a class="back" href="/admin">← Zurück zur Benutzerverwaltung</a>
         <h2 style="margin-top:14px;">🔑 Passkeys — {{ u.username }}</h2>
         <p class="hint" style="margin-bottom:14px;">Mit Passkeys melden Sie sich passwortlos an — egal ob Windows Hello, Face ID, Fingerabdruck, Bitwarden oder ein Sicherheitsschlüssel.</p>
-        <button type="button" class="btn-primary" id="addPasskeyBtn">➕ Passkey hinzufügen</button>
+        <div class="pk-create-row">
+            <input type="text" id="pkDeviceName" placeholder="Gerätename (z. B. iPhone 15)" maxlength="60" autocomplete="off">
+            <button type="button" class="btn-primary" id="addPasskeyBtn">➕ Passkey hinzufügen</button>
+        </div>
         <p class="error hidden" id="pkMsg"></p>
+        <p class="hint hidden" id="pkDetail" style="font-family:monospace; font-size:11px; word-break:break-all;"></p>
+        <div class="hidden" id="pkIosTip" style="background:#1a1030; border:1px solid #5a3bb0; border-radius:8px; padding:10px 12px; font-size:12px; color:#c9b8ff; margin-top:10px;">
+            <b>📱 Falls es auf dem iPhone weiterhin scheitert:</b><br>
+            1. <b>Einstellungen → Passwörter</b>: iCloud-Schlüsselbund / „Passwörter" muss aktiviert sein (Passkeys werden dort gespeichert).<br>
+            2. <b>Face ID</b> muss eingerichtet sein (Einstellungen → Face ID & Code) — ohne Biometrie bricht iOS den Passkey-Dialog ab.<br>
+            3. Nicht im privaten Safari-Modus testen, und iOS sollte aktuell sein (≥ 16.3).<br>
+            4. Der Dialog verlangt nach der Namenseingabe einen <b>Face-ID-Prompt</b> — erst wenn der erscheint, ist alles normal. Kommt er nicht, stoppt iOS mit dem Fehler oben.
+        </div>
         <table>
             <thead>
                 <tr><th>Gerät</th><th>Registriert</th><th>Zuletzt genutzt</th><th></th></tr>
@@ -74,6 +91,10 @@
             el.textContent = text || '';
             el.classList.toggle('hidden', !text);
             el.classList.toggle('error', !!isError);
+            if (!text) {
+                document.getElementById('pkDetail').classList.add('hidden');
+                document.getElementById('pkIosTip').classList.add('hidden');
+            }
         }
         function pkB64ToBytes(s) {
             const bin = atob(String(s).replace(/-/g, '+').replace(/_/g, '/'));
@@ -81,10 +102,13 @@
             for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
             return u;
         }
+        let busy = false;
         async function addPasskey() {
-            const deviceName = (prompt('Name für dieses Gerät (z. B. "Windows-PC"):') || '').trim() || 'Unbenannt';
+            if (busy) return; // Button bleibt klickbar, aber ein paralleler Dialog wird verhindert
+            busy = true;
+            const deviceName = (document.getElementById('pkDeviceName').value || '').trim() || 'Unbenannt';
             const btn = document.getElementById('addPasskeyBtn');
-            btn.disabled = true; setMsg('', false);
+            setMsg('', false);
             try {
                 const r1 = await fetch('/api/passkey/register/options', { method: 'POST' });
                 const opts = await r1.json();
@@ -104,9 +128,15 @@
                 if (!r2.ok || j.status !== 'ok') throw new Error(j.message || 'Registrierung fehlgeschlagen');
                 window.location.reload();
             } catch (e) {
-                if (e && e.name === 'NotAllowedError') { setMsg('Passkey-Dialog wurde abgebrochen oder ist abgelaufen — bitte erneut versuchen.', true); return; }
+                if (e && e.name === 'NotAllowedError') {
+                    setMsg('Passkey-Dialog wurde abgebrochen oder ist abgelaufen — bitte erneut versuchen.', true);
+                    document.getElementById('pkDetail').textContent = 'Detail: ' + e.name + (e.message ? ': ' + e.message : '');
+                    document.getElementById('pkDetail').classList.remove('hidden');
+                    document.getElementById('pkIosTip').classList.remove('hidden');
+                    return;
+                }
                 setMsg((e && e.message) || 'Registrierung fehlgeschlagen', true);
-            } finally { btn.disabled = false; }
+            } finally { busy = false; }
         }
         async function deletePasskey(id) {
             if (!confirm('Diesen Passkey wirklich entfernen?')) return;
@@ -120,5 +150,8 @@
             window.location.reload();
         }
         document.getElementById('addPasskeyBtn').addEventListener('click', addPasskey);
+        document.getElementById('pkDeviceName').addEventListener('keydown', (ev) => {
+            if (ev.key === 'Enter') { ev.preventDefault(); addPasskey(); }
+        });
 </script>
 {% endblock %}

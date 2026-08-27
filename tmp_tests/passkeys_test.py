@@ -71,7 +71,7 @@ r = c.post("/api/passkey/login/options")
 j = r.json()
 check("2: options -> 200", r.status_code == 200, str(r.status_code))
 check("2: challenge/rpId/userVerification vorhanden",
-      j.get("challenge") and j.get("rpId") == "webapp.example" and j.get("userVerification") == "preferred",
+      j.get("challenge") and j.get("rpId") == "webapp.example" and j.get("userVerification") == "required",
       str(sorted(j.keys())))
 c.cookies.clear()  # Login-Seite ohne Session rendern
 html = c.get("/").text

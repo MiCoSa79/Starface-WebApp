@@ -64,7 +64,7 @@ def register_attestation(rp_id: str, origin: str, challenge_b64u: str, key,
     pub = key.public_key()
     cred_id = os.urandom(16)
     cose = cose_public_key(pub)
-    auth = make_auth_data(rp_id, 0x41, sign_count, aaguid=b"\x00" * 16,
+    auth = make_auth_data(rp_id, 0x45, sign_count, aaguid=b"\x00" * 16,
                           credential_id=cred_id, cose_key=cose)
     cd = make_client_data("webauthn.create", challenge_b64u, origin)
     att = cbor2.dumps({"fmt": "none", "attStmt": {}, "authData": auth})
@@ -74,7 +74,7 @@ def register_attestation(rp_id: str, origin: str, challenge_b64u: str, key,
 def login_assertion(rp_id: str, origin: str, challenge_b64u: str, key,
                     sign_count: int = 1, user_handle: bytes = b"\x01" * 16):
     """→ Assertion-Dict (Feldwerte base64url), direkt als credential['response'] nutzbar"""
-    auth = make_auth_data(rp_id, 0x01, sign_count)
+    auth = make_auth_data(rp_id, 0x05, sign_count)
     cd = make_client_data("webauthn.get", challenge_b64u, origin)
     # Signiert wird die ROH-Nachricht authData||SHA256(clientDataJSON);
     # cryptography hasht intern — NICHT vorher hashen! Der Server (App)

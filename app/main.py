@@ -963,7 +963,7 @@ async def passkey_login_options():
     _clean_pending_passkey()
     server = _fido2_server()
     challenge = secrets.token_bytes(32)
-    _options, state = server.authenticate_begin(user_verification="preferred", challenge=challenge)
+    _options, state = server.authenticate_begin(user_verification="required", challenge=challenge)
     PENDING_PASSKEY[state["challenge"]] = {
         "state": state,
         "user_id": None,
@@ -972,8 +972,8 @@ async def passkey_login_options():
     return JSONResponse({
         "challenge": state["challenge"],
         "rpId": WEBAUTHN_RP_ID,
-        "userVerification": "preferred",
-        "timeout": 60000,
+        "userVerification": "required",
+        "timeout": 180000,
     })
 
 
@@ -1052,7 +1052,7 @@ async def passkey_register_options(request: Request):
     challenge = secrets.token_bytes(32)
     _options, state = server.register_begin(
         user_entity, challenge=challenge, resident_key_requirement="required",
-        user_verification="preferred",
+        user_verification="required",
     )
     PENDING_PASSKEY[state["challenge"]] = {
         "state": state,
@@ -1071,9 +1071,9 @@ async def passkey_register_options(request: Request):
             {"type": "public-key", "alg": -7},
             {"type": "public-key", "alg": -257},
         ],
-        "authenticatorSelection": {"residentKey": "required", "userVerification": "preferred"},
-        "attestation": "indirect",
-        "timeout": 60000,
+        "authenticatorSelection": {"residentKey": "required", "userVerification": "required"},
+        "attestation": "none",
+        "timeout": 180000,
     })
 
 
