@@ -156,6 +156,9 @@ check("Kiosk-Auto-Scroll (Axel): Admin-Seite — nur Kiosk + Zyklus + Stop bei R
     'Kiosk-Auto-Scroll, Admin-Monitoring',
     'if (document.body.classList.contains(\'kiosk\')) start(); else stop();',
     'await sleep(3000)', 'smoothTo(maxY, 6000)')))
+check("Kiosk-Überschrift rot zentriert: 'Gesamtübersicht aller Anlagen' (Axel)",
+      all(x in body for x in ('Gesamtübersicht aller Anlagen', 'body.kiosk .kiosk-title { display: block; }',
+                              'color: #e94560; line-height: 1.25;')))
 check("Refresh-API /api/monitoring/admin", "/api/monitoring/admin" in body)
 check("Grafana-Admin-Link (parallel)", "Grafana Admin-Übersicht" in body)
 check("Grafana-Detail-Link Anlage B", f"/d/starface-anlage-detail/?var-installation=Anlage%20B" in body)

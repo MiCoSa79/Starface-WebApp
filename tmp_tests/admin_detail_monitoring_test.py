@@ -209,9 +209,9 @@ check("Modul-Tabelle: Spaltenkopf nur EINMAL und ganz oben, vor den Gruppen (Axe
 check("Modul-Karte: 50 % Breite, links, AUSSERHALB des Charts-Grids (Axel)",
       '#card-inst-modules { width: 50%; }' in body and 'grid-column: 1 / -1' not in body)
 check("Modul-Versionen linksbündig — eigene wie Drittanbieter (Axel)", '.mod-tbl .version-ist, .mod-tbl .version-soll { text-align: left; }' in body)
-check("Abstände (Axel): 'Module' klebt an Charts (2px), Karte 12 px wie 'Letzte Stunde'",
-      '#mod-sec-title { margin-top: 2px; }' in body and '.charts .card { margin-bottom: 0; }' in body
-      and tsrc.index('class="charts"') < tsrc.index('id="mod-sec-title"') < tsrc.index('id="card-inst-modules"'))
+check("Abstände (Axel): 'Module' Ober/Unter-Abstand gleich (12 px), Karte 12 px wie 'Letzte Stunde'",
+      '#mod-sec-title { margin-top: 12px; }' in body and
+      tsrc.index('class="charts"') < tsrc.index('id="mod-sec-title"') < tsrc.index('id="card-inst-modules"'))
 check("Kiosk-Auto-Scroll (Axel): nur Kiosk + Zyklus + Stop bei Rückkehr", all(x in tsrc for x in (
     'Kiosk-Auto-Scroll',
     'if (document.body.classList.contains(\'kiosk\')) start(); else stop();',

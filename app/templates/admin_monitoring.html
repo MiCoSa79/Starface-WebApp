@@ -86,6 +86,10 @@
            (an der Stelle des entfernten InfluxDB-Hinweises, v1.0.25) */
         .kiosk-countdown { display: none; }
         body.kiosk .kiosk-countdown { display: inline; }
+        /* Kiosk: rote Überschrift zentriert ganz oben (Axel) */
+        .kiosk-title { display: none; text-align: center; font-size: 24px; font-weight: 700;
+                       color: #e94560; line-height: 1.25; margin-bottom: 14px; }
+        body.kiosk .kiosk-title { display: block; }
         body.kiosk .container { max-width: 100%;
                                 padding: 16px 24px calc(12px + env(safe-area-inset-bottom, 0px)); }
         body.kiosk .kpis { margin-bottom: 12px; }
@@ -103,6 +107,7 @@
 {% endblock %}
 {% block content %}
 <div class="container">
+    <h1 class="kiosk-title">Gesamtübersicht aller Anlagen</h1>
     <div class="monitor-head">
         <h2>Admin-Monitoring</h2>
         <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px;">
