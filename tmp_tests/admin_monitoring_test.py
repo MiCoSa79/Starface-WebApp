@@ -4,7 +4,8 @@
 - 3 Kennzahlen: Anlagen eingerichtet (Karte 1), Anlagen mit Provider-Fehlern
   (Karte 2), fehlerhafte SIP-Trunks/Provider (Karte 3) — aus _admin_monitoring_summary
 - Fehlerliste unter den Karten: nur Anlagen mit disconnected > 0
-- Auto-Refresh-Marker: setInterval(refreshAdminMonitoring, 15000) + /api/monitoring/admin
+- Auto-Refresh: Countdown „aktualisiert sich automatisch in X s“ (5-s-Takt über
+  1-s-Tick, Overlap-Schutz refreshBusy) + /api/monitoring/admin
 - Rechte: Seite + API nur für Admins; User -> /dashboard; Gäste -> /
 - Grafana-Link bleibt (paralleler Betrieb); Admin-Seite verlinkt auf die neue Seite
 """
@@ -139,7 +140,11 @@ check("Verbunden-Badge B (2 von 3)", ">2 von 3 verbunden</span>" in body,
       "erwartet: >2 von 3 verbunden</span>")
 check("Edit-Link Anlage B", f"/admin/installations/{b_id}/edit" in body)
 check("Edit-Link Anlage C", f"/admin/installations/{c_id}/edit" in body)
-check("Refresh-Marker setInterval 15000", "setInterval(refreshAdminMonitoring, 15000)" in body)
+check("Countdown-Element #refresh-countdown", 'id="refresh-countdown"' in body)
+check("Countdown-Text 'automatisch in X s'", "aktualisiert sich automatisch in" in body)
+check("Refresh-Takt 5s ueber 1s-Tick (kein 15000 mehr)", "REFRESH_INTERVAL_S" in body and "15000" not in body)
+check("Countdown-Funktion updateRefreshCountdown", "function updateRefreshCountdown" in body)
+check("Overlap-Schutz refreshBusy", "refreshBusy" in body)
 check("Refresh-API /api/monitoring/admin", "/api/monitoring/admin" in body)
 check("Grafana-Admin-Link (parallel)", "Grafana Admin-Übersicht" in body)
 check("Grafana-Detail-Link Anlage B", f"/d/starface-anlage-detail/?var-installation=Anlage%20B" in body)

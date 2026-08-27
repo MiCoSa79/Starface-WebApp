@@ -111,7 +111,7 @@
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>
             Grafana Admin-Übersicht
         </a>
-        <span style="color:#666;font-size:12px;margin-left:10px;">Seite aktualisiert sich alle 15 s</span>
+        <span style="color:#666;font-size:12px;margin-left:10px;">Seite aktualisiert sich automatisch in <b id="refresh-countdown" style="color:#bbb;">5</b> s</span>
         </div>
     </div>
 
@@ -312,7 +312,18 @@
             tbody.appendChild(tr);
         });
     }
+    // Auto-Refresh: 5-s-Takt mit herunterzählender Anzeige "in X s".
+    // Overlap-Schutz: läuft gerade ein Fetch, pausiert der Countdown (refreshBusy).
+    var REFRESH_INTERVAL_S = 5;
+    var refreshCountdown = REFRESH_INTERVAL_S;
+    var refreshBusy = false;
+    function updateRefreshCountdown() {
+        var el = document.getElementById('refresh-countdown');
+        if (el) el.textContent = refreshCountdown;
+    }
     function refreshAdminMonitoring() {
+        if (refreshBusy) return; // letzter Fetch läuft noch -> überspringen
+        refreshBusy = true;
         fetch('/api/monitoring/admin', { cache: 'no-store' })
             .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
             .then(function (s) {
@@ -333,7 +344,13 @@
                     if (s.no_data > 0) nd.textContent = s.no_data + ' Anlage(n) ohne Monitoring-Daten — Monitoring-Modul-Instanz nicht gesetzt oder noch kein erfolgreicher Poll.';
                 }
             })
-            .catch(function (e) { console.warn('Admin-Monitoring-Refresh fehlgeschlagen:', e); });
+            .catch(function (e) { console.warn('Admin-Monitoring-Refresh fehlgeschlagen:', e); })
+            .finally(function () {
+                // egal ob ok oder Fehler: Zähler zurücksetzen, nächster Tick läuft weiter
+                refreshBusy = false;
+                refreshCountdown = REFRESH_INTERVAL_S;
+                updateRefreshCountdown();
+            });
     }
     // --- Vollbild/Kiosk-Modus ---
     // 1) In-Seiten-Kiosk (überall, auch iPhone): Header/Nav + Footer + Seitenkopf weg,
@@ -391,7 +408,14 @@
     // ?kiosk=1 in der URL -> direkt im Kiosk-Modus starten (eigenes Monitor-Fenster)
     if (new URLSearchParams(window.location.search).get('kiosk') === '1') enterAdminFs();
 
-    setInterval(refreshAdminMonitoring, 15000);
+    // 1-s-Tick: Countdown herunterzählen, bei 0 den Refresh auslösen.
+    // (Kein separater Intervall-Timer nötig — der Tick IST der Takt.)
+    setInterval(function () {
+        if (refreshBusy) return; // Fetch läuft noch -> Zähler pausiert
+        refreshCountdown -= 1;
+        updateRefreshCountdown();
+        if (refreshCountdown <= 0) refreshAdminMonitoring();
+    }, 1000);
     refreshAdminMonitoring(); // sofortiger erster Abgleich
 </script>
 {% endblock %}
