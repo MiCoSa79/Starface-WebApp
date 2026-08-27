@@ -908,14 +908,22 @@ def _b64u_decode(s: str) -> bytes:
 
 
 def _raw_to_der_b64(sig_b64u: str) -> str:
-    """WebAuthn-ES256 (RAW r||s) → DER, da fido2 2.2/OpenSSL die
-    Signatur unverändert an cryptography (DER-Format) übergibt."""
-    raw = _b64u_decode(sig_b64u)
-    if len(raw) != 64:
-        raise ValueError(f"ES256-Signatur muss 64 Bytes (r||s) sein, war: {len(raw)}")
+    """WebAuthn-ES256-Signatur → DER (normalisiert).
+    Kompatibilitaet fuer ALLE Anbieter: Chrome/Windows/FIDO-Keys liefern RAW (r||s, 64 B),
+    Bitwarden & andere liefern bereits ASN.1-DER. fido2 2.2 gibt die Signatur
+    unveraendert an cryptography weiter (DER-Format) — deshalb hier vereinheitlichen."""
     from cryptography.hazmat.primitives.asymmetric import utils
-    r = int.from_bytes(raw[:32], "big")
-    s = int.from_bytes(raw[32:], "big")
+    raw = _b64u_decode(sig_b64u)
+    if len(raw) == 64:
+        r = int.from_bytes(raw[:32], "big")
+        s = int.from_bytes(raw[32:], "big")
+    else:
+        try:
+            r, s = utils.decode_dss_signature(raw)
+        except Exception:
+            raise ValueError(
+                f"ES256-Signatur muss 64 Bytes (r||s) oder DER sein, war: {len(raw)}"
+            )
     return _b64u(utils.encode_dss_signature(r, s))
 
 
@@ -1162,6 +1170,8 @@ async def admin_passkeys_page(user_id: int, request: Request):
     return TEMPLATES.TemplateResponse("passkeys.html", {
         "request": request,
         "u": target,
+        "user": user,
+        "active": "admin",
         "passkeys": [dict(r) for r in rows],
         "version": os.environ.get("APP_VERSION", "dev"),
     })

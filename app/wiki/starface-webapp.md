@@ -83,7 +83,8 @@ Quelle: `git for-each-ref refs/tags/v0.0.*` — Stichworte = Commit-Subject.
 
 | Version | Commit | Änderung |
 |---|---|---|
-| v1.0.10 | (27.08.) | fix: Passkey-Entfernen committete nie (execute auf Conn A, commit auf Conn B → offene Transaktion blockierte DB dauerhaft → „database is locked" auch beim Logout-500); busy_timeout 30 s — Hash folgt im nächsten Code-Commit |
+| v1.0.11 | (27.08.) | fix: Signatur-Kompatibilität für ALLE Passkey-Anbieter — Bitwarden u.a. liefern DER statt RAW (70/71 B) → normalisiert; Passkey-Seite auf Admin-Design (base.html, rote Buttons, Card-Palette) — Hash folgt |
+| v1.0.10 | `2251956` | fix: Passkey-Entfernen committete nie (execute auf Conn A, commit auf Conn B) — offene Transaktion blockierte DB dauerhaft („database is locked" — auch Logout-500); busy_timeout 30 s |
 | v1.0.9 | `be3b2be` | Härtung: WAL-Journal + busy_timeout — Wurzel des Logout-500 war in Wahrheit die offene Transaktion aus dem Entfernen-Bug (v1.0.10) |
 | v1.0.8 | `b8b11fb` | fix(F58): „Zurück"-Link der Passkey-Seite auf `/admin` korrigiert (GET `/admin/users` existiert nicht → 405) |
 | v1.0.7 | `1975fdd` | docs(wiki): F58-Historie v1.0.3–v1.0.6 nachgezogen (cbor2-Fix, Login-Optik, Browser-Dekodierung) |
