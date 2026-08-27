@@ -68,12 +68,26 @@ def fake_status():
             "Anlage A": {"systemName": "pbx-a", "systemVersion": "10.0.2.5", "points": 120,
                          "ts": 1725000100,
                          "provider_summary": {"has_data": True, "all_ok": True, "count": 2,
-                                              "connected": 2, "disconnected": []}},
+                                              "connected": 2, "disconnected": []},
+                         "modules": {"list": [
+                             {"name": "CallBlocker", "version_ist": "30", "version_soll": "30",
+                              "current": True, "installed": True, "source": "own"},
+                             {"name": "Deployment-Modul", "version_ist": "7", "version_soll": "8",
+                              "current": False, "installed": True, "source": "own"},
+                             {"name": "TelefonieMonitoring", "version_ist": "9", "version_soll": "9",
+                              "current": True, "installed": True, "source": "own"},
+                         ]}},
             "Anlage B": {"systemName": "pbx-b", "systemVersion": "10.0.1.9", "points": 90,
                          "ts": 1725000000,
                          "provider_summary": {"has_data": True, "all_ok": False, "count": 3,
                                               "connected": 2,
-                                              "disconnected": ["SIP-Trunk 1 (Unregistered)"]}},
+                                              "disconnected": ["SIP-Trunk 1 (Unregistered)"]},
+                         "modules": {"list": [
+                             {"name": "CallBlocker", "version_ist": "29", "version_soll": "30",
+                              "current": False, "installed": True, "source": "own"},
+                             {"name": "ThirdPartyConnector", "version_ist": "2", "version_soll": "3",
+                              "current": False, "installed": True, "source": "third"},
+                         ]}},
             "Anlage C": {"systemName": "pbx-c", "systemVersion": "10.0.0.1", "points": 60,
                          "ts": 1724999900,
                          "provider_summary": {"has_data": True, "all_ok": False, "count": 4,
@@ -134,7 +148,7 @@ check("Fehlerliste: Anlage C", "Anlage C" in body)
 check("Fehlerliste: Trunk SIP-Trunk 1 (Unregistered)", "SIP-Trunk 1 (Unregistered)" in body)
 check("Fehlerliste: Trunk T-Online (Unregistered)", "T-Online (Unregistered)" in body)
 check("Fehlerliste: Trunk SIP-Partner (NotRegistered)", "SIP-Partner (NotRegistered)" in body)
-check("ok-Anlage A NICHT in Fehlerliste", "Anlage A" not in body)
+check("ok-Anlage A NICHT in Fehlerliste (kein Edit-Link)", f"/admin/installations/{a_id}/edit" not in body)
 check("no-data-Hinweis (Anlage D)", "1 Anlage(n) ohne Monitoring-Daten" in body)
 check("Verbunden-Badge B (2 von 3)", ">2 von 3 verbunden</span>" in body,
       "erwartet: >2 von 3 verbunden</span>")
@@ -163,6 +177,22 @@ check("Refresh-API /api/monitoring/admin", "/api/monitoring/admin" in body)
 check("Grafana-Admin-Link (parallel)", "Grafana Admin-Übersicht" in body)
 check("Grafana-Detail-Link Anlage B", f"/d/starface-anlage-detail/?var-installation=Anlage%20B" in body)
 
+# 3b) Nicht aktuelle Module (Sammler-Cache, kein Poll — Axel): Sektion + Gruppierung
+check("Sektion 'Module, die nicht aktuell sind' NACH Fehlerliste",
+      body.index("Anlagen mit Provider-Fehlern") < body.index("Module, die nicht aktuell sind"))
+check("out-rows-Tbody vorhanden", 'id="outdated-rows"' in body)
+check("Gruppenzeile Anlage A (out-grp)", 'class="out-grp">Anlage A</td>' in body)
+check("outdated Deployment-Modul 7 -> 8 (Anlage A)",
+      all(x in body for x in ("Deployment-Modul", ">7<", ">8<")))
+check("outdated ThirdPartyConnector 2 -> 3 (Anlage B)",
+      all(x in body for x in ("ThirdPartyConnector", ">2<", ">3<")))
+check("CallBlocker aktuell (A: 30/30) NICHT als Update-Zeile — >30< nur einmal (B-Soll)",
+      body.count(">30<") == 1, str(body.count(">30<")))
+check("Aktuelles TelefonieMonitoring NICHT in Liste", "TelefonieMonitoring" not in body)
+check("Ist-Version rot (out-ist)", "out-ist" in body and "color: #ff6b6b; font-weight: 600;" in body)
+check("JS-Renderer renderOutdated + Einbindung in Refresh",
+      "function renderOutdated" in body and "renderOutdated(document.getElementById('outdated-rows'), s.items)" in body)
+
 # 4) API /api/monitoring/admin (Admin): exakte Kennzahlen
 r = c.get("/api/monitoring/admin")
 check("API 200", r.status_code == 200, str(r.status_code))
@@ -173,6 +203,15 @@ check("API failed_trunks=3", js["failed_trunks"] == 3, str(js.get("failed_trunks
 check("API no_data=1", js["no_data"] == 1, str(js.get("no_data")))
 check("API items=3 (nur gepollte)", len(js["items"]) == 3, str(len(js.get("items", []))))
 by_name = {it["name"]: it for it in js["items"]}
+check("API outdated_total=3", js.get("outdated_total") == 3, str(js.get("outdated_total")))
+check("API Anlage A outdated=1 (Deployment-Modul)",
+      by_name.get("Anlage A", {}).get("outdated_modules") == [
+          {"name": "Deployment-Modul", "version_ist": "7", "version_soll": "8"}],
+      str(by_name.get("Anlage A", {}).get("outdated_modules")))
+check("API Anlage B outdated=2 (nur alphabetisch sortiert)",
+      [m["name"] for m in by_name.get("Anlage B", {}).get("outdated_modules", [])] ==
+      ["CallBlocker", "ThirdPartyConnector"],
+      str(by_name.get("Anlage B", {}).get("outdated_modules")))
 check("API item B disconnected_count=1", by_name.get("Anlage B", {}).get("disconnected_count") == 1,
       str(by_name.get("Anlage B")))
 check("API item C disconnected_count=2", by_name.get("Anlage C", {}).get("disconnected_count") == 2,

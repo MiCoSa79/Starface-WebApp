@@ -2504,6 +2504,13 @@ def _admin_monitoring_summary(mstatus: dict, id_by_name: dict) -> dict:
             continue  # noch nie erfolgreich gepollt -> keine Daten
         ps = vals.get("provider_summary") or {}
         off = len(ps.get("disconnected") or [])
+        # Nicht aktuelle Module: NUR installierte, aus dem Sammler-Cache (kein Poll) —
+        # gleiche Daten wie die Modul-Karte der Detail-Seite (Axel)
+        mods = vals.get("modules") or {}
+        outdated = sorted(
+            (m for m in (mods.get("list") or [])
+             if m.get("installed") and not m.get("current")),
+            key=lambda m: (m.get("name") or "").lower())
         items.append({
             "id": inst_id, "name": name,
             "provider_summary": ps,
@@ -2512,6 +2519,10 @@ def _admin_monitoring_summary(mstatus: dict, id_by_name: dict) -> dict:
             "system_version": vals.get("systemVersion", ""),
             "ts": vals.get("ts"),
             "modules_error": (vals.get("modules") or {}).get("error"),
+            "outdated_modules": [{"name": m.get("name", ""),
+                                  "version_ist": m.get("version_ist", ""),
+                                  "version_soll": m.get("version_soll", "")}
+                                 for m in outdated],
         })
         if off > 0:
             failed_inst += 1
@@ -2521,6 +2532,7 @@ def _admin_monitoring_summary(mstatus: dict, id_by_name: dict) -> dict:
         "failed_inst": failed_inst,
         "failed_trunks": failed_trunks,
         "no_data": total - len(items),
+        "outdated_total": sum(len(it["outdated_modules"]) for it in items),
         "items": items,
         "running": mstatus.get("running"),
         "last_run": mstatus.get("last_run"),
