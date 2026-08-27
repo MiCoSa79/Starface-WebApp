@@ -379,7 +379,11 @@ def main() -> int:
                 {"nummer": 5, "titel": "Token-Empfehlung (GU_UPDATE_TOKEN)",
                  "text": "Der Token schützt Updates auf der Anlage und muss in der Anlage "
                          "(Tab „Sicherheit“) und in der WebApp (deployer_token) identisch sein.",
-                 "bullets": ["Mindestens 32 Zeichen — je länger, desto besser "
+                 "bullets": ["In der WebApp generierbar: Anlagen-Einstellungen → "
+                             "Button „64-Zeichen-Token generieren“ — serverseitig erzeugter "
+                             "Hex-Token (64 Zeichen / 256 Bit). Den identischen Wert "
+                             "auf der Anlage im Reiter „Sicherheit“ eintragen.",
+                             "Mindestens 32 Zeichen — je länger, desto besser "
                              "(Empfehlung: 43+ Zeichen).",
                              "URL-sicher erzeugen: python3 -c \"import secrets; "
                              "print(secrets.token_urlsafe(32))\" oder openssl rand -base64 24.",

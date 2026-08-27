@@ -33,6 +33,9 @@ input[type="checkbox"]{margin-right:6px;transform:scale(1.2)}
     .token-gen-msg.err { color: #c62828; }
     .btn-working { opacity: .55; }
     .btn-working::after { content: " …"; }
+    .btn-mini { padding: 2px 10px; font-size: .85em; }
+    .token-gen-msg code { display: inline-block; background: #f5f5f5; border: 1px solid #ccc; border-radius: 4px; padding: 3px 8px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; word-break: break-all; margin: 6px 0; max-width: 100%; }
+    .tok-out { line-height: 1.55; }
 </style>
 {% endblock %}
 {% block content %}
@@ -101,9 +104,10 @@ input[type="checkbox"]{margin-right:6px;transform:scale(1.2)}
                 <label for="deployer_token">Deployment-Modul-Token</label>
                 <div class="token-row">
                     <input type="password" id="deployer_token" name="deployer_token" value="" placeholder="…leer lassen = unverändert" autocomplete="off">
+                    <button type="button" id="token-toggle-btn" class="btn-secondary" title="Token anzeigen">👁</button>
                     <button type="button" id="token-generate-btn" class="btn-secondary">🔑 64-Zeichen-Token generieren</button>
                 </div>
-                <div class="hint">Instanz-Token des Deployment-Moduls (Schutz gegen unautorisierte RPCs). Wird verschlüsselt gespeichert und beim Update-Aufruf als updateToken mitgegeben — nur setzen, wenn das Modul ein Token prüft. Der Generator erzeugt serverseitig 64 Hex-Zeichen (256 Bit).</div>
+                <div class="hint">Instanz-Token des Deployment-Moduls (Schutz gegen unautorisierte RPCs — wird verschlüsselt gespeichert und als updateToken mitgegeben). <b>Der Token muss identisch auf der Anlage eingetragen werden:</b> Modul → Reiter <b>„Sicherheit“</b> → Feld <b>„Update-Token“</b>. Erst wenn beide Seiten denselben Token verwenden, akzeptiert das Modul die Update-Aufrufe. „64-Zeichen-Token generieren“ erzeugt serverseitig 64 Hex-Zeichen (256 Bit).</div>
                 <div id="token-gen-msg" class="token-gen-msg" style="display:none"></div>
             </div>
         </div>
@@ -113,6 +117,33 @@ input[type="checkbox"]{margin-right:6px;transform:scale(1.2)}
         </div>
     </form>
     <script>
+        function copyTextToClipboard(text, btn) {
+            var fallback = function () {
+                var ta = document.createElement('textarea');
+                ta.value = text;
+                ta.style.position = 'fixed';
+                ta.style.opacity = '0';
+                document.body.appendChild(ta);
+                ta.select();
+                try { document.execCommand('copy'); } catch (e) {}
+                document.body.removeChild(ta);
+            };
+            var done = function () {
+                btn.textContent = 'Kopiert ✓';
+                setTimeout(function () { btn.textContent = '📋 Kopieren'; }, 2000);
+            };
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(text).then(done, fallback);
+            } else { fallback(); }
+            done();
+        }
+        document.getElementById('token-toggle-btn').addEventListener('click', function () {
+            var f = document.getElementById('deployer_token');
+            var show = f.type === 'password';
+            f.type = show ? 'text' : 'password';
+            this.textContent = show ? '🙈' : '👁';
+            this.title = show ? 'Token verbergen' : 'Token anzeigen';
+        });
         document.getElementById('token-generate-btn').addEventListener('click', async function () {
             var btn = this, msg = document.getElementById('token-gen-msg');
             msg.style.display = 'none';
@@ -122,8 +153,18 @@ input[type="checkbox"]{margin-right:6px;transform:scale(1.2)}
                 var data = await res.json();
                 if (res.ok && data.status === 'ok') {
                     document.getElementById('deployer_token').value = data.token;
-                    msg.textContent = 'Neuer Token (64 Zeichen, 256 Bit) erzeugt — bitte „Speichern" klicken, damit er übernommen wird.';
+                    var t = data.token.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+                    msg.innerHTML =
+                        '<div class="tok-out">Neuer Token (64 Zeichen, 256 Bit) erzeugt — ' +
+                        '<b>kopieren</b> und <b>identisch</b> auf der Anlage eintragen ' +
+                        '(Modul → Reiter <b>„Sicherheit“</b> → Feld <b>„Update-Token“</b>), ' +
+                        'dann hier „Speichern“ klicken:<br>' +
+                        '<code>' + t + '</code> ' +
+                        '<button type="button" id="token-copy-btn" class="btn-secondary btn-mini">📋 Kopieren</button></div>';
                     msg.className = 'token-gen-msg ok';
+                    document.getElementById('token-copy-btn').addEventListener('click', function () {
+                        copyTextToClipboard(data.token, this);
+                    });
                 } else {
                     msg.textContent = 'Fehler: ' + (data.message || 'unbekannt (HTTP ' + res.status + ')');
                     msg.className = 'token-gen-msg err';

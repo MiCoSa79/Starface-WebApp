@@ -303,6 +303,13 @@ anon = TestClient(app_main.app)
 ra = anon.post("/admin/api/generate-token")
 check("Token-Generator: ohne Session 403", ra.status_code == 403, str(ra.status_code))
 
+# --- 9. Token-UI (F50): Anzeigen/Kopieren + Anlagen-Hinweis (Reiter Sicherheit)
+edit_html = c.get(f"/admin/installations/{inst_id}/edit").text
+check("Token-UI: Eye-Toggle (Anzeigen/Verbergen) vorhanden", 'id="token-toggle-btn"' in edit_html)
+check("Token-UI: Beschreibung nennt Reiter 'Sicherheit' + Feld 'Update-Token'",
+      "Reiter" in edit_html and "Sicherheit" in edit_html and "Update-Token" in edit_html)
+check("Token-UI: Kopieren-Button vorhanden", 'token-copy-btn' in edit_html)
+
 print("\n" + ("ERGEBNIS: ALLE ADMIN-UPDATES-TESTS OK"
               if not FAIL else f"FEHLGESCHLAGEN: {FAIL}"))
 sys.exit(0 if not FAIL else 1)
