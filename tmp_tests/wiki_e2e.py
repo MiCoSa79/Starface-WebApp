@@ -65,6 +65,11 @@ check("F55: v0.0.1 als Tabellenzeile", "<td>v0.0.1</td>" in page["html"])
 check("F55: v0.0.209 (aktuellste) als Tabellenzeile", "<td>v0.0.209</td>" in page["html"])
 check("F55: kein kaputter Fließtext mehr (kein '| Version | Commit')",
       "| Version | Commit" not in page["html"])
+# F56: Historie absteigend — neueste Version oben
+i209 = page["html"].find("<td>v0.0.209</td>")
+i1 = page["html"].find("<td>v0.0.1</td>")
+check("F56: neueste Version (v0.0.209) steht oben in der Tabelle",
+      -1 not in (i209, i1) and i209 < i1, f"209@{i209} 1@{i1}")
 
 rendered = wiki_render._md.render("<script>alert(1)</script>")
 check("XSS-sicher: Script-Tag wird escaped",
