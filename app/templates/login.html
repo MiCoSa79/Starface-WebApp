@@ -31,6 +31,16 @@
         ::-webkit-scrollbar-corner { background: transparent; }
         * { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.25) transparent; }
 
+        /* ── Passkey-Login (integriert, gleichwertige Optik) ──────── */
+        .pk-divider { display: flex; align-items: center; gap: 12px; margin: 20px 0 16px; }
+        .pk-divider::before, .pk-divider::after { content: ""; flex: 1; height: 1px; background: #2c3a5e; }
+        .pk-divider span { color: #8a93b5; font-size: 13px; letter-spacing: .4px; }
+        .pk-btn { width: 100%; padding: 14px; background: transparent; color: #cfd6f0;
+                  border: 1px solid #39486e; border-radius: 8px; font-size: 16px; font-weight: 600;
+                  cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+                  transition: background .15s, border-color .15s, color .15s; }
+        .pk-btn:hover { background: rgba(233, 69, 96, .12); border-color: #e94560; color: #fff; }
+        .pk-btn:active { transform: translateY(1px); }
 </style>
 {% endblock %}
 {% block topbar %}{% endblock %}
@@ -62,16 +72,13 @@
                    autocomplete="one-time-code" placeholder="6-stellig" required>
             <button type="submit" id="otpBtn">Bestätigen</button>
         </form>
-    </div>
 
-    <div id="passkeyCard" class="card hidden">
-        <div style="display:flex;align-items:center;gap:12px;margin:4px 0 16px;">
-            <div style="flex:1;height:1px;background:#333;"></div>
-            <span style="color:#666;font-size:12px;">oder</span>
-            <div style="flex:1;height:1px;background:#333;"></div>
+        <!-- Passkey-Login: in die Login-Karte integriert (gleichwertige Optik) -->
+        <div id="passkeyCard" class="hidden">
+            <div class="pk-divider"><span>oder</span></div>
+            <button type="button" id="passkeyBtn" class="pk-btn">🔑 Mit Passkey anmelden</button>
+            <p id="passkeyError" class="error hidden"></p>
         </div>
-        <button type="button" id="passkeyBtn" style="background:#333;border:1px solid #555;color:#fff;padding:12px 16px;border-radius:8px;cursor:pointer;width:100%;">🔑 Mit Passkey anmelden</button>
-        <p id="passkeyError" class="error hidden"></p>
     </div>
 
     <script>
