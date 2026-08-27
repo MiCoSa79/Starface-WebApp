@@ -1,6 +1,6 @@
 ---
 title: STARFACE WebApp — Gesamtdokumentation & Versionshistorie
-description: Die WebApp selbst: Architektur, Betrieb, Routen, Konventionen und die vollständige Versionshistorie (v0.0.1–v0.0.197, aus Git-Tags).
+description: Die WebApp selbst: Architektur, Betrieb, Routen, Konventionen und die vollständige Versionshistorie (v0.0.1–v0.0.198, aus Git-Tags).
 updated: 2026-08-27
 ---
 
@@ -264,6 +264,8 @@ Quelle: `git for-each-ref refs/tags/v0.0.*` — Stichworte = Commit-Subject.
 | v0.0.194 | `deec7df` | docs: GU_UPDATE_TOKEN — New-Guid-Variante gekennzeichnet als NICHT CLM-tauglich, CLM-Hinweis ergänzt |
 | v0.0.195 | `374edbd` | feat(modules): alle 3 Module mit Passwortschutz neu gebaut (v30/v9/ud-v7, writeHash=sha1(id+pw), Env-Pflicht STARFACE_MODULE_PASSWORD) — F41 |
 | v0.0.196 | `96ac3c4` | feat(admin): Mobile-Fix URL-Eingabefelder — flex-basis 380px wurde in der column-Flexbox zur Höhe (380 px) → .url-field-Klasse + Media-Query-Override (44 px); Regressionstest mobile_url_layout_cdp.mjs (F42) |
+| v0.0.197 | `7b5a5d0` | docs(wiki): Versionsregister v0.0.183-v0.0.196 nachgezogen (F40/F41/F42) — Frontmatter updated ergänzt (verify_wiki_refs), PDF-Versionen v30/v9/v7, Mobile-Fix-F42-Stand |
+| v0.0.198 | `e483a20` | feat(modules): Drittanbietermodule verwalten — Upload/Delete, zwei Tabellen, UpdateDeployer + Monitoring-Karte (F44) |
 
 > Legende/Details: Lange Fachtexte zu Monitoring (v0.0.119 ff.) stehen im Hermes-Wiki
 > ([[telefonie-monitoring]]-Entity), zu Updates (v0.0.164 ff.) in [modul-auto-update](modul-auto-update.md).
