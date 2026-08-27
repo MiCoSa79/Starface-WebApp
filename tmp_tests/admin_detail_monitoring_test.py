@@ -228,6 +228,7 @@ check("API Modul-Liste 200 + ok:true + modules-Key", rm.status_code == 200 and r
 check("API Modul-Liste: nur installierte (3 statt 4)", isinstance(rj.get("modules"), list) and len(rj.get("modules")) == 3)
 check("API Modul-Liste: Drittanbieter getrennt lieferbar (source)", any(m.get("source") == "third-party" for m in (rj.get("modules") or [])))
 check("Kacheln: 3 in einer Zeile, Normalmodus wie Kiosk (Axel)", 'grid-template-columns: repeat(3, minmax(0, 1fr))' in body)
+check("Kiosk: Charts fest 3 Spalten, kein Auto-Fit-Leerraum (Axel)", 'body.kiosk .charts { grid-template-columns: repeat(3, minmax(0, 1fr)); }' in body)
 rmc = c.get(f"/api/monitoring/modules/{c_id}")
 rjc = {}
 try: rjc = rmc.json()
