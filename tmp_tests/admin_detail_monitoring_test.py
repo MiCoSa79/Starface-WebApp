@@ -174,6 +174,7 @@ check("Gesamtspeicher-Linie nicht gestrichelt (Axel)", "color: '#9e9e9e', y:" in
 check("90-%-Vermerk in Legende statt im Graph (Axel)", all(x in body for x in ("90 % kritisch", "90 % von Gesamt (kritisch)", 'class="dashline"')))
 check("kein 90-%-Text mehr im SVG-Graph", "ttxt.textContent = opts.thresholdLabel" not in body)
 check("Kiosk-Banner: Anlagen-Name + URL zentriert (Axel)", all(x in body for x in ('id="kiosk-name"', 'id="kiosk-url"', "kiosk-banner", "body.kiosk .kiosk-banner { display: block; }")))
+check("Kiosk-Name in Rot wie Überschriften (Axel)", '.kiosk-name { font-size: 24px; font-weight: 700; color: #e94560;' in body)
 check("Ueberschrift Letzte Stunde", "Letzte Stunde" in body)
 check("INITIAL-JSON (Server-Render)", "var INITIAL" in body and '"name": "Anlage A"' in body)
 check("INITIAL Systemwerte (load1)", '"load1": 0.42' in body)

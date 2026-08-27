@@ -85,6 +85,7 @@ Quelle: `git for-each-ref refs/tags/v0.0.*` — Stichworte = Commit-Subject.
 
 | Version | Commit | Änderung |
 |---|---|---|
+| v1.0.33 | (27.08.) | fix(Axel): Kiosk-Name in Rot wie die anderen Überschriften (#e94560), URL-Link bleibt. Tests: Farb-Check, 19/19. |
 | v1.0.32 | (27.08.) | feat/fix, Axel: **Kiosk-Modus: ganz oben zentriert Anlagen-Name + URL** (`kiosk-banner`, nur im Kiosk sichtbar; URL aus installations-Tabelle); **90-%-Vermerke wandern in die Legenden** (`dashline`-Sample + Text), SVG-Label im Graph entfernt. Tests: Kiosk-Banner + Legenden-Checks, 19/19. |
 | v1.0.31 | (27.08.) | feat/fix(F60-Folge, Axel): **CPU-Kachel zeigt drei Werte 1/5/15** (Grid mit Labels, Kernzahl als Unterzeile); **Speicher-%-Graph fester Bereich 0–100 %**, **gestrichelte 90-%-Schwelle** (Label) in beiden Speicher-Grafen (Total: 90 % vom max. Gesamtspeicher); **Gesamtspeicher-Linie durchgezogen** (nicht mehr gestrichelt). Tests erweitert (Kachel-IDs, yFixedMax, Threshold, solid), 19/19 grün. |
 | v1.0.30 | (27.08.) | fix(F60-Live-Bug 2, Axel: Auge-Klick → `{"detail":"Not Found"}`): `id_by_name|tojson` im HTML-Attribut: doppelte Quotes brechen `data-idmap="…"` → idmap leer → Auge-Link ohne ID → FastAPI-404. Fix: idmap als `<script type="application/json" id="inst-idmap">` (Standardweg für tojson), renderRows liest per `getElementById('inst-idmap')`; `data-idmap`-Attribut komplett entfernt. Test parst den JSON-Inhalt real. 19/19 grün. |
