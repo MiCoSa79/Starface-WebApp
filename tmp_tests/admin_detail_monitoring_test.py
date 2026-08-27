@@ -227,8 +227,7 @@ except Exception: pass
 check("API Modul-Liste 200 + ok:true + modules-Key", rm.status_code == 200 and rj.get("ok") is True and "modules" in rj)
 check("API Modul-Liste: nur installierte (3 statt 4)", isinstance(rj.get("modules"), list) and len(rj.get("modules")) == 3)
 check("API Modul-Liste: Drittanbieter getrennt lieferbar (source)", any(m.get("source") == "third-party" for m in (rj.get("modules") or [])))
-check("Kacheln: 2 Kacheln breit (Axel)", 'grid-template-columns: repeat(2, 1fr)' in body)
-check("Kacheln: Vollbild/Kiosk 3 nebeneinander, keine 2. Zeile (Axel)", 'body.kiosk .kpis { grid-template-columns: repeat(3, 1fr); }' in body)
+check("Kacheln: 3 in einer Zeile, Normalmodus wie Kiosk (Axel)", 'grid-template-columns: repeat(3, minmax(0, 1fr))' in body)
 rmc = c.get(f"/api/monitoring/modules/{c_id}")
 rjc = {}
 try: rjc = rmc.json()

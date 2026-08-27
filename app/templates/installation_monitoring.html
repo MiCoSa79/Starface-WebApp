@@ -30,10 +30,9 @@
                   white-space: pre-wrap; margin-top: 12px; }
 
         /* ── KPI-Karten ── */
-        .kpis { display: grid; grid-template-columns: repeat(2, 1fr); /* 2 Kacheln breit (Axel) */
+        .kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); /* 3 Kacheln in einer Zeile (Axel) */
                 gap: 16px; margin-bottom: 16px; }
-        body.kiosk .kpis { grid-template-columns: repeat(3, 1fr); } /* Vollbild: alle 3 in einer Zeile (Axel) */
-        @media (max-width: 700px) { .kpis, body.kiosk .kpis { grid-template-columns: 1fr; } }
+        @media (max-width: 700px) { .kpis { grid-template-columns: 1fr; } }
         .kpi { margin: 0; padding: 22px 24px; display: flex; flex-direction: column;
                gap: 4px; transition: border-color .2s ease; }
         .kpi .kpi-top { display: flex; align-items: center; justify-content: space-between; }

@@ -85,6 +85,7 @@ Quelle: `git for-each-ref refs/tags/v0.0.*` — Stichworte = Commit-Subject.
 
 | Version | Commit | Änderung |
 |---|---|---|
+| v1.0.40 | (27.08.) | fix(Axel, Screenshot 21:42): **KPI-Kacheln auch im NORMALmodus 3 in einer Zeile** — `.kpis` auf `repeat(3, minmax(0, 1fr))` (Kiosk-Regel entfällt, war identisch); Handy bleibt 1-spaltig (< 700 px). Test: CSS-Check, 19/19. |
 | v1.0.39 | (27.08.) | fix(Axel, Screenshot 21:33): **Modul-Karte steht im Kiosk neben den 3 Charts** (`.charts`-Grid, 4. Spalte) — gehörte „unter die drei Kacheln“: `#card-inst-modules { grid-column: 1 / -1; }` → immer volle Breite unter den Graphen. Test: Grid-Durchstich-Check, 19/19. |
 | v1.0.38 | (27.08.) | fix(Axel): **Drittanbietermodule-Tabelle ohne Spaltenkopfzeile** (Spalten sind identisch mit „Eigene Module“ — nur Gruppenzeile bleibt, spart Platz); Kachel-Fix v1.0.37 bestätigt: `body.kiosk .kpis` 3fr + 700px-Media 1fr (Vollbild-TV: alle 3 nebeneinander). Tests: Kopf nur 1×, 19/19. |
 | v1.0.37 | (27.08.) | feat(Axel): **Kacheln 2-breit** (`repeat(2, 1fr)`, Handy weiter 1-spaltig via Media-Query) — damit die CPU-1/5/15-Werte Platz haben; **Modul-Tabelle in zwei Gruppen: „Eigene Module“ oben, „Drittanbietermodule“ darunter** (Split nach `source == 'own'`; Gruppenzeile `.mod-grp`; leere Gruppe ausgeblendet; JS-Refresh ebenso). Tests: Drittanbieter im Fake, 19/19. 99 Checks. |
