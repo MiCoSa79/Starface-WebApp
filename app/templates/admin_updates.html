@@ -100,7 +100,7 @@
         {% for name, info in modules.items() %}
         {% set ist = (st.by_name.get(name)) if st and st.by_name else none %}
         <tr>
-            <td>{{ name }}</td>
+            <td>{{ name }}{% if info.source == 'third_party' %}<span style="display:inline-block;background:#3a3f5c;color:#c7cbe0;border-radius:4px;padding:1px 7px;font-size:11px;margin-left:6px;vertical-align:middle;">Drittanbieter</span>{% endif %}</td>
             <td>v{{ info.version }}</td>
             <td>
                 {% if not st or st.error %}

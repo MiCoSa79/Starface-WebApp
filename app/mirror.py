@@ -83,9 +83,11 @@ def mirror_modules(src_dir: str, dst_dir: str, base_url: str = "") -> dict:
     # nginx serviert <html-Root>/versions.json und <html-Root>/modules/*.sfm
     html_root = os.path.dirname(dst_dir.rstrip(os.sep)) or os.sep
     sfm_files = []
+    own_names = set()
     for fname in sorted(os.listdir(src_dir)):
         if not fname.endswith(".sfm"):
             continue
+        own_names.add(fname)
         src = os.path.join(src_dir, fname)
         dst = os.path.join(dst_dir, fname)
         try:
@@ -97,6 +99,17 @@ def mirror_modules(src_dir: str, dst_dir: str, base_url: str = "") -> dict:
             sfm_files.append(dst)
         except (OSError, zipfile.BadZipFile):
             continue
+    # Drittanbieter-Module (Admin-Uploads der Modul-Seite) liegen als .sfm im
+    # Zielverzeichnis, stammen aber NICHT aus dem Image → gehören ebenfalls ins
+    # versions.json-Manifest (UpdateDeployer lädt sie über dieselbe signierte
+    # URL). Nur gültige Pakete (ZIP + Descriptor) werden aufgenommen.
+    for fname in sorted(os.listdir(dst_dir)):
+        if not fname.endswith(".sfm") or fname in own_names:
+            continue
+        extra = os.path.join(dst_dir, fname)
+        if _read_module_info(extra) is not None:
+            sfm_files.append(extra)
+    sfm_files = sorted(set(sfm_files))
     manifest = build_versions_json(sfm_files, base_url)
     with open(os.path.join(html_root, "versions.json"), "w", encoding="utf-8") as fh:
         json.dump(manifest, fh, indent=2, ensure_ascii=False)

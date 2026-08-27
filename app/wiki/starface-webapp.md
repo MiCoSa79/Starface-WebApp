@@ -1,7 +1,7 @@
 ---
 title: STARFACE WebApp — Gesamtdokumentation & Versionshistorie
-description: Die WebApp selbst: Architektur, Betrieb, Routen, Konventionen und die vollständige Versionshistorie (v0.0.1–v0.0.196, aus Git-Tags).
-updated: 2026-08-26
+description: Die WebApp selbst: Architektur, Betrieb, Routen, Konventionen und die vollständige Versionshistorie (v0.0.1–v0.0.197, aus Git-Tags).
+updated: 2026-08-27
 ---
 
 # STARFACE WebApp
@@ -43,6 +43,8 @@ Modul-Updates (UpdateDeployer). Repo `MiCoSa79/Starface-WebApp`, Image
 **Stand 26.08. (F37/F38, v0.0.190):** Sammel-Buttons je Anlage auf der Modul-Updates-Seite (`POST /admin/updates/push-all`, Modi `install`/`update`) — Details [modul-auto-update](modul-auto-update.md). Modul-Seite: Download-Button **Icon-only**; neue Spalte **„Dokumentation“** (PDF-Badge → `/static/docs/<Modul>.pdf`: CallBlocker v30, TelefonieMonitoring v9, UpdateDeployer v7; Generator `app/scripts/generate_modul_pdfs.py` — nach Versions-Änderungen neu ausführen). Statusmeldungen auf der Modul-Updates-Seite mit **OK-Button** ausblendbar.
 
 **Stand 26.08. (F42, v0.0.196):** **Mobile-Fix Admin-URL-Felder** — auf Handys waren beide URL-Eingabefelder (Grafana-Basis-URL + Update-Server-Basis-URL) **380 px hoch**: das Inline-`flex:1 1 380px` wurde in der Mobile-`column`-Flexbox (`.form-row { flex-direction: column }`) als **Höhe** interpretiert (flex-basis wirkt auf die Hauptachse). Fix: CSS-Klasse `.url-field` (`flex: 1 1 380px; font-size:16px;` Desktop) + Media-Query-Override `.url-field { flex: 1 1 auto; min-height: 44px; }` (Mobile) — Inline-Styles entfernt. Beweis: Headless-Chrome-CDP-Test `tmp_tests/mobile_url_layout_cdp.mjs` (390×844): Höhe 380→44 px, Touch-Höhe 44 px, font-size 16 px (iOS-Zoom), Desktop-Breite ≥380 px bleibt.
+
+**Stand 27.08. (F44, v0.0.198):** **Drittanbietermodule** — Admins können auf der Modul-Seite echte Drittanbieter-`.sfm`-Pakete hochladen (ZIP mit `module-descriptor.xml` → Name/Version/Vendor werden automatisch ausgelesen, keine Tippfehler). Neue Spalte `source` in der `modules`-Tabelle (`own`/`third_party`), Speicherung unter `<data>/modules` (persistentes Volume); Spiegel + `versions.json` inkludieren die Pakete, sodass sie über die **Update-Seite je Anlage mit dem UpdateDeployer eingespielt/aktualisiert** werden können (Badge „Drittanbieter“). Die **Monitoring-Karte** zeigt Drittanbietermodule nur, wenn sie auf der Anlage installiert sind UND in der WebApp hinterlegt wurden (Filter `filter_third_party_missing` — keine Fehlanzeigen für noch nicht verteilte Pakete). Modul-Seite: zwei Tabellen („Verfügbare Module — eigene“ / „Drittanbietermodule“) + Upload-/Löschen-Aktionen; Download aus `<data>/modules` (identische Sicherheitskette: Dateiname aus DB, keine Pfad-Traversal). Test: `tmp_tests/third_party_modules_test.py` (43 Checks) + Suite grün.
 
 ## Wo stehen welche Details?
 

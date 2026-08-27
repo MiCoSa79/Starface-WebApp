@@ -170,6 +170,8 @@ def init_db():
             file_mtime TEXT DEFAULT '',
             app_version TEXT DEFAULT '',
             build_date TEXT DEFAULT '',
+            vendor TEXT DEFAULT '',
+            source TEXT DEFAULT 'own',
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
         );
         CREATE TABLE IF NOT EXISTS settings (
@@ -183,7 +185,9 @@ def init_db():
                      ("file_size", "INTEGER DEFAULT 0"),
                      ("file_mtime", "TEXT DEFAULT ''"),
                      ("app_version", "TEXT DEFAULT ''"),
-                     ("build_date", "TEXT DEFAULT ''")):
+                     ("build_date", "TEXT DEFAULT ''"),
+                     ("vendor", "TEXT DEFAULT ''"),
+                     ("source", "TEXT DEFAULT 'own'")):
         if col not in cols:
             conn.execute(f"ALTER TABLE modules ADD COLUMN {col} {ddl}")
     # Migration (v0.0.42): OAuth-Token-Spalten an installations
@@ -260,15 +264,15 @@ def _scan_modules():
         if not row:
             conn.execute(
                 "INSERT INTO modules (name, filename, version, description, "
-                "file_hash, file_size, file_mtime, app_version, build_date) "
-                "VALUES (?,?,?,?,?,?,?,?,?)",
+                "file_hash, file_size, file_mtime, app_version, build_date, source) "
+                "VALUES (?,?,?,?,?,?,?,?,?, 'own')",
                 (name, fname, version, description, file_hash, st.st_size,
                  file_mtime, app_version, build_date))
         else:
             conn.execute(
                 "UPDATE modules SET filename=?, version=?, description=?, "
                 "file_hash=?, file_size=?, file_mtime=?, app_version=?, "
-                "build_date=? WHERE name=?",
+                "build_date=?, source='own' WHERE name=?",
                 (fname, version, description, file_hash, st.st_size,
                  file_mtime, app_version, build_date, name))
     conn.commit()
@@ -928,7 +932,10 @@ async def admin_modules_page(request: Request):
     if not user or not user["is_admin"]:
         return RedirectResponse("/dashboard")
     conn = _db()
-    modules = conn.execute("SELECT * FROM modules ORDER BY name").fetchall()
+    modules = conn.execute(
+        "SELECT * FROM modules WHERE source = 'own' ORDER BY name").fetchall()
+    third_party = conn.execute(
+        "SELECT * FROM modules WHERE source = 'third_party' ORDER BY name").fetchall()
     conn.close()
     # Update-Server-Spiegel-Status (versions.json im html-ROOT <data>/,
     # NICHT in modules/ — der nginx serviert sie als /versions.json)
@@ -946,12 +953,179 @@ async def admin_modules_page(request: Request):
     return TEMPLATES.TemplateResponse("modules.html",
                                       {"request": request, "user": user,
                                        "modules": modules,
+                                       "third_party": third_party,
                                        "docs": docs,
                                        "active": "modules",
                                        "version": os.environ.get("APP_VERSION", "dev"),
                                        "mirror_active": bool(mirror_manifest),
                                        "mirror_count": len(mirror_manifest.get("modules", [])) if mirror_manifest else 0,
-                                       "mirror_base": _module_update_base()})
+                                       "mirror_base": _module_update_base(),
+                                       "msg": request.query_params.get("msg", "")})
+
+
+def _data_modules_dir() -> Path:
+    """Spiegel-Verzeichnis: <data>/modules (nginx html-Root serviert es ro)."""
+    return Path(DB_PATH).parent / "modules"
+
+
+def _own_modules_dir() -> Path:
+    """Im Image ausgelieferte eigene Module (app/modules)."""
+    return Path(__file__).parent / "modules"
+
+
+def _refresh_mirror_manifest() -> bool:
+    """versions.json neu bauen (eigene + Drittanbieter-Dateien) — idempotent.
+
+    mirror_modules() kopiert die eigenen .sfm erneut (überschreibt, keine
+    Duplikate) und sammelt Fremd-Dateien (Drittanbieter) im Zielverzeichnis in
+    das Manifest ein. Fehler dürfen den Upload-/Delete-Pfad nie brechen.
+    """
+    try:
+        mirror.mirror_modules(str(_own_modules_dir()), str(_data_modules_dir()),
+                              _module_update_base())
+        return True
+    except Exception:
+        return False
+
+
+def _sfm_info_from_bytes(data: bytes) -> dict | None:
+    """Liest name/version/vendor/description aus module-descriptor.xml (Bytes).
+
+    None zurück, wenn die Bytes kein gültiges .sfm sind (kein ZIP oder kein
+    Descriptor) — wird für die Upload-Validierung von Drittanbietermodulen
+    genutzt (gleiche Quelle wie mirror._read_module_info auf Dateiebene).
+    """
+    import io as _io
+    import zipfile as _zip
+    import xml.etree.ElementTree as _ET
+    try:
+        with _zip.ZipFile(_io.BytesIO(data)) as z:
+            if "module-descriptor.xml" not in z.namelist():
+                return None
+            desc = z.read("module-descriptor.xml").decode("utf-8", "ignore")
+        root = _ET.fromstring(desc)
+        return {
+            "name": (root.get("name") or "").strip(),
+            "version": (root.get("version") or "").strip(),
+            "vendor": (root.get("vendor") or "").strip(),
+            "description": (root.findtext("description") or "").strip(),
+        }
+    except Exception:
+        return None
+
+
+@app.post("/admin/modules/third-party")
+async def admin_third_party_upload(request: Request):
+    """Drittanbietermodul hochladen (.sfm) → <data>/modules + DB source='third_party'.
+
+    Name/Version/Vendor werden aus dem module-descriptor.xml gelesen (keine
+    manuelle Eingabe → keine Tippfehler). Gleicher Modulname erneut hochgeladen
+    = Aktualisierung (Datei + Version ersetzen). Kollision mit eigenen Modulen
+    wird abgewiesen. Danach versions.json neu bauen (UpdateDeployer-Kanal).
+    """
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user or not user["is_admin"]:
+        return RedirectResponse("/dashboard")
+    form = await request.form()
+    upload = form.get("module_file")
+    from starlette.datastructures import UploadFile as _UploadFile
+    if not isinstance(upload, _UploadFile) or not upload.filename:
+        return RedirectResponse("/admin/modules?err=file", status_code=303)
+    if not upload.filename.lower().endswith(".sfm"):
+        return RedirectResponse("/admin/modules?err=not_sfm", status_code=303)
+    data = await upload.read()
+    if len(data) > 100 * 1024 * 1024:  # 100 MB Deckel — Module sind kB-groß
+        return RedirectResponse("/admin/modules?err=size", status_code=303)
+    info = _sfm_info_from_bytes(data)
+    if info is None or not info["name"] or not info["version"]:
+        return RedirectResponse("/admin/modules?err=invalid", status_code=303)
+    name = re.sub(r"\s+", " ", info["name"]).strip()
+    version = info["version"].strip()
+    conn = _db()
+    try:
+        row = conn.execute("SELECT id, source FROM modules WHERE name = ?",
+                           (name,)).fetchone()
+        if row and row["source"] == "own":
+            return RedirectResponse("/admin/modules?err=exists", status_code=303)
+        # Dateiname aus Modulname + Version (sanitized) — nie der Upload-Name
+        safe = re.sub(r"[^A-Za-z0-9._-]+", "_", name).strip("._")
+        version = re.sub(r"[^A-Za-z0-9._-]+", "_", version).strip("._")
+        fname = f"{safe}_v{version}.sfm"
+        target = _data_modules_dir() / fname
+        os.makedirs(target.parent, exist_ok=True)
+        target.write_bytes(data)
+        st = os.stat(target)
+        file_hash = _file_md5(str(target))
+        file_mtime = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(st.st_mtime))
+        was_update = bool(row)
+        if row:  # vorhandener Drittanbieter → Aktualisierung
+            old = conn.execute("SELECT filename FROM modules WHERE id = ?",
+                               (row["id"],)).fetchone()
+            old_fname = old["filename"] if old else ""
+            if old_fname and old_fname != fname:
+                # alte Version liegt unter <Name>_v<Alt>.sfm — Datei entfernen,
+                # sonst erscheint sie (und ihr Hash) weiter im versions.json
+                try:
+                    old_path = _data_modules_dir() / old_fname
+                    if old_path.is_file():
+                        old_path.unlink()
+                except OSError:
+                    pass  # Datei fehlt bereits — DB-Stand ist das Entscheidende
+            conn.execute(
+                "UPDATE modules SET filename=?, version=?, description=?, vendor=?, "
+                "file_hash=?, file_size=?, file_mtime=? WHERE id=?",
+                (fname, version, info["description"], info["vendor"], file_hash,
+                 st.st_size, file_mtime, row["id"]))
+            action = "module_update"
+        else:
+            conn.execute(
+                "INSERT INTO modules (name, filename, version, description, vendor, "
+                "file_hash, file_size, file_mtime, app_version, build_date, source) "
+                "VALUES (?,?,?,?,?,?,?,?,?,?, 'third_party')",
+                (name, fname, version, info["description"], info["vendor"],
+                 file_hash, st.st_size, file_mtime,
+                 os.environ.get("APP_VERSION", "dev"),
+                 os.environ.get("BUILD_DATE", "")))
+            action = "module_add"
+        conn.execute(
+            "INSERT INTO events (user_id, action, detail) VALUES (?, ?, ?)",
+            (user["user_id"], action, f"{name} v{version} ({fname})"))
+        conn.commit()
+    finally:
+        conn.close()
+    _refresh_mirror_manifest()
+    return RedirectResponse(f"/admin/modules?msg={'updated' if was_update else 'added'}",
+                            status_code=303)
+
+
+@app.post("/admin/modules/third-party/{module_id}/delete")
+async def admin_third_party_delete(request: Request, module_id: int):
+    """Drittanbietermodul entfernen: Datei aus <data>/modules + DB-Zeile."""
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user or not user["is_admin"]:
+        return RedirectResponse("/dashboard")
+    conn = _db()
+    try:
+        mod = conn.execute(
+            "SELECT * FROM modules WHERE id = ? AND source = 'third_party'",
+            (module_id,)).fetchone()
+        if mod is None:
+            return RedirectResponse("/admin/modules?err=missing", status_code=303)
+        try:
+            target = _data_modules_dir() / mod["filename"]
+            if target.is_file():
+                target.unlink()
+        except OSError:
+            pass  # Datei bereits weg — DB-Zeile ist das Entscheidende
+        conn.execute("DELETE FROM modules WHERE id = ?", (module_id,))
+        conn.execute(
+            "INSERT INTO events (user_id, action, detail) VALUES (?, 'module_delete', ?)",
+            (user["user_id"], f"{mod['name']} v{mod['version']} ({mod['filename']})"))
+        conn.commit()
+    finally:
+        conn.close()
+    _refresh_mirror_manifest()
+    return RedirectResponse("/admin/modules?msg=deleted", status_code=303)
 
 
 @app.get("/admin/updates", response_class=HTMLResponse)
@@ -1167,7 +1341,10 @@ async def admin_module_download(request: Request, module_id: int):
     if not mod:
         return RedirectResponse("/admin/modules", status_code=303)
 
-    modules_dir = Path(__file__).parent / "modules"
+    if mod["source"] == "third_party":
+        modules_dir = _data_modules_dir()  # Admin-Upload: <data>/modules
+    else:
+        modules_dir = Path(__file__).parent / "modules"
     file_path = (modules_dir / mod["filename"]).resolve()
     # Sicherheit: Datei muss wirklich im modules-Verzeichnis liegen
     if not file_path.is_file() or modules_dir.resolve() not in file_path.parents:

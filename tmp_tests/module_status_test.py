@@ -87,9 +87,9 @@ monitoring._EXPECT_CACHE["sig"], monitoring._EXPECT_CACHE["data"] = None, {}
 real_exp = monitoring._module_expectations()
 monitoring.MODULES_DIR = rollback
 monitoring._EXPECT_CACHE["sig"], monitoring._EXPECT_CACHE["data"] = None, {}
-check("expectations: echtes app/modules -> CallBlocker v29 + TelefonieMonitoring v8",
-      real_exp.get("CallBlocker", {}).get("version") == 29
-      and real_exp.get("TelefonieMonitoring", {}).get("version") == 8,
+check("expectations: echtes app/modules -> CallBlocker v30 + TelefonieMonitoring v9",
+      real_exp.get("CallBlocker", {}).get("version") == 30
+      and real_exp.get("TelefonieMonitoring", {}).get("version") == 9,
       str(real_exp))
 
 # ------------------------------------------------- 2. _compare_modules
@@ -294,7 +294,7 @@ base = {
 }
 html = TEMPLATES.env.get_template("monitoring.html").render(
     user={"username": "admin", "is_admin": True}, active="monitoring", status=base)
-for marker in ["Modul-Status (eigene Module)", 'id="mod-rows"',
+for marker in ["Modul-Status", 'id="mod-rows"',
                'title="Installierte Version entspricht der ausgelieferten."',
                'title="Auf der Anlage ist eine ältere Version installiert."',
                "Nicht installiert",

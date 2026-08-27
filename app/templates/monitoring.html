@@ -146,7 +146,7 @@
         </div>
 
         <div class="card" id="card-modules">
-            <h2 style="margin-top:0;">Modul-Status (eigene Module)</h2>
+            <h2 style="margin-top:0;">Modul-Status</h2>
             {% set mod_any = namespace(show=false) %}
             {% for _mv in status.installations.values() %}
                 {% if _mv.modules and (_mv.modules.get('list') or _mv.modules.get('error')) %}
@@ -176,7 +176,7 @@
                         {% for it in m.list %}
                         <tr>
                             {% if loop.first %}<td rowspan="{{ m.list|length }}">{{ name }}</td>{% endif %}
-                            <td>{{ it.name }}</td>
+                            <td>{{ it.name }}{% if it.source == 'third_party' %}<span style="display:inline-block;background:#3a3f5c;color:#c7cbe0;border-radius:4px;padding:1px 7px;font-size:11px;margin-left:6px;vertical-align:middle;">Drittanbieter</span>{% endif %}</td>
                             <td>
                                 {% if it.status == 'ok' %}
                                     {% if it.instances|selectattr('active')|list|length == 0 %}

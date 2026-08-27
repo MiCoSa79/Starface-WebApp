@@ -24,9 +24,13 @@ import zipfile
 import xml.etree.ElementTree as ET
 
 try:
-    from main import _db, _get_token, _xmlrpc
+    from main import _db, _get_token, _xmlrpc, DB_PATH
 except ImportError:  # Container: app.main
-    from app.main import _db, _get_token, _xmlrpc
+    from app.main import _db, _get_token, _xmlrpc, DB_PATH
+
+# Drittanbieter-Spiegel: <data>/modules (Admin-Uploads auf der Modul-Seite).
+# Dieselbe Quelle wie _data_modules_dir() in main.py — Teil der SOLL-Signatur.
+THIRD_PARTY_DIR = os.path.join(os.path.dirname(DB_PATH), "modules")
 
 try:
     import httpx as _httpx
@@ -155,14 +159,24 @@ def _module_expectations() -> dict:
     """SOLL-Module + -Versionen aus app/modules/*.sfm (module-descriptor.xml).
 
     Single Source of Truth: gleiche Quelle, die die Anlage beim Import bekommt
-    (<module version="N">). Nur 'unsere' Module — nur die hier ausgelieferten.
-    Cache-TTL wird ueber die mtime-Signatur des Verzeichnisses bestimmt.
+    (<module version="N">). Eigene Module (app/modules) + hinterlegte
+    Drittanbieter (<data>/modules via _merge_third_party). Cache-Signatur =
+    mtime-Signatur beider Verzeichnisse: gleiche Signatur liefert dasselbe
+    Objekt (kein Re-Build), Uploads/Löschungen ändern den Spiegel -> frisch.
     """
     try:
         files = sorted(f for f in os.listdir(MODULES_DIR) if f.endswith(".sfm"))
     except OSError:
         return {}
     sig = {f: os.path.getmtime(os.path.join(MODULES_DIR, f)) for f in files}
+    try:
+        tp_files = sorted(f for f in os.listdir(THIRD_PARTY_DIR)
+                          if f.endswith(".sfm"))
+        tp_sig = {f: os.path.getmtime(os.path.join(THIRD_PARTY_DIR, f))
+                  for f in tp_files}
+    except OSError:
+        tp_sig = {}
+    sig = (sig, tp_sig)
     if sig == _EXPECT_CACHE["sig"]:
         return _EXPECT_CACHE["data"]
     expected = {}
@@ -183,6 +197,7 @@ def _module_expectations() -> dict:
                 "version": ver_i,
                 "vendor": (root.get("vendor") or "").strip(),
                 "file": f,
+                "source": "own",
                 "provides": sorted({
                     (ep.get("name") or "").strip()
                     for ep in root.findall(".//rpcEntryPoint")
@@ -192,11 +207,47 @@ def _module_expectations() -> dict:
         except Exception:
             # kaputte .sfm ignorieren — andere Module bleiben pruefbar
             continue
-    _EXPECT_CACHE["sig"], _EXPECT_CACHE["data"] = sig, expected
+    merged = _merge_third_party(expected)  # Drittanbieter aus der DB dazu
+    _EXPECT_CACHE["sig"], _EXPECT_CACHE["data"] = sig, merged
+    return merged
+
+
+def _merge_third_party(expected: dict) -> dict:
+    """Ergänzt hinterlegte Drittanbietermodule (modules.source='third_party').
+
+    Quelle ist die WebApp-DB — nur Module, die ein Admin auf der Modul-Seite
+    hochgeladen hat. Versionen werden in int gecastet (STARFACE-Modulversionen);
+    unparsbare Einträge werden übersprungen. Eigene Module (app/modules) haben
+    Vorrang, falls ein Name je kollidieren sollte (Upload-Seite verhindert das).
+    """
+    try:
+        conn = _db()
+        rows = conn.execute(
+            "SELECT name, filename, version, vendor FROM modules "
+            "WHERE source = 'third_party'").fetchall()
+        conn.close()
+    except Exception:
+        return expected
+    for r in rows:
+        name = (r["name"] or "").strip()
+        if not name:
+            continue
+        try:
+            ver = int((r["version"] or "0").strip())
+        except (TypeError, ValueError):
+            continue
+        expected.setdefault(name, {
+            "version": ver,
+            "vendor": (r["vendor"] or "Drittanbieter"),
+            "file": r["filename"],
+            "provides": [],
+            "source": "third_party",
+        })
     return expected
 
 
-def _compare_modules(expected: dict, raw: str):
+def _compare_modules(expected: dict, raw: str, *,
+                     filter_third_party_missing: bool = False):
     """Vergleicht SOLL-Module (app/modules) mit der GetModuleStatus-Antwort.
 
     raw = JSON-String des Moduls:
@@ -232,10 +283,15 @@ def _compare_modules(expected: dict, raw: str):
     for name, exp in expected.items():
         inst = installed.get(name)
         if inst is None:
+            # Axel-Regel: Drittanbietermodule auf der Monitoring-Karte nur
+            # anzeigen, wenn sie installiert sind (und hinterlegt — expected)
+            if filter_third_party_missing and exp.get("source") == "third_party":
+                continue
             items.append({
                 "name": name, "installed": False, "current": False,
                 "version_ist": None, "version_soll": exp["version"],
                 "vendor": exp["vendor"], "instances": [],
+                "source": exp.get("source", "own"),
                 "status": "missing",
             })
             continue
@@ -245,12 +301,14 @@ def _compare_modules(expected: dict, raw: str):
             "name": name, "installed": True, "current": status == "ok",
             "version_ist": ver, "version_soll": exp["version"],
             "vendor": inst["vendor"], "instances": inst["instances"],
+            "source": exp.get("source", "own"),
             "status": status,
         })
     return items
 
 
-def _collect_module_status(inst, token, name) -> dict:
+def _collect_module_status(inst, token, name, *,
+                           filter_third_party_missing: bool = False) -> dict:
     """Ruft GetModuleStatus (Modul v5+) ab und gleicht mit den SOLL-Modulen ab.
 
     Rückgabe: {"ts", "error": None|{category,msg}, "list": [..]|None}
@@ -277,7 +335,8 @@ def _collect_module_status(inst, token, name) -> dict:
                 msg += f" (Update auf v{tm['version']} erforderlich)"
             return {**base, "error": {"category": "module", "msg": msg}}
         return {**base, "error": _classify_error(e)}
-    items = _compare_modules(expected, (mres.get("members") or {}).get("moduleJson"))
+    items = _compare_modules(expected, (mres.get("members") or {}).get("moduleJson") or "",
+                             filter_third_party_missing=filter_third_party_missing)
     if items is None:
         return {**base, "error": {"category": "module",
                 "msg": "Modul-Status konnte nicht ausgewertet werden"}}
@@ -313,7 +372,8 @@ def collect_installations() -> int:
                 "ts": time.time(),
             })
             # Modul-Status (nur wenn die App eigene Module ausliefert)
-            vals["modules"] = _collect_module_status(inst, token, name)
+            vals["modules"] = _collect_module_status(
+                inst, token, name, filter_third_party_missing=True)
             print(f"[Monitoring] {name}: {len(points)} Points -> InfluxDB")
         except Exception as e:
             errors.append((name, e, time.time()))

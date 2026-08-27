@@ -79,7 +79,7 @@ assert r.status_code == 200, f"/monitoring {r.status_code}"
 h = r.text
 
 checks = {
-    "Karte vorhanden": "Modul-Status (eigene Module)" in h,
+    "Karte vorhanden": "Modul-Status" in h and "Drittanbieter" not in h,
     "CallBlocker Aktuell (PBX-GUT)": 'title="Installierte Version entspricht der ausgelieferten."' in h,
     "CallBlocker outdated (PBX-TEIL)": 'title="Auf der Anlage ist eine ältere Version installiert."' in h,
     "TelefonieMonitoring missing (PBX-TEIL)": "Nicht installiert" in h,
