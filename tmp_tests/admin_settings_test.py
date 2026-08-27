@@ -103,6 +103,9 @@ with open(os.path.join(modroot, "versions.json"), "w") as fh:
 r = c.get("/admin/modules")
 check("GET /admin/modules -> 200 (mit Spiegel)", r.status_code == 200, str(r.status_code))
 check("Badge aktiv bei versions.json (html-Root)", "Spiegel aktiv" in r.text and "1 Paket(e)" in r.text)
+check("F53: Spiegel-Meldung ohne Ordner/Basis-URL (nur 'vorhanden')",
+      "Update-Server-Spiegel aktiv — 1 Paket(e) vorhanden" in r.text
+      and "Paket(e) unter" not in r.text and "Basis:" not in r.text)
 shutil.rmtree(modroot, ignore_errors=True)
 
 print()
