@@ -2604,7 +2604,7 @@ async def installation_monitoring_page(request: Request, installation_id: int):
         return RedirectResponse("/")
 
     conn = _db()
-    inst = conn.execute("SELECT id, name FROM installations WHERE id = ?",
+    inst = conn.execute("SELECT id, name, url FROM installations WHERE id = ?",
                         (installation_id,)).fetchone()
     inst_rows = conn.execute("SELECT id, name FROM installations ORDER BY name").fetchall()
     conn.close()
@@ -2623,7 +2623,7 @@ async def installation_monitoring_page(request: Request, installation_id: int):
 
     return TEMPLATES.TemplateResponse("installation_monitoring.html", {
         "request": request, "user": user, "active": "monitoring",
-        "inst": {"id": inst["id"], "name": inst["name"]},
+        "inst": {"id": inst["id"], "name": inst["name"], "url": inst["url"]},
         "visible": visible,
         "show_dropdown": len(visible) > 1,
         "initial": _installation_detail_payload(inst["name"]),
