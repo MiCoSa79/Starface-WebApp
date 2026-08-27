@@ -115,7 +115,7 @@
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>
             Grafana Admin-Übersicht
         </a>
-        <span style="color:#666;font-size:12px;margin-left:10px;">Seite aktualisiert sich automatisch in <b id="refresh-countdown" style="color:#bbb;">5</b> s</span>
+        <span style="color:#666;font-size:12px;margin-left:10px;">Seite aktualisiert sich automatisch in <b id="refresh-countdown" style="color:#bbb;">10</b> s</span>
         </div>
     </div>
 
@@ -157,7 +157,7 @@
     <div class="statline">
         <span>Sammler: <b id="sum-running">{% if summary.running %}<span class="badge badge-green">Läuft</span>{% else %}<span class="badge badge-red">Gestoppt</span>{% endif %}</b></span>
         <span>Letzter Poll: <b id="sum-lastrun" data-ts="{{ summary.last_run or 0 }}">—</b></span>
-        <span class="kiosk-countdown">Aktualisiert in <b id="refresh-countdown-kiosk-num" style="color:#bbb;">5</b> s</span>
+        <span class="kiosk-countdown">Aktualisiert in <b id="refresh-countdown-kiosk-num" style="color:#bbb;">10</b> s</span>
     </div>
     {% if summary.last_error %}
     <div id="err-slot"><div class="errbox">Letzter Fehler{% if summary.last_error.ts %} (<span data-ts="{{ summary.last_error.ts }}">—</span>){% endif %}: {{ summary.last_error.msg }}</div></div>
@@ -316,9 +316,9 @@
             tbody.appendChild(tr);
         });
     }
-    // Auto-Refresh: 5-s-Takt mit herunterzählender Anzeige "in X s".
+    // Auto-Refresh: 10-s-Takt mit herunterzählender Anzeige "in X s".
     // Overlap-Schutz: läuft gerade ein Fetch, pausiert der Countdown (refreshBusy).
-    var REFRESH_INTERVAL_S = 5;
+    var REFRESH_INTERVAL_S = 10;
     var refreshCountdown = REFRESH_INTERVAL_S;
     var refreshBusy = false;
     function updateRefreshCountdown() {
