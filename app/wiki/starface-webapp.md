@@ -85,6 +85,7 @@ Quelle: `git for-each-ref refs/tags/v0.0.*` — Stichworte = Commit-Subject.
 
 | Version | Commit | Änderung |
 |---|---|---|
+| v1.0.35 | (27.08.) | fix(Axel-Screenshot): **Modul-Tabelle leer → „Keine Modul-Daten verfügbar"** — Root-Cause: Detail-Routen luden installations-Zeile ohne OAuth-Spalten → `_get_token` KeyError('auth_id') → None. Fix: `SELECT *` (wie /admin/updates). Tests: Token+RPC gemockt — Tabelle rendert (2 Zeilen, Filter „nur installierte", Badge), Hinweis-Fall bei RPC-Fehler, API modules null statt 500; 99 Checks. |
 | v1.0.34 | (27.08.) | feat(Axel): **Detail-Seite: Modul-Tabelle unten** — nur installierte Module (Ist- vs. aktuellste Version, „Update verfügbar“-Badge); RPC GetModuleStatus einmalig beim Seitenaufruf, danach **5-Min-Refresh** über `/api/monitoring/modules/{id}` (kein 10-s-RPC!); Karte zeigt Hinweis bei fehlender Instanz. Tests: Template-Quelltext-Checks + API-Rechte (403), 19/19. |
 | v1.0.33 | (27.08.) | fix(Axel): Kiosk-Name in Rot wie die anderen Überschriften (#e94560), URL-Link bleibt. Tests: Farb-Check, 19/19. |
 | v1.0.32 | (27.08.) | feat/fix, Axel: **Kiosk-Modus: ganz oben zentriert Anlagen-Name + URL** (`kiosk-banner`, nur im Kiosk sichtbar; URL aus installations-Tabelle); **90-%-Vermerke wandern in die Legenden** (`dashline`-Sample + Text), SVG-Label im Graph entfernt. Tests: Kiosk-Banner + Legenden-Checks, 19/19. |

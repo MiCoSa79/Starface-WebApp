@@ -117,6 +117,28 @@ def fake_history(installation, minutes=60, cache_ttl=15.0):
 
 app_main.monitoring.query_system_history = fake_history
 
+# --- Modul-Status (v1.0.35): Token + GetModuleStatus mocken; A liefert 2 Module,
+#     C wirft (RPC-Fehler -> Hinweis-Fall) ---
+def fake_module_status(inst, token, name):
+    if name == "Anlage A":
+        return {"ts": 1725000100, "list": [
+            {"name": "CallBlocker", "installed": True, "current": True,
+             "version_ist": 30, "version_soll": 30,
+             "vendor": "Axel Meiser - Kraemer IT", "instances": [],
+             "source": "own", "status": "ok"},
+            {"name": "TelefonieMonitoring", "installed": True, "current": False,
+             "version_ist": 8, "version_soll": 9,
+             "vendor": "Axel Meiser - Kraemer IT", "instances": [],
+             "source": "own", "status": "outdated"},
+            {"name": "NichtInstalliert", "installed": False, "current": False,
+             "version_ist": None, "version_soll": 42,
+             "vendor": "X", "instances": [], "source": "own", "status": "missing"}]}
+    if name == "Anlage B":
+        return {"ts": 1, "list": []}
+    raise RuntimeError("RPC-Fehler (Test)")
+app_main.monitoring._collect_module_status = fake_module_status
+app_main._get_token = lambda inst: "test-token"
+
 c = TestClient(app_main.app)
 c.follow_redirects = False  # Starlette 0.27: hartkodiert True
 TEMPLATE_SRC = (Path(__file__).resolve().parent.parent / "app" / "templates"
@@ -182,8 +204,15 @@ check("Kiosk-Name in Rot wie Überschriften (Axel)", '.kiosk-name { font-size: 2
 check("Modul-Tabelle unten (Axel): Karte + Spalten im Template", all(x in tsrc for x in (
     'id="card-inst-modules"', '>Ist-Version</th>', '>Aktuellste Version</th>',
     'id="mod-tbl"', 'id="mod-rows"', 'id="mod-hint"', 'mod-badge')))
-check("Modul-Karte rendert (Hinweis-Fall im E2E)", 'id="card-inst-modules"' in body and 'id="mod-hint"' in body and 'id="mod-rows"' in body)
+check("Modul-Karte rendert: Tabelle mit Modulen (Anlage A)", all(x in body for x in ('id="card-inst-modules"', 'CallBlocker', 'TelefonieMonitoring', 'id="mod-rows"')))
+check("Modul-Karte: nur installierte Module (Axel) — kein 'NichtInstalliert'", 'NichtInstalliert' not in body and '>42<' not in body)
+check("Modul-Karte: outdated-Zeile rot + Badge 'Update verfügbar'", all(x in body for x in ('mod-outdated', 'Update verfügbar', '>8<')))
 check("Modul-Refresh alle 5 min, nicht alle 10 s (Axel)", all(x in body for x in ('refreshModules', 'setInterval(refreshModules, 300000)', '/api/monitoring/modules/')))
+# Hinweis-Fall: Anlage C (RPC-Fehler) — explizit als admin
+login("admin")
+rc_ = c.get(f"/monitoring/installations/{c_id}")
+bc_ = rc_.text
+check("Modul-Karte: RPC-Fehler -> Hinweis statt kaputt", 'id="mod-hint"' in bc_ and 'Keine Modul-Daten verfügbar' in bc_ and rc_.status_code == 200)
 
 # --- API /api/monitoring/modules/{id}: Rechte + Struktur ---
 login("admin")
@@ -192,6 +221,12 @@ rj = {}
 try: rj = rm.json()
 except Exception: pass
 check("API Modul-Liste 200 + ok:true + modules-Key", rm.status_code == 200 and rj.get("ok") is True and "modules" in rj)
+check("API Modul-Liste: nur installierte (2 statt 3)", isinstance(rj.get("modules"), list) and len(rj.get("modules")) == 2)
+rmc = c.get(f"/api/monitoring/modules/{c_id}")
+rjc = {}
+try: rjc = rmc.json()
+except Exception: pass
+check("API Modul-Liste: RPC-Fehler -> modules null (kein 500)", rmc.status_code == 200 and rjc.get("modules") is None)
 login("bob")
 rb = c.get(f"/api/monitoring/modules/{b_id}")
 check("API Modul-Liste: bob ohne Recht auf B → 403", rb.status_code == 403)

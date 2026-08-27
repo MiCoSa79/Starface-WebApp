@@ -2604,7 +2604,7 @@ async def installation_monitoring_page(request: Request, installation_id: int):
         return RedirectResponse("/")
 
     conn = _db()
-    inst = conn.execute("SELECT id, name, url, monitoring_instance_name FROM installations WHERE id = ?",
+    inst = conn.execute("SELECT * FROM installations WHERE id = ?",
                         (installation_id,)).fetchone()
     inst_rows = conn.execute("SELECT id, name FROM installations ORDER BY name").fetchall()
     conn.close()
@@ -2663,9 +2663,8 @@ async def api_monitoring_modules(request: Request, installation_id: int):
     if not user:
         return JSONResponse({"ok": False, "message": "Nicht autorisiert"}, status_code=401)
     conn = _db()
-    inst = conn.execute(
-        "SELECT id, name, url, monitoring_instance_name FROM installations WHERE id = ?",
-        (installation_id,)).fetchone()
+    inst = conn.execute("SELECT * FROM installations WHERE id = ?",
+                        (installation_id,)).fetchone()
     conn.close()
     if not inst:
         return JSONResponse({"ok": False, "message": "Anlage nicht gefunden"}, status_code=404)
