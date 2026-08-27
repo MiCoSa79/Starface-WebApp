@@ -83,6 +83,10 @@ Quelle: `git for-each-ref refs/tags/v0.0.*` — Stichworte = Commit-Subject.
 
 | Version | Commit | Änderung |
 |---|---|---|
+| v1.0.6 | `e0dcb8e` | fix(F58): WebAuthn-Options-Dekodierung — challenge/user.id als Byte-Arrays für create/get (Browser-DOMException „Invalid 'user.id' length") |
+| v1.0.5 | `f27d83c` | ui(F58): Passkey-Login in die Login-Karte integriert (Optik, UX-Feedback „nicht provisorisch") |
+| v1.0.4 | `6f4966b` | docs(wiki): Recherche Anlagen-Updates (paralleler Commit, keine App-Änderung) |
+| v1.0.3 | `87fff6c` | fix(F58): cbor2 explizit in requirements — fehlte im Container → FIDO2_OK=False („Passkeys nicht konfiguriert") |
 | v1.0.2 | `4ae79d9` | F58: Passkeys/WebAuthn (B mit C-Schalter) — fido2 2.2, Conditional UI, Geräteverwaltung, WEBAUTHN_PASSWORDLOGIN=0 (C-Schalter) |
 | v1.0.0 | `cf713f2` | chore(versioning): Kanal-Modell — nightly + v1.0.x bei jedem Push, latest nur via release-latest-Tag (Freigabe Axel), keine Datums-Tags mehr (F57) |
 | v0.0.209 | `9ed26cf` | docs(wiki): Roadmap — Tenant-Verwaltung (Super-Admin) + Lizenzverwaltung für Module (tenant-basiert) und WebApp (Super-Admins) (F54) |
@@ -324,6 +328,9 @@ WEBAUTHN_PASSWORDLOGIN: "1"              # "0" = nur noch Passkey-Login (C)
 ```
 **Abhängigkeiten:** `fido2==2.2.1` **und `cbor2`** (explizit in requirements.txt — ohne cbor2
 setzt die App `FIDO2_OK=False` → „Passkeys sind nicht konfiguriert." (v1.0.3-Fix).
+**Browser-Format:** Server liefert `challenge`/`user.id` als Base64URL; das JS dekodiert sie zu
+Byte-Arrays, bevor es `navigator.credentials.create/get` aufruft (v1.0.6-Fix — sonst
+DOMException „Invalid 'user.id' length").
 
 ### Technik
 - Bibliothek: **fido2 2.2 (Yubico)** in `requirements.txt`; nur Verifikation,
