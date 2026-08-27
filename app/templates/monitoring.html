@@ -28,6 +28,10 @@
         .badge-red { background: #8b0000; }
         .badge-gray { background: #333; }
         .grafana-dl { display:inline-flex; align-items:center; justify-content:center; width:34px; height:34px; border:1px solid rgba(255,255,255,.28); border-radius:7px; color:inherit; text-decoration:none; opacity:.7; transition:opacity .15s, border-color .15s, color .15s; }
+        /* F60: Augen-Button der Detail-Spalte — eigene Klasse (blau), damit der
+           Rechte-E2E (zählt .grafana-dl) die beiden Icon-Typen trennen kann */
+        .detail-dl { display:inline-flex; align-items:center; justify-content:center; width:34px; height:34px; border:1px solid rgba(255,255,255,.28); border-radius:7px; color:#8ab4f8; text-decoration:none; opacity:.9; transition:opacity .15s, border-color .15s, color .15s; }
+        .detail-dl:hover { opacity:1; border-color:#8ab4f8; }
         .grafana-dl:hover, .grafana-dl:focus { opacity:1; border-color:#4ea1ff; color:#4ea1ff; }
         .codes { font-family: monospace; word-break: break-all; }
         .kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
@@ -128,7 +132,7 @@
                         </a>
                     </td>
                     <td>
-                        <a class="grafana-dl" title="Detail-Monitoring der Anlage {{ name }} öffnen (Kacheln + Verlauf)"
+                        <a class="detail-dl" title="Detail-Monitoring der Anlage {{ name }} öffnen"
                            href="/monitoring/installations/{{ id_by_name.get(name, '') }}">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.8"/></svg>
                         </a>
