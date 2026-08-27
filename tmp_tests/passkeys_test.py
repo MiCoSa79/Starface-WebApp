@@ -132,6 +132,18 @@ html = c.get("/").text
 check("6: Login-JS signalisiert Passwort hidden", "const __pkPassword = false;" in html)
 app_main.PASSWORD_LOGIN_ENABLED = True
 
+# ── 7) Bitwarden-Stil: Signatur bereits DER (70 B) → Login muss klappen ──
+c.cookies.clear()
+r = c.post("/api/passkey/login/options")
+j = r.json()
+assertion3 = wf.login_assertion("webapp.example", "https://webapp.example", j["challenge"], key, sign_count=2)
+assertion3["signature"] = app_main._raw_to_der_b64(assertion3["signature"])  # RAW→DER, wie Bitwarden liefert
+r = c.post("/api/passkey/login/verify", json={"credential": {
+    "id": wf._b64u(cred_id), "rawId": wf._b64u(cred_id), "type": "public-key",
+    "response": assertion3}})
+check("7: Login mit DER-Signatur (Bitwarden-Stil) -> ok", r.status_code == 200 and r.json().get("status") == "ok",
+      f"{r.status_code} {r.text[:120]}")
+
 print()
 print("ERGEBNIS:", f"{len(FAIL)} FAIL" if FAIL else "ALLE PASSKEY-TESTS OK")
 sys.exit(1 if FAIL else 0)
