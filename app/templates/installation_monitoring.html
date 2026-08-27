@@ -67,7 +67,8 @@
         body.kiosk .charts { grid-template-columns: repeat(3, minmax(0, 1fr)); } /* Kiosk: immer 3 Spalten, kein Auto-Fit-Leerraum (Axel) */
         .chart-card .chart-title { display: flex; align-items: center; justify-content: space-between;
                                    gap: 8px; margin-bottom: 8px; }
-        #card-inst-modules { grid-column: 1 / -1; width: 50%; justify-self: start; } /* Modul-Karte 50 % Breite, LINKSBÜNDIG — Kiosk wie Normal (Axel) */
+        #card-inst-modules { width: 50%; } /* Modul-Karte 50 % Breite, linksbündig; AUSSERHALB des Charts-Grids → 12-px-Abstand wie 'Letzte Stunde' (Axel) */
+        .charts .card { margin-bottom: 0; } /* Charts-Grid: Row-Gap regelt Abstände; 'Module' klebt dicht darunter (Axel) */
         .mod-grp-row td { border-top: 2px solid #1d243e; }
         .chart-card h3 { font-size: 14px; color: #ccc; font-weight: 600; }
         .legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11px; color: #888; }
@@ -99,7 +100,7 @@
         .mod-tbl .version-ist, .mod-tbl .version-soll { text-align: left; } /* Versionswerte linksbündig — eigene wie Drittanbieter (Axel) */
         .mod-tbl th { color: #8ab4f8; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .4px; }
         .mod-tbl .version-soll { color: #9e9e9e; }
-        #mod-sec-title { margin-top: 4px; } /* Überschrift „Module“ dicht an die obere Kachel (Axel) */
+        #mod-sec-title { margin-top: 2px; } /* Überschrift „Module“ dicht an die oberen Charts — Kiosk wie Normal (Axel) */
         .mod-outdated .version-ist { color: #ff6b6b; font-weight: 600; }
         .mod-grp { background: #263238; color: #8ab4f8; font-weight: 700; text-transform: uppercase;
                    letter-spacing: .6px; font-size: 12px; }
@@ -228,42 +229,43 @@
             </div>
             <div class="chart" id="chart-mem-total"><p class="chart-empty">Lade Verlaufsdaten…</p></div>
         </div>
+    </div>
 
-        <!-- Module: Ist-Version vs. aktuellste Version — NUR installierte (Axel);
-             EINE Tabelle: Spaltenkopf ganz oben, dann Eigene Module, dann Drittanbietermodule -->
-        {% set mods_own = (modules or []) | selectattr('source', 'equalto', 'own') | list %}
-        {% set mods_third = (modules or []) | selectattr('source', 'ne', 'own') | list %}
-        <h2 id="mod-sec-title">Module</h2>
-        <div class="card mod-card" id="card-inst-modules">
-            <h3>Installierte Module</h3>
-            <table class="mod-tbl" id="mod-tbl">
-                <thead>
-                    <tr><th>Modul</th><th>Ist-Version</th><th>Aktuellste Version</th></tr>
-                </thead>
-                <tbody id="mod-rows-own"{% if not mods_own %} style="display:none"{% endif %}>
-                    <tr class="mod-grp-row"><td colspan="3" class="mod-grp">Eigene Module</td></tr>
-                {% for m in mods_own %}
-                    <tr class="mod-{{ 'ok' if m.current else 'outdated' }}">
-                        <td>{{ m.name }}</td>
-                        <td class="version-ist">{{ m.version_ist }}{% if not m.current %}<span class="mod-badge">Update verfügbar</span>{% endif %}</td>
-                        <td class="version-soll">{{ m.version_soll }}</td>
-                    </tr>
-                {% endfor %}
-                </tbody>
-                <tbody id="mod-rows-third"{% if not mods_third %} style="display:none"{% endif %}>
-                    <tr class="mod-grp-row"><td colspan="3" class="mod-grp">Drittanbietermodule</td></tr>
-                {% for m in mods_third %}
-                    <tr class="mod-{{ 'ok' if m.current else 'outdated' }}">
-                        <td>{{ m.name }}</td>
-                        <td class="version-ist">{{ m.version_ist }}{% if not m.current %}<span class="mod-badge">Update verfügbar</span>{% endif %}</td>
-                        <td class="version-soll">{{ m.version_soll }}</td>
-                    </tr>
-                {% endfor %}
-                </tbody>
-            </table>
-            <div class="mod-hint" id="mod-hint"{% if modules %} style="display:none"{% endif %}>Keine Modul-Daten verfügbar — bitte die Monitoring-Instanz der Anlage prüfen (Einstellungen → Anlagen → Bearbeiten).</div>
-            <p class="mod-note">Daten aus dem Modul-Sammler (letzter Poll, ≤ 60 s alt) — kein separater Anlagen-Abruf.</p>
-        </div>
+    <!-- Module: Ist-Version vs. aktuellste Version — NUR installierte (Axel);
+         EINE Tabelle: Spaltenkopf ganz oben, dann Eigene Module, dann Drittanbietermodule.
+         AUSSERHALB des .charts-Grids → fester Abstand h2→Karte wie 'Letzte Stunde' (Axel) -->
+    {% set mods_own = (modules or []) | selectattr('source', 'equalto', 'own') | list %}
+    {% set mods_third = (modules or []) | selectattr('source', 'ne', 'own') | list %}
+    <h2 id="mod-sec-title">Module</h2>
+    <div class="card mod-card" id="card-inst-modules">
+        <h3>Installierte Module</h3>
+        <table class="mod-tbl" id="mod-tbl">
+            <thead>
+                <tr><th>Modul</th><th>Ist-Version</th><th>Aktuellste Version</th></tr>
+            </thead>
+            <tbody id="mod-rows-own"{% if not mods_own %} style="display:none"{% endif %}>
+                <tr class="mod-grp-row"><td colspan="3" class="mod-grp">Eigene Module</td></tr>
+            {% for m in mods_own %}
+                <tr class="mod-{{ 'ok' if m.current else 'outdated' }}">
+                    <td>{{ m.name }}</td>
+                    <td class="version-ist">{{ m.version_ist }}{% if not m.current %}<span class="mod-badge">Update verfügbar</span>{% endif %}</td>
+                    <td class="version-soll">{{ m.version_soll }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+            <tbody id="mod-rows-third"{% if not mods_third %} style="display:none"{% endif %}>
+                <tr class="mod-grp-row"><td colspan="3" class="mod-grp">Drittanbietermodule</td></tr>
+            {% for m in mods_third %}
+                <tr class="mod-{{ 'ok' if m.current else 'outdated' }}">
+                    <td>{{ m.name }}</td>
+                    <td class="version-ist">{{ m.version_ist }}{% if not m.current %}<span class="mod-badge">Update verfügbar</span>{% endif %}</td>
+                    <td class="version-soll">{{ m.version_soll }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        <div class="mod-hint" id="mod-hint"{% if modules %} style="display:none"{% endif %}>Keine Modul-Daten verfügbar — bitte die Monitoring-Instanz der Anlage prüfen (Einstellungen → Anlagen → Bearbeiten).</div>
+        <p class="mod-note">Daten aus dem Modul-Sammler (letzter Poll, ≤ 60 s alt) — kein separater Anlagen-Abruf.</p>
     </div>
 
     <!-- Schwebender Beenden-Button, nur im Kiosk-Modus sichtbar -->

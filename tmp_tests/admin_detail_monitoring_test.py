@@ -206,13 +206,15 @@ check("Modul-Tabelle: Spaltenkopf nur EINMAL und ganz oben, vor den Gruppen (Axe
       tsrc.count('>Ist-Version</th>') == 1
       and tsrc.index('>Ist-Version</th>') < tsrc.index('>Eigene Module<')
       and tsrc.index('>Eigene Module<') < tsrc.index('>Drittanbietermodule<'))
-check("Modul-Karte: 50 % Breite, LINKSBÜNDIG — Kiosk wie Normal (Axel)", 'width: 50%; justify-self: start' in body)
+check("Modul-Karte: 50 % Breite, links, AUSSERHALB des Charts-Grids (Axel)",
+      '#card-inst-modules { width: 50%; }' in body and 'grid-column: 1 / -1' not in body)
 check("Modul-Versionen linksbündig — eigene wie Drittanbieter (Axel)", '.mod-tbl .version-ist, .mod-tbl .version-soll { text-align: left; }' in body)
-check("Überschrift Module dicht an obere Kachel (Axel)", '#mod-sec-title { margin-top: 4px; }' in body)
+check("Abstände (Axel): 'Module' klebt an Charts (2px), Karte 12 px wie 'Letzte Stunde'",
+      '#mod-sec-title { margin-top: 2px; }' in body and '.charts .card { margin-bottom: 0; }' in body
+      and tsrc.index('class="charts"') < tsrc.index('id="mod-sec-title"') < tsrc.index('id="card-inst-modules"'))
 check("Kiosk-Auto-Scroll (Axel): nur Kiosk + Zyklus 3s/runter/3s/oben", all(x in tsrc for x in (
     'Kiosk-Auto-Scroll', 'document.body.classList.contains(\'kiosk\')',
     'await sleep(3000)', 'smoothTo(maxY, 6000)', 'MutationObserver')))
-check("Modul-Karte: volle Grid-Zeile unter den Charts (Grid-Durchstich)", 'grid-column: 1 / -1' in body)
 check("Modul-Gruppen: eigene oben, Drittanbieter unten (Axel)", all(x in body for x in (
     'Eigene Module', 'Drittanbietermodule', 'ThirdPartyConnector', 'mod-grp')))
 check("Modul-Karte rendert: Tabelle mit Modulen (Anlage A)", all(x in body for x in ('id="card-inst-modules"', 'CallBlocker', 'TelefonieMonitoring', 'id="mod-rows-own"')))
