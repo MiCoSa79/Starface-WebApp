@@ -152,9 +152,10 @@ check("Kein .kiosk-hide-Rest im Template", "kiosk-hide" not in body)
 check("Kiosk-Refresh-Countdown vorhanden", 'id="refresh-countdown-kiosk-num"' in body)
 check("Kiosk-Countdown an InfluxDB-Stelle (Sammler-Zeile)", '<span class="kiosk-countdown">Aktualisiert in' in body)
 check("Kiosk-Countdown inline via body.kiosk .kiosk-countdown", "body.kiosk .kiosk-countdown" in body)
-check("Kiosk-Auto-Scroll (Axel): Admin-Seite — nur Kiosk + Zyklus 3s/runter/3s/oben", all(x in body for x in (
-    'Kiosk-Auto-Scroll, Admin-Monitoring', 'document.body.classList.contains(\'kiosk\')',
-    'await sleep(3000)', 'smoothTo(maxY, 6000)', 'MutationObserver')))
+check("Kiosk-Auto-Scroll (Axel): Admin-Seite — nur Kiosk + Zyklus + Stop bei Rückkehr", all(x in body for x in (
+    'Kiosk-Auto-Scroll, Admin-Monitoring',
+    'if (document.body.classList.contains(\'kiosk\')) start(); else stop();',
+    'await sleep(3000)', 'smoothTo(maxY, 6000)')))
 check("Refresh-API /api/monitoring/admin", "/api/monitoring/admin" in body)
 check("Grafana-Admin-Link (parallel)", "Grafana Admin-Übersicht" in body)
 check("Grafana-Detail-Link Anlage B", f"/d/starface-anlage-detail/?var-installation=Anlage%20B" in body)
