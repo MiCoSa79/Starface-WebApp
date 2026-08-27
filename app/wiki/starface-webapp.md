@@ -74,7 +74,6 @@ Quelle: `git for-each-ref refs/tags/v0.0.*` — Stichworte = Commit-Subject.
 
 | Version | Commit | Änderung |
 |---|---|---|
-
 | v0.0.1 | `801e7e6` | Initial: STARFACE CallBlocker Modul + Verwaltungs-WebApp |
 | v0.0.2 | `13f87b5` | README: lokalen Wiki-Pfad durch module/README.md-Verweis ersetzt |
 | v0.0.3 | `8f01fab` | Dashboard: Admin-Link in Topbar + 'Anlage hinzufügen'-Button + Empty-State-Hinweis |
@@ -273,6 +272,17 @@ Quelle: `git for-each-ref refs/tags/v0.0.*` — Stichworte = Commit-Subject.
 | v0.0.196 | `96ac3c4` | feat(admin): Mobile-Fix URL-Eingabefelder — flex-basis 380px wurde in der column-Flexbox zur Höhe (380 px) → .url-field-Klasse + Media-Query-Override (44 px); Regressionstest mobile_url_layout_cdp.mjs (F42) |
 | v0.0.197 | `7b5a5d0` | docs(wiki): Versionsregister v0.0.183-v0.0.196 nachgezogen (F40/F41/F42) — Frontmatter updated ergänzt (verify_wiki_refs), PDF-Versionen v30/v9/v7, Mobile-Fix-F42-Stand |
 | v0.0.198 | `e483a20` | feat(modules): Drittanbietermodule verwalten — Upload/Delete, zwei Tabellen, UpdateDeployer + Monitoring-Karte (F44) |
+| v0.0.199 | `fd4d710` | docs(wiki): Versionsregister v0.0.197-v0.0.198 nachgezogen (F44) — Frontmatter updated |
+| v0.0.200 | `7a00ca1` | style(ui): Mehr Bildschirmbreite (1400px einheitlich) + Aktions-Buttons nie untereinander (F45) |
+| v0.0.201 | `0b63ef6` | F46: UpdateDeployer -> Deployment-Modul umbenannt (Modul v8/dm-v8, UI, PDF, Tests, Wiki) |
+| v0.0.202 | `2d88943` | F47: Stale-Cleanup in _scan_modules — verwaiste eigene Module (UpdateDeployer-Zeile) werden entfernt |
+| v0.0.203 | `88b1513` | F48: Token-Generator (64 Zeichen, 256 Bit) in den Anlagen-Einstellungen (POST /admin/api/generate-token, Admin-only) |
+| v0.0.204 | `bc3b3c5` | F49: Mirror-Stale-Cleanup — verwaiste eigene Pakete (UpdateDeployer.sfm) werden beim Spiegeln aus data/modules entfernt, Drittanbieter bleiben |
+| v0.0.205 | `1e5af7b` | F50: Token-UI — Anzeigen/Verbergen (Eye-Toggle), Klartext-Anzeige mit Kopieren-Button nach Generierung + Beschreibung: identischer Token im Modul auf der Anlage (Reiter Sicherheit, Feld Update-Token) |
+| v0.0.206 | `1a49081` | F51: Einzel-Push meldet 'Es ist bereits die aktuellste Version installiert' statt RPC, wenn IST == SOLL (IST-Abruf wie push-all, Fehlerfall unverändert) |
+| v0.0.207 | `790cf49` | F52: Tooltips (CSS-Blasen im Seitendesign) für 'Fehlende Module installieren' + 'Module aktualisieren' (data-tip, Hover + Fokus) |
+| v0.0.208 | `5eb1c5d` | F53: Spiegel-Meldung vereinfacht — 'Update-Server-Spiegel aktiv — N Paket(e) vorhanden' (ohne Ordner /modules und Basis-URL) |
+| v0.0.209 | `9ed26cf` | docs(wiki): Roadmap — Tenant-Verwaltung (Super-Admin) + Lizenzverwaltung für Module (tenant-basiert) und WebApp (Super-Admins) (F54) |
 
 > Legende/Details: Lange Fachtexte zu Monitoring (v0.0.119 ff.) stehen im Hermes-Wiki
 > ([[telefonie-monitoring]]-Entity), zu Updates (v0.0.164 ff.) in [modul-auto-update](modul-auto-update.md).

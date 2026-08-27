@@ -57,6 +57,15 @@ check("Kein roher Wikilink-Text im HTML", "[[starface" not in page["html"])
 check("Unbekannter Wikilink wird kein toter Link",
       'href="/wiki/gibtsnicht"' not in page["html"])
 
+# F55: Versionshistorie der starface-webapp-Seite als ECHTE Tabelle rendern
+# (Regression: Leerzeile nach der Trennerzeile zerstörte <tbody> — Fließtext!).
+page = wiki_render.render_page("starface-webapp")
+check("F55: Versionshistorie als Tabelle (tbody vorhanden)", "<tbody>" in page["html"])
+check("F55: v0.0.1 als Tabellenzeile", "<td>v0.0.1</td>" in page["html"])
+check("F55: v0.0.209 (aktuellste) als Tabellenzeile", "<td>v0.0.209</td>" in page["html"])
+check("F55: kein kaputter Fließtext mehr (kein '| Version | Commit')",
+      "| Version | Commit" not in page["html"])
+
 rendered = wiki_render._md.render("<script>alert(1)</script>")
 check("XSS-sicher: Script-Tag wird escaped",
       "&lt;script&gt;" in rendered and "<script>" not in rendered)
