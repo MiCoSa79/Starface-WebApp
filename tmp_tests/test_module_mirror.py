@@ -38,9 +38,9 @@ for d in (SRC, ROOT):
     shutil.rmtree(d, ignore_errors=True)
     os.makedirs(d)
 
-def make_sfm(path, name, version, spec="5"):
+def make_sfm(path, name, version, spec="5", vendor="Axel Meiser - Kraemer IT"):
     desc = (f"<?xml version='1.0' encoding='UTF-8'?>\n<module id=\"uuid-{name}\" "
-            f"name=\"{name}\" specVersion=\"{spec}\" vendor=\"MiCoSa79\" version=\"{version}\">"
+            f"name=\"{name}\" specVersion=\"{spec}\" vendor=\"{vendor}\" version=\"{version}\">"
             f"<noLicenseId>x</noLicenseId></module>")
     with zipfile.ZipFile(path, "w") as z:
         z.writestr("META-INF/MANIFEST.MF",
@@ -109,6 +109,22 @@ check("base_url leer -> relativer Pfad", u == "/modules/CallBlocker.sfm" or u ==
 slashed = mirror.mirror_modules(SRC, DST, "https://modulupdates.meiser.family/")
 u2 = json.load(open(os.path.join(ROOT, "versions.json")))["modules"][0]["versions"][0]["downloadUrl"]
 check("trailing slash normalisiert (kein //)", "//modules/" not in u2 and u2.startswith("https://modulupdates.meiser.family/modules/"), u2)
+
+# ------------------------------------------------- 5. Stale-Cleanup (F49)
+# Verwaistes EIGENES Paket im Ziel (Quelle im Image weg, z. B. Umbenennung
+# UpdateDeployer -> Deployment-Modul) muss entfernt werden; Drittanbieter
+# (anderer Vendor) bleiben unangetastet.
+make_sfm(os.path.join(DST, "UpdateDeployer.sfm"), "UpdateDeployer", "7")            # eigen: Vendor Axel Meiser - Kraemer IT
+make_sfm(os.path.join(DST, "AdminPowerPack.sfm"), "AdminPowerPack", "20260205", vendor="Fluxpunkt")
+mirror.mirror_modules(SRC, DST, "")
+check("Stale-Cleanup: verwaistes eigenes Paket (UpdateDeployer.sfm) entfernt",
+      not os.path.exists(os.path.join(DST, "UpdateDeployer.sfm")))
+check("Stale-Cleanup: Drittanbieter-Paket bleibt",
+      os.path.exists(os.path.join(DST, "AdminPowerPack.sfm")))
+man5 = json.load(open(os.path.join(ROOT, "versions.json")))
+names5 = {m["moduleName"] for m in man5["modules"]}
+check("Manifest nach Cleanup: AdminPowerPack drin, UpdateDeployer NICHT",
+      "AdminPowerPack" in names5 and "UpdateDeployer" not in names5, str(names5))
 
 shutil.rmtree(SRC, ignore_errors=True)
 shutil.rmtree(ROOT, ignore_errors=True)

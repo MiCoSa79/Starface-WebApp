@@ -33,6 +33,7 @@ def _read_module_info(path: str) -> dict | None:
         "name": root.get("name", ""),
         "version": root.get("version", "0"),
         "specVersion": root.get("specVersion", ""),
+        "vendor": root.get("vendor", ""),
     }
 
 
@@ -75,6 +76,8 @@ def mirror_modules(src_dir: str, dst_dir: str, base_url: str = "") -> dict:
 
     - kopiert NUR .sfm-Dateien (andere/kaputte Dateien werden ignoriert)
     - überschreibt vorhandene Dateien (idempotent, keine Duplikate)
+    - entfernt verwaiste EIGENE Pakete im Ziel (Vendor 'Axel Meiser - Kraemer IT',
+      Quelle nicht mehr im Image — z. B. nach Umbenennung); Drittanbieter bleiben
     - versions.json landet im Ziel (nginx html-Root serviert beide)
     Returns das geschriebene Manifest.
     """
@@ -99,6 +102,23 @@ def mirror_modules(src_dir: str, dst_dir: str, base_url: str = "") -> dict:
             sfm_files.append(dst)
         except (OSError, zipfile.BadZipFile):
             continue
+    # Stale-Cleanup (F49): verwaiste EIGENE Pakete aus dem Ziel entfernen.
+    # Eigene Pakete tragen Vendor "Axel Meiser - Kraemer IT" und stammen
+    # ausschließlich aus dem Image (own_names). Liegt im Ziel ein eigenes Paket,
+    # dessen Quelle im Image nicht mehr existiert (Umbenennung/Abkündigung,
+    # z. B. UpdateDeployer → Deployment-Modul), wird es gelöscht.
+    # Drittanbieter (anderer Vendor) bleiben unangetastet.
+    for fname in sorted(os.listdir(dst_dir)):
+        if not fname.endswith(".sfm") or fname in own_names:
+            continue
+        extra = os.path.join(dst_dir, fname)
+        info = _read_module_info(extra)
+        if info is not None and info["vendor"] == "Axel Meiser - Kraemer IT":
+            try:
+                os.remove(extra)
+            except OSError:
+                continue
+            print(f"[UpdateServer] Stale eigenes Paket entfernt: {fname}")
     # Drittanbieter-Module (Admin-Uploads der Modul-Seite) liegen als .sfm im
     # Zielverzeichnis, stammen aber NICHT aus dem Image → gehören ebenfalls ins
     # versions.json-Manifest (Deployment-Modul lädt sie über dieselbe signierte
