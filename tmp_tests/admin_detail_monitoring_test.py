@@ -209,6 +209,9 @@ check("Modul-Tabelle: Spaltenkopf nur EINMAL und ganz oben, vor den Gruppen (Axe
 check("Modul-Karte: 50 % Breite, LINKSBÜNDIG — Kiosk wie Normal (Axel)", 'width: 50%; justify-self: start' in body)
 check("Modul-Versionen linksbündig — eigene wie Drittanbieter (Axel)", '.mod-tbl .version-ist, .mod-tbl .version-soll { text-align: left; }' in body)
 check("Überschrift Module dicht an obere Kachel (Axel)", '#mod-sec-title { margin-top: 4px; }' in body)
+check("Kiosk-Auto-Scroll (Axel): nur Kiosk + Zyklus 3s/runter/3s/oben", all(x in tsrc for x in (
+    'Kiosk-Auto-Scroll', 'document.body.classList.contains(\'kiosk\')',
+    'await sleep(3000)', 'smoothTo(maxY, 6000)', 'MutationObserver')))
 check("Modul-Karte: volle Grid-Zeile unter den Charts (Grid-Durchstich)", 'grid-column: 1 / -1' in body)
 check("Modul-Gruppen: eigene oben, Drittanbieter unten (Axel)", all(x in body for x in (
     'Eigene Module', 'Drittanbietermodule', 'ThirdPartyConnector', 'mod-grp')))

@@ -422,5 +422,59 @@
         if (refreshCountdown <= 0) refreshAdminMonitoring();
     }, 1000);
     refreshAdminMonitoring(); // sofortiger erster Abgleich
+
+/* ── Kiosk-Auto-Scroll, Admin-Monitoring (Axel): oben 3 s → langsam runter → unten 3 s → Sprung hoch, endlos ── */
+(function () {
+    var started = false;
+    function scrollable() {
+        return document.documentElement.scrollHeight - window.innerHeight > 10;
+    }
+    function start() {
+        if (started) return;
+        if (!document.body.classList.contains('kiosk')) return; // nur Kiosk-Modus
+        started = true;
+        var pauseUntil = 0;
+        function pause(ms) { pauseUntil = Date.now() + ms; }
+        ['wheel', 'touchstart', 'touchmove', 'keydown'].forEach(function (evt) {
+            window.addEventListener(evt, function () { pause(60000); }, { passive: true });
+        });
+        function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+        function idle() { return Date.now() >= pauseUntil; }
+        async function waitIdle() {
+            while (!idle()) await sleep(400); // User-Interaktion: Zyklus pausiert, bis wieder still
+        }
+        function smoothTo(target, dur) {
+            return new Promise(function (resolve) {
+                if (!idle()) { resolve(); return; }
+                var startY = window.scrollY, delta = target - startY, t0 = performance.now();
+                function step(now) {
+                    var p = Math.min((now - t0) / dur, 1);
+                    var ease = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2; // easeInOutQuad
+                    window.scrollTo(0, startY + delta * ease);
+                    if (p < 1 && idle()) requestAnimationFrame(step);
+                    else { window.scrollTo(0, target); resolve(); }
+                }
+                requestAnimationFrame(step);
+            });
+        }
+        async function cycle() {
+            for (;;) {
+                var maxY = document.documentElement.scrollHeight - window.innerHeight;
+                if (maxY <= 10) { await sleep(1000); continue; } // nicht scrollbar → nichts tun
+                window.scrollTo(0, 0);           // ganz oben
+                await waitIdle(); await sleep(3000); // 3 s stehen bleiben
+                await smoothTo(maxY, 6000);      // langsam nach unten
+                await waitIdle(); await sleep(3000); // 3 s unten stehen bleiben
+                window.scrollTo(0, 0);           // wieder nach ganz oben springen
+            }
+        }
+        cycle();
+    }
+    start();
+    if (typeof MutationObserver !== 'undefined') { // Kiosk per Vollbild-Button nachträglich aktiviert
+        new MutationObserver(function () { start(); })
+            .observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    }
+})();
 </script>
 {% endblock %}

@@ -85,6 +85,7 @@ Quelle: `git for-each-ref refs/tags/v0.0.*` — Stichworte = Commit-Subject.
 
 | Version | Commit | Änderung |
 |---|---|---|
+| v1.0.46 | (27.08.) | feat(Axel): **Kiosk-Auto-Scroll** auf Detail- UND Admin-Monitoring-Seite — bei Seitenlänge > Bildschirm: oben 3 s stehen → 6 s langsam nach unten (easeInOutQuad) → unten 3 s → Sprung nach oben → endlos; NUR `body.kiosk` (Guard scrollHeight), Nicht-Scrollbar → inaktiv; User-Interaktion (wheel/touch/key) pausiert 60 s; startet auch bei Kiosk-Eintritt per Vollbild-Button (MutationObserver auf body-class). Test: je 1 JS-Check, 19/19. |
 | v1.0.45 | (27.08.) | fix(Axel, Screenshot 21:59): **Überschrift „Module“ dichter an die oberen Kacheln** — `#mod-sec-title { margin-top: 4px; }` (vorher 24 px h2 + 16 px Kartengap = ~40 px Leerraum; jetzt ~20 px). Test: CSS-Check, 19/19. |
 | v1.0.44 | (27.08.) | fix(Axel, Screenshot 21:58): **Modul-Karte LINKSBÜNDIG statt zentriert** — `justify-self: start` (war `center`; saß im Auto-Fit-Grid asymmetrisch). Gilt für Kiosk UND Normalansicht; <700 px weiter 100 %. Test: CSS-Check, 19/19. |
 | v1.0.43 | (27.08.) | fix(Axel, Screenshot 21:51): **Modul-Versionen explizit linksbündig** — `.mod-tbl .version-ist/.version-soll { text-align: left; }` für Eigene wie Drittanbieter (Grundregel war bereits left; Override ausgeschlossen). Test: CSS-Check, 19/19. |
