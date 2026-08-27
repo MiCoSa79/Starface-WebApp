@@ -40,6 +40,12 @@
         .kpi-value { font-size: 40px; font-weight: 700; line-height: 1.1; color: #e0e0e0; }
         .kpi-value.ok { color: #95d5b2; }
         .kpi-value.err { color: #ff6b6b; }
+        .kpi-multi { display: flex; gap: 22px; margin: 6px 0 2px; }
+        .kpi-multi-item { display: flex; flex-direction: column; gap: 0; min-width: 0; }
+        .kpi-multi-label { color: #666; font-size: 11px; text-transform: uppercase;
+                           letter-spacing: .05em; }
+        .kpi-multi-num { font-size: 32px; font-weight: 700; line-height: 1.15; color: #e0e0e0;
+                         font-variant-numeric: tabular-nums; }
         .kpi-sub { color: #666; font-size: 12px; }
         .kpi-icon { width: 34px; height: 34px; border-radius: 8px; display: flex;
                     align-items: center; justify-content: center; flex-shrink: 0; }
@@ -136,8 +142,12 @@
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="14" height="14" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/></svg>
                 </span>
             </div>
-            <div class="kpi-value" id="kpi-cpu-value">—</div>
-            <div class="kpi-sub" id="kpi-cpu-sub">Last 1/5/15 Minuten</div>
+            <div class="kpi-value kpi-multi" id="kpi-cpu-values">
+                <div class="kpi-multi-item"><span class="kpi-multi-label">1 min</span><span class="kpi-multi-num" id="kpi-cpu1">—</span></div>
+                <div class="kpi-multi-item"><span class="kpi-multi-label">5 min</span><span class="kpi-multi-num" id="kpi-cpu5">—</span></div>
+                <div class="kpi-multi-item"><span class="kpi-multi-label">15 min</span><span class="kpi-multi-num" id="kpi-cpu15">—</span></div>
+            </div>
+            <div class="kpi-sub" id="kpi-cpu-sub">Last der letzten 1/5/15 Minuten · <span id="kpi-cpu-cores">— Kerne</span></div>
         </div>
         <div class="card kpi" id="kpi-mem-card">
             <div class="kpi-top">
@@ -275,7 +285,7 @@
             el.innerHTML = '<p class="chart-empty">Keine Verlaufsdaten in der letzten Stunde.</p>';
             return;
         }
-        var yMax = opts.yMax || max * 1.15;
+        var yMax = opts.yFixedMax || opts.yMax || max * 1.15;
         if (opts.floorYMax) yMax = Math.max(opts.floorYMax, yMax);
         if (yMax <= 0) yMax = 1;
         var X = function (t) { return L + (t - t0) / (t1 - t0) * (W - L - R); };
@@ -301,6 +311,24 @@
             txt.setAttribute('font-size', '10');
             txt.textContent = opts.fmtY ? opts.fmtY(v) : fmtNum(v);
             g.appendChild(txt);
+        }
+        // Kritische Schwelle (gestrichelt, z. B. 90 %) — Axel: in Speicher-Grafen
+        if (opts.threshold !== undefined && opts.threshold > 0 && opts.threshold < yMax) {
+            var ty = Y(opts.threshold);
+            var tline = document.createElementNS(ns, 'line');
+            tline.setAttribute('x1', L); tline.setAttribute('x2', W - R);
+            tline.setAttribute('y1', ty); tline.setAttribute('y2', ty);
+            tline.setAttribute('stroke', '#ff6b6b'); tline.setAttribute('stroke-width', '1.5');
+            tline.setAttribute('stroke-dasharray', '6 4');
+            g.appendChild(tline);
+            if (opts.thresholdLabel) {
+                var ttxt = document.createElementNS(ns, 'text');
+                ttxt.setAttribute('x', W - R - 2); ttxt.setAttribute('y', ty - 5);
+                ttxt.setAttribute('text-anchor', 'end'); ttxt.setAttribute('fill', '#ff8a8a');
+                ttxt.setAttribute('font-size', '10');
+                ttxt.textContent = opts.thresholdLabel;
+                g.appendChild(ttxt);
+            }
         }
         // X-Labels: Anfang + Ende (Europe/Berlin)
         [[t0, 'start'], [t1, 'end']].forEach(function (pair) {
@@ -358,18 +386,20 @@
             setKpiCard('kpi-sip-card', null);
             setKpiIcon('kpi-sip-icon', 'neutral');
         }
-        // CPU-Last-Kachel
+        // CPU-Last-Kachel: DREI Werte (1 / 5 / 15 min) — Axel: so gewünscht
         var sys = s.system || {};
         if (sys.load1 !== undefined) {
-            setKpiValue('kpi-cpu-value', fmtNum(sys.load1), null);
-            var cpuSub = '1 min';
-            if (sys.load5 !== undefined) cpuSub += ' · 5 min: ' + fmtNum(sys.load5);
-            if (sys.load15 !== undefined) cpuSub += ' · 15 min: ' + fmtNum(sys.load15);
-            if (sys.cpu_cores) cpuSub += ' · ' + sys.cpu_cores + ' Kerne';
-            setKpiValue('kpi-cpu-sub', cpuSub, null);
+            setKpiValue('kpi-cpu1', fmtNum(sys.load1), null);
+            setKpiValue('kpi-cpu5', sys.load5 !== undefined ? fmtNum(sys.load5) : '—', null);
+            setKpiValue('kpi-cpu15', sys.load15 !== undefined ? fmtNum(sys.load15) : '—', null);
+            setKpiValue('kpi-cpu-cores', sys.cpu_cores ? sys.cpu_cores + ' Kern' + (sys.cpu_cores !== 1 ? 'e' : '') : '', null);
+            setKpiValue('kpi-cpu-sub', 'Last der letzten 1/5/15 Minuten', null);
             setKpiCard('kpi-cpu-card', null);
         } else {
-            setKpiValue('kpi-cpu-value', '—', null);
+            setKpiValue('kpi-cpu1', '—', null);
+            setKpiValue('kpi-cpu5', '—', null);
+            setKpiValue('kpi-cpu15', '—', null);
+            setKpiValue('kpi-cpu-cores', '', null);
             setKpiValue('kpi-cpu-sub', 'keine Systemdaten (noch kein Poll)', null);
             setKpiCard('kpi-cpu-card', null);
         }
@@ -412,11 +442,16 @@
                 if (r.mem_total === undefined || r.mem_available === undefined || r.mem_total <= 0) return null;
                 return Math.min(100, (r.mem_total - r.mem_available) / r.mem_total * 100);
             }
-        }], { label: 'Speicher-Auslastung in Prozent', fillFirst: true, floorYMax: 50, fmtY: function (v) { return Math.round(v) + '%'; } });
+        }], { label: 'Speicher-Auslastung in Prozent', fillFirst: true, yFixedMax: 100,
+             threshold: 90, thresholdLabel: '90 %',
+             fmtY: function (v) { return Math.round(v) + '%'; } });
+        var totMax = 0;
+        rows.forEach(function (r) { if (r.mem_total !== undefined && r.mem_total > totMax) totMax = r.mem_total; });
         drawChart('chart-mem-total', rows, [
             { key: 'mem_total', color: '#4fc3f7', y: function (r) { return r.mem_total === undefined ? null : kbToBytes(r.mem_total - r.mem_available); } },
-            { key: 'mem_total', color: '#9e9e9e', dash: '6 4', y: function (r) { return r.mem_total === undefined ? null : kbToBytes(r.mem_total); } }
-        ], { label: 'Speicher Total (belegt/gesamt)', fmtY: fmtGiB });
+            { key: 'mem_total', color: '#9e9e9e', y: function (r) { return r.mem_total === undefined ? null : kbToBytes(r.mem_total); } }
+        ], { label: 'Speicher Total (belegt/gesamt)', fmtY: fmtGiB,
+             threshold: totMax ? kbToBytes(totMax * 0.9) : 0, thresholdLabel: '90 % von Gesamt' });
     }
 
     // ── Anlagen-Dropdown ──
