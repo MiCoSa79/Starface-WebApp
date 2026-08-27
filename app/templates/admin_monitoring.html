@@ -82,9 +82,8 @@
         #fs-exit:hover, #fs-exit:focus { opacity: 1; }
         body.kiosk .header-wrap, body.kiosk .footer { display: none; }
         body.kiosk .monitor-head { display: none; }
-        body.kiosk .kiosk-hide { display: none; }  /* z. B. InfluxDB-Hinweis */
-        /* Kiosk-Refresh-Countdown: erscheint im Kiosk an der Stelle des ausgeblendeten
-           InfluxDB-Hinweises (Sammler-Zeile, Axel-Korrektur v1.0.24) */
+        /* Kiosk-Refresh-Countdown: erscheint im Kiosk in der Sammler-Zeile
+           (an der Stelle des entfernten InfluxDB-Hinweises, v1.0.25) */
         .kiosk-countdown { display: none; }
         body.kiosk .kiosk-countdown { display: inline; }
         body.kiosk .container { max-width: 100%;
@@ -158,7 +157,6 @@
     <div class="statline">
         <span>Sammler: <b id="sum-running">{% if summary.running %}<span class="badge badge-green">Läuft</span>{% else %}<span class="badge badge-red">Gestoppt</span>{% endif %}</b></span>
         <span>Letzter Poll: <b id="sum-lastrun" data-ts="{{ summary.last_run or 0 }}">—</b></span>
-        <span class="kiosk-hide">InfluxDB: <b id="sum-influx">{% if summary.influx_configured %}<span class="badge badge-green">konfiguriert</span>{% else %}<span class="badge badge-red">kein Token</span>{% endif %}</b></span>
         <span class="kiosk-countdown">Aktualisiert in <b id="refresh-countdown-kiosk-num" style="color:#bbb;">5</b> s</span>
     </div>
     {% if summary.last_error %}
@@ -343,7 +341,6 @@
                 setVal(document.getElementById('kpi-inst-sub'), 'von ' + s.total + ' Anlagen');
                 setBadgeText(document.getElementById('sum-running'), s.running ? 'Läuft' : 'Gestoppt', s.running ? 'badge-green' : 'badge-red');
                 setVal(document.getElementById('sum-lastrun'), fmtTs(s.last_run || 0));
-                setBadgeText(document.getElementById('sum-influx'), s.influx_configured ? 'konfiguriert' : 'kein Token', s.influx_configured ? 'badge-green' : 'badge-red');
                 renderError(document.getElementById('err-slot'), s.last_error);
                 renderFails(document.getElementById('fail-rows'), s.items);
                 var nd = document.getElementById('no-data-line');
