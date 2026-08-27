@@ -26,7 +26,7 @@ import bcrypt
 import httpx
 import pyotp
 from cryptography.fernet import Fernet
-from fastapi import FastAPI, Form, Request
+from fastapi import FastAPI, Form, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -2462,9 +2462,12 @@ async def monitoring_page(request: Request):
             continue
         installations[name] = vals
 
+    mstatus_copy = dict(mstatus)
+    mstatus_copy["installations"] = installations
     return TEMPLATES.TemplateResponse("monitoring.html",
         {"request": request, "user": user, "active": "monitoring",
-         "status": {**mstatus, "installations": installations},
+         "status": mstatus_copy,
+         "id_by_name": id_by_name,
          "grafana_base": _grafana_base(),
          "grafana_uid": "starface-anlage-detail",
          "grafana_admin_uid": "starface-admin-uebersicht"})
@@ -2555,6 +2558,88 @@ async def api_monitoring_admin(request: Request):
     conn.close()
     id_by_name = {r["name"]: r["id"] for r in inst_rows}
     return JSONResponse(_admin_monitoring_summary(monitoring.status(), id_by_name))
+
+
+def _installation_detail_payload(inst_name: str, mstatus: dict | None = None) -> dict:
+    """JSON für die Anlagen-Detail-Seite (F60): Kacheln live + Verlauf aus InfluxDB.
+
+    - provider: provider_summary (count/connected/disconnected/all_ok/has_data)
+    - system:   load1/5/15, mem_total/free/available, cpu_cores (letzter Poll)
+    - history:  {"rows": [...]} aus query_system_history oder {"error": ...} —
+      die Kacheln funktionieren auch ohne InfluxDB, die Graphen zeigen dann
+      einen Hinweis (history_error).
+    """
+    mstatus = mstatus if mstatus is not None else monitoring.status()
+    vals = mstatus.get("installations", {}).get(inst_name, {})
+    return {
+        "name": inst_name,
+        "ts": vals.get("ts"),
+        "last_run": mstatus.get("last_run"),
+        "running": mstatus.get("running"),
+        "provider": vals.get("provider_summary"),
+        "system": vals.get("system"),
+        "history": monitoring.query_system_history(inst_name),
+    }
+
+
+@app.get("/monitoring/installations/{installation_id}", response_class=HTMLResponse)
+async def installation_monitoring_page(request: Request, installation_id: int):
+    """Anlagen-Detail-Monitoring (F60): Kacheln SIP/CPU/RAM + Verlaufs-Graphen.
+
+    Zugriff: Admin oder Benutzer mit can_read auf die Anlage. Anlagen-Dropdown
+    nur, wenn der Nutzer mehrere Anlagen sehen darf (Axel-Vorgabe). Einstieg:
+    „Detail“-Link auf der /monitoring-Statusseite.
+    """
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user:
+        return RedirectResponse("/")
+
+    conn = _db()
+    inst = conn.execute("SELECT id, name FROM installations WHERE id = ?",
+                        (installation_id,)).fetchone()
+    inst_rows = conn.execute("SELECT id, name FROM installations ORDER BY name").fetchall()
+    conn.close()
+    if not inst:
+        raise HTTPException(status_code=404, detail="Anlage nicht gefunden")
+
+    acc = get_access(user["user_id"], installation_id)
+    if not acc["can_read"] and not acc["is_admin"]:
+        raise HTTPException(status_code=403, detail="Keine Leseberechtigung für diese Anlage")
+
+    visible = []
+    for r in inst_rows:
+        a = get_access(user["user_id"], r["id"])
+        if a["can_read"] or a["is_admin"]:
+            visible.append({"id": r["id"], "name": r["name"]})
+
+    return TEMPLATES.TemplateResponse("installation_monitoring.html", {
+        "request": request, "user": user, "active": "monitoring",
+        "inst": {"id": inst["id"], "name": inst["name"]},
+        "visible": visible,
+        "show_dropdown": len(visible) > 1,
+        "initial": _installation_detail_payload(inst["name"]),
+        "version": os.environ.get("APP_VERSION", "dev")})
+
+
+@app.get("/api/monitoring/detail/{installation_id}")
+async def api_monitoring_detail(request: Request, installation_id: int):
+    """Detail-JSON für die Anlagen-Detail-Seite (10-s-Refresh) — Rechte wie die Seite."""
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user:
+        return JSONResponse({"ok": False, "message": "Nicht autorisiert"}, status_code=401)
+
+    conn = _db()
+    inst = conn.execute("SELECT id, name FROM installations WHERE id = ?",
+                        (installation_id,)).fetchone()
+    conn.close()
+    if not inst:
+        return JSONResponse({"ok": False, "message": "Anlage nicht gefunden"}, status_code=404)
+
+    acc = get_access(user["user_id"], installation_id)
+    if not acc["can_read"] and not acc["is_admin"]:
+        return JSONResponse({"ok": False, "message": "Keine Leseberechtigung"},
+                            status_code=403)
+    return JSONResponse(_installation_detail_payload(inst["name"]))
 
 
 @app.get("/api/monitoring/status")

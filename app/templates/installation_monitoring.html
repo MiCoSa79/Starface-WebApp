@@ -1,0 +1,511 @@
+{% extends "base.html" %}
+{% block title %}STARFACE WebApp — Monitoring: {{ inst.name }}{% endblock %}
+{% block styles %}
+<style>
+        .sr-only { position:absolute; width:1px; height:1px; margin:-1px; padding:0; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+               background: #1a1a2e; color: #e0e0e0; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 24px;
+                     padding-bottom: 60px; }
+        h2 { font-size: 18px; margin: 24px 0 12px; color: #e94560; }
+        h2:first-child { margin-top: 0; }
+        .card { background: #16213e; border-radius: 12px; padding: 20px; margin-bottom: 16px;
+                border: 1px solid #333; }
+        .badge { display: inline-block; background: #e94560; color: #fff;
+                 padding: 2px 8px; border-radius: 4px; font-size: 11px; }
+        .badge-green { background: #2d6a4f; }
+        .badge-red { background: #8b0000; }
+        .badge-gray { background: #333; }
+        .btn-secondary { padding: 8px 14px; border-radius: 6px; text-decoration: none;
+                         background: #333; color: #ccc; font-size: 13px;
+                         display: inline-flex; align-items: center; gap: 6px;
+                         border: 0; font-family: inherit; }
+        .btn-secondary:hover { background: #0f3460; color: #fff; }
+        .inst-select { padding: 8px 10px; border-radius: 6px; background: #333;
+                       color: #e0e0e0; font-size: 13px; border: 1px solid #444;
+                       font-family: inherit; max-width: 260px; }
+        .errbox { background: #3d1a1a; border: 1px solid #8b0000; color: #ffb3b3;
+                  padding: 10px 14px; border-radius: 8px; font-size: 13px;
+                  white-space: pre-wrap; margin-top: 12px; }
+
+        /* ── KPI-Karten ── */
+        .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+                gap: 16px; margin-bottom: 16px; }
+        .kpi { margin: 0; padding: 22px 24px; display: flex; flex-direction: column;
+               gap: 4px; transition: border-color .2s ease; }
+        .kpi .kpi-top { display: flex; align-items: center; justify-content: space-between; }
+        .kpi-label { color: #888; font-size: 12px; text-transform: uppercase;
+                     letter-spacing: .06em; }
+        .kpi-value { font-size: 40px; font-weight: 700; line-height: 1.1; color: #e0e0e0; }
+        .kpi-value.ok { color: #95d5b2; }
+        .kpi-value.err { color: #ff6b6b; }
+        .kpi-sub { color: #666; font-size: 12px; }
+        .kpi-icon { width: 34px; height: 34px; border-radius: 8px; display: flex;
+                    align-items: center; justify-content: center; flex-shrink: 0; }
+        .kpi-icon.neutral { background: #0f3460; color: #8ab4f8; }
+        .kpi-icon.ok { background: rgba(45,106,79,.25); color: #95d5b2; }
+        .kpi-icon.err { background: rgba(139,0,0,.3); color: #ff6b6b; }
+        .kpi.ok { border-color: #2d6a4f; }
+        .kpi.err { border-color: #8b0000; }
+
+        /* ── Statuszeile ── */
+        .statline { display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center;
+                    color: #888; font-size: 13px; margin: 4px 0 8px; }
+        .statline b { color: #ccc; font-weight: 600; }
+
+        /* ── Verlaufs-Graphen ── */
+        .charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+                  gap: 16px; }
+        .chart-card .chart-title { display: flex; align-items: center; justify-content: space-between;
+                                   gap: 8px; margin-bottom: 8px; }
+        .chart-card h3 { font-size: 14px; color: #ccc; font-weight: 600; }
+        .legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11px; color: #888; }
+        .legend .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+                       margin-right: 4px; vertical-align: middle; }
+        .chart { margin-top: 6px; }
+        .chart-svg { width: 100%; height: auto; display: block; }
+        .chart-empty { color: #8b93a7; font-size: 13px; padding: 28px 0; text-align: center; }
+        .chart-err { color: #ffb3b3; font-size: 13px; padding: 12px 14px;
+                     background: #3d1a1a; border: 1px solid #8b0000; border-radius: 8px; }
+
+        /* ── Full-Screen/Kiosk-Modus (Muster v1.0.20, Axel-Wunsch) ── */
+        #fs-btn { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+        #fs-exit { position: fixed; top: calc(12px + env(safe-area-inset-top, 0px)); right: 14px;
+                   z-index: 200; opacity: .8; cursor: pointer;
+                   transition: opacity .25s ease; }
+        #fs-exit.fs-hidden { opacity: 0; pointer-events: none; }
+        #fs-exit:hover, #fs-exit:focus { opacity: 1; }
+        body.kiosk .header-wrap, body.kiosk .footer { display: none; }
+        body.kiosk .monitor-head { display: none; }
+        /* Kiosk-Refresh-Countdown in der Sammler-Zeile (Muster v1.0.24/25) */
+        .kiosk-countdown { display: none; }
+        body.kiosk .kiosk-countdown { display: inline; }
+        body.kiosk .container { max-width: 100%;
+                                padding: 16px 24px calc(12px + env(safe-area-inset-bottom, 0px)); }
+        body.kiosk .kpis { margin-bottom: 12px; }
+        @media (max-width: 640px) { body.kiosk .container { padding: 12px 12px calc(12px + env(safe-area-inset-bottom, 0px)); } }
+
+        @media (max-width: 640px) {
+            .container { padding: 16px 14px 60px; }
+            .kpis { grid-template-columns: 1fr; }
+            .charts { grid-template-columns: 1fr; }
+            .btn-secondary { width: 100%; min-height: 44px; padding: 12px;
+                             justify-content: center; }
+            .inst-select { max-width: 100%; width: 100%; }
+        }
+</style>
+{% endblock %}
+{% block content %}
+<div class="container">
+    <div class="monitor-head">
+        <h2>Monitoring: {{ inst.name }}</h2>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px;">
+            <a href="/monitoring" class="btn-secondary" style="text-decoration:none;">← Zurück zur Übersicht</a>
+            {% if show_dropdown %}
+            <select id="inst-select" class="inst-select" aria-label="Anlage wählen" title="Andere Anlage anzeigen">
+                {% for v in visible %}
+                <option value="/monitoring/installations/{{ v.id }}" {% if v.id == inst.id %}selected{% endif %}>{{ v.name }}</option>
+                {% endfor %}
+            </select>
+            {% endif %}
+            <button type="button" id="fs-btn" class="btn-secondary" title="Vollbild-Modus: blendet Menü, Fußzeile, Seitenkopf und Browser-Leisten aus. Beenden: dieser Button erscheint oben rechts, ESC oder F11.">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+                Vollbild
+            </button>
+            <span style="color:#666;font-size:12px;margin-left:10px;">Seite aktualisiert sich automatisch in <b id="refresh-countdown" style="color:#bbb;">10</b> s</span>
+        </div>
+    </div>
+
+    <!-- KPI-Kacheln: SIP-Trunks, CPU-Last, Speicher -->
+    <div class="kpis">
+        <div class="card kpi" id="kpi-sip-card">
+            <div class="kpi-top">
+                <span class="kpi-label">SIP-Trunks/Provider</span>
+                <span class="kpi-icon" id="kpi-sip-icon" aria-hidden="true">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9a7 7 0 0 1 14 0"/><path d="M8 12a4 4 0 0 1 8 0"/><path d="M12 16c.5 0 1 .4 1 1s-.5 1-1 1-1-.4-1-1 .5-1 1-1z"/></svg>
+                </span>
+            </div>
+            <div class="kpi-value" id="kpi-sip-value">—</div>
+            <div class="kpi-sub" id="kpi-sip-sub">wartet auf Sammler-Daten</div>
+        </div>
+        <div class="card kpi" id="kpi-cpu-card">
+            <div class="kpi-top">
+                <span class="kpi-label">CPU-Last aktuell</span>
+                <span class="kpi-icon neutral" aria-hidden="true">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="14" height="14" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/></svg>
+                </span>
+            </div>
+            <div class="kpi-value" id="kpi-cpu-value">—</div>
+            <div class="kpi-sub" id="kpi-cpu-sub">Last 1/5/15 Minuten</div>
+        </div>
+        <div class="card kpi" id="kpi-mem-card">
+            <div class="kpi-top">
+                <span class="kpi-label">Speicher-Auslastung</span>
+                <span class="kpi-icon neutral" id="kpi-mem-icon" aria-hidden="true">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M6 9h.01M10 9h.01M6 13h.01M10 13h.01M14 9h4M14 13h4"/></svg>
+                </span>
+            </div>
+            <div class="kpi-value" id="kpi-mem-value">—</div>
+            <div class="kpi-sub" id="kpi-mem-sub">wartet auf Sammler-Daten</div>
+        </div>
+    </div>
+
+    <!-- Sammler-Status (dezent) -->
+    <div class="statline">
+        <span>Sammler: <b id="sum-running"><span class="badge badge-gray">…</span></b></span>
+        <span>Letzter Poll: <b id="sum-lastrun">—</b></span>
+        <span class="kiosk-countdown">Aktualisiert in <b id="refresh-countdown-kiosk-num" style="color:#bbb;">10</b> s</span>
+    </div>
+
+    <!-- Verlaufs-Graphen: letzte Stunde -->
+    <h2>Letzte Stunde</h2>
+    <div class="charts">
+        <div class="card chart-card">
+            <div class="chart-title">
+                <h3>CPU-Last (1/5/15 Minuten)</h3>
+                <span class="legend">
+                    <span><span class="dot" style="background:#4fc3f7;"></span>1 min</span>
+                    <span><span class="dot" style="background:#ffca28;"></span>5 min</span>
+                    <span><span class="dot" style="background:#ab47bc;"></span>15 min</span>
+                </span>
+            </div>
+            <div class="chart" id="chart-cpu"><p class="chart-empty">Lade Verlaufsdaten…</p></div>
+        </div>
+        <div class="card chart-card">
+            <div class="chart-title">
+                <h3>Speicher-Auslastung</h3>
+                <span class="legend"><span><span class="dot" style="background:#ffa726;"></span>% belegt</span></span>
+            </div>
+            <div class="chart" id="chart-mem-pct"><p class="chart-empty">Lade Verlaufsdaten…</p></div>
+        </div>
+        <div class="card chart-card">
+            <div class="chart-title">
+                <h3>Speicher Total</h3>
+                <span class="legend">
+                    <span><span class="dot" style="background:#4fc3f7;"></span>belegt</span>
+                    <span><span class="dot" style="background:#9e9e9e;"></span>gesamt</span>
+                </span>
+            </div>
+            <div class="chart" id="chart-mem-total"><p class="chart-empty">Lade Verlaufsdaten…</p></div>
+        </div>
+    </div>
+
+    <!-- Schwebender Beenden-Button, nur im Kiosk-Modus sichtbar -->
+    <button type="button" id="fs-exit" class="btn-secondary" style="display:none;" title="Vollbild-Modus beenden (auch ESC oder F11)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3v3a2 2 0 0 1-2 2H3"/><path d="M21 8h-3a2 2 0 0 1-2-2V3"/><path d="M3 16h3a2 2 0 0 1 2 2v3"/><path d="M16 21v-3a2 2 0 0 1 2-2h3"/></svg>
+        Vollbild beenden
+    </button>
+</div>
+
+<script>
+    var INST_ID = {{ inst.id }};
+    // Server-gerendertes Initial-JSON (erstes Paint ohne Fetch-Flackern)
+    var INITIAL = {{ initial|tojson }};
+    // Zeiten IMMER in Europe/Berlin anzeigen (Sommer-/Winterzeit automatisch)
+    function fmtTs(ts) {
+        if (!ts || ts <= 0) return '—';
+        try { return new Date(ts * 1000).toLocaleString('de-DE', { timeZone: 'Europe/Berlin', dateStyle: 'short', timeStyle: 'medium' }); }
+        catch (e) { return ts; }
+    }
+    function fmtHHMM(t) {
+        try { return new Date(t * 1000).toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' }); }
+        catch (e) { return ''; }
+    }
+    // Größen sind in der Regel kB (Linux /proc/meminfo) -> Bytes; Guard: >1e12 = bereits Bytes
+    function kbToBytes(v) { return v > 1e12 ? v : v * 1024; }
+    function fmtGiB(v) { return (v / 1073741824).toFixed(1) + ' G'; }
+    function fmtNum(v) { return v >= 100 ? v.toFixed(0) : v.toFixed(1); }
+    function setVal(el, txt) {
+        if (el) el.textContent = (txt === null || txt === undefined) ? '—' : txt;
+    }
+    function setBadgeText(el, txt, cls) {
+        if (!el) return;
+        el.textContent = '';
+        var b = document.createElement('span');
+        b.className = 'badge ' + cls;
+        b.textContent = txt;
+        el.appendChild(b);
+    }
+    function setKpiCard(cardId, cls) {
+        var card = document.getElementById(cardId);
+        if (!card) return;
+        card.classList.remove('ok', 'err');
+        if (cls) card.classList.add(cls);
+    }
+    function setKpiValue(id, txt, cls) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        el.textContent = txt;
+        el.classList.remove('ok', 'err');
+        if (cls) el.classList.add(cls);
+    }
+    function setKpiIcon(iconId, cls) {
+        var icon = document.getElementById(iconId);
+        if (!icon) return;
+        icon.classList.remove('ok', 'err', 'neutral');
+        icon.classList.add(cls || 'neutral');
+    }
+
+    // ── SVG-Liniendiagramm (Dark Design, handgezeichnet — kein externes CDN) ──
+    // series: [{key, color, dash?}], opts: {label, yMax?, floorYMax?, fillFirst?, fmtY?}
+    function drawChart(elId, rows, series, opts) {
+        var el = document.getElementById(elId);
+        if (!el) return;
+        opts = opts || {};
+        el.textContent = '';
+        if (!rows || rows.length < 2) {
+            el.innerHTML = '<p class="chart-empty">Keine Verlaufsdaten in der letzten Stunde.</p>';
+            return;
+        }
+        var t0 = rows[0].t, t1 = rows[rows.length - 1].t;
+        if (t1 <= t0) t1 = t0 + 1;
+        var W = 600, H = 220, L = 42, R = 10, T = 10, B = 22;
+        var max = 0, drawn = [];
+        series.forEach(function (s) {
+            var pts = rows.map(function (r) {
+                return { x: r.t, y: (typeof s.y === 'function') ? s.y(r) : r[s.key] };
+            }).filter(function (p) { return p.y !== undefined && p.y !== null && isFinite(p.y); });
+            if (pts.length >= 2) {
+                pts.forEach(function (p) { if (p.y > max) max = p.y; });
+                drawn.push({ s: s, pts: pts });
+            }
+        });
+        if (!drawn.length) {
+            el.innerHTML = '<p class="chart-empty">Keine Verlaufsdaten in der letzten Stunde.</p>';
+            return;
+        }
+        var yMax = opts.yMax || max * 1.15;
+        if (opts.floorYMax) yMax = Math.max(opts.floorYMax, yMax);
+        if (yMax <= 0) yMax = 1;
+        var X = function (t) { return L + (t - t0) / (t1 - t0) * (W - L - R); };
+        var Y = function (v) { return H - B - (v / yMax) * (H - T - B); };
+        var ns = 'http://www.w3.org/2000/svg';
+        var svg = document.createElementNS(ns, 'svg');
+        svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+        svg.setAttribute('class', 'chart-svg');
+        svg.setAttribute('role', 'img');
+        svg.setAttribute('aria-label', opts.label || 'Diagramm');
+        var g = document.createElementNS(ns, 'g');
+        // Grid + Y-Labels (4 Stufen)
+        for (var i = 0; i <= 3; i++) {
+            var v = yMax * i / 3, y = Y(v);
+            var line = document.createElementNS(ns, 'line');
+            line.setAttribute('x1', L); line.setAttribute('x2', W - R);
+            line.setAttribute('y1', y); line.setAttribute('y2', y);
+            line.setAttribute('stroke', '#2a2a4a'); line.setAttribute('stroke-width', '1');
+            g.appendChild(line);
+            var txt = document.createElementNS(ns, 'text');
+            txt.setAttribute('x', L - 6); txt.setAttribute('y', y + 4);
+            txt.setAttribute('text-anchor', 'end'); txt.setAttribute('fill', '#666');
+            txt.setAttribute('font-size', '10');
+            txt.textContent = opts.fmtY ? opts.fmtY(v) : fmtNum(v);
+            g.appendChild(txt);
+        }
+        // X-Labels: Anfang + Ende (Europe/Berlin)
+        [[t0, 'start'], [t1, 'end']].forEach(function (pair) {
+            var txt = document.createElementNS(ns, 'text');
+            txt.setAttribute('x', pair[1] === 'start' ? L : W - R);
+            txt.setAttribute('y', H - 6);
+            txt.setAttribute('text-anchor', pair[1] === 'start' ? 'start' : 'end');
+            txt.setAttribute('fill', '#666'); txt.setAttribute('font-size', '10');
+            txt.textContent = fmtHHMM(pair[0]);
+            g.appendChild(txt);
+        });
+        // Fläche unter der ersten Serie (optional)
+        if (opts.fillFirst) {
+            var f0 = drawn[0];
+            var dArea = 'M' + X(f0.pts[0].x) + ',' + Y(0);
+            f0.pts.forEach(function (p) { dArea += ' L' + X(p.x) + ',' + Y(p.y); });
+            dArea += ' L' + X(f0.pts[f0.pts.length - 1].x) + ',' + Y(0) + ' Z';
+            var area = document.createElementNS(ns, 'path');
+            area.setAttribute('d', dArea);
+            area.setAttribute('fill', f0.s.color);
+            area.setAttribute('fill-opacity', '0.12');
+            g.appendChild(area);
+        }
+        // Linien je Serie
+        drawn.forEach(function (d) {
+            var dPath = 'M' + X(d.pts[0].x) + ',' + Y(d.pts[0].y);
+            d.pts.forEach(function (p) { dPath += ' L' + X(p.x) + ',' + Y(p.y); });
+            var path = document.createElementNS(ns, 'path');
+            path.setAttribute('d', dPath);
+            path.setAttribute('fill', 'none');
+            path.setAttribute('stroke', d.s.color);
+            path.setAttribute('stroke-width', '2');
+            if (d.s.dash) path.setAttribute('stroke-dasharray', d.s.dash);
+            g.appendChild(path);
+        });
+        svg.appendChild(g);
+        el.appendChild(svg);
+    }
+
+    function renderDetail(s) {
+        // Sammler-Status
+        setBadgeText(document.getElementById('sum-running'), s.running ? 'Läuft' : 'Gestoppt', s.running ? 'badge-green' : 'badge-red');
+        setVal(document.getElementById('sum-lastrun'), fmtTs(s.last_run || 0));
+        var p = s.provider || {};
+        // SIP-Trunks/Provider-Kachel
+        if (p.has_data) {
+            var sipOk = p.all_ok;
+            setKpiValue('kpi-sip-value', p.connected + '/' + p.count, sipOk ? 'ok' : 'err');
+            setKpiValue('kpi-sip-sub', sipOk ? 'alle verbunden' : ((p.count - p.connected) + ' nicht verbunden'), null);
+            setKpiCard('kpi-sip-card', sipOk ? 'ok' : 'err');
+            setKpiIcon('kpi-sip-icon', sipOk ? 'ok' : 'err');
+        } else {
+            setKpiValue('kpi-sip-value', '—', null);
+            setKpiValue('kpi-sip-sub', 'keine Provider-Daten (noch kein Poll)', null);
+            setKpiCard('kpi-sip-card', null);
+            setKpiIcon('kpi-sip-icon', 'neutral');
+        }
+        // CPU-Last-Kachel
+        var sys = s.system || {};
+        if (sys.load1 !== undefined) {
+            setKpiValue('kpi-cpu-value', fmtNum(sys.load1), null);
+            var cpuSub = '1 min';
+            if (sys.load5 !== undefined) cpuSub += ' · 5 min: ' + fmtNum(sys.load5);
+            if (sys.load15 !== undefined) cpuSub += ' · 15 min: ' + fmtNum(sys.load15);
+            if (sys.cpu_cores) cpuSub += ' · ' + sys.cpu_cores + ' Kerne';
+            setKpiValue('kpi-cpu-sub', cpuSub, null);
+            setKpiCard('kpi-cpu-card', null);
+        } else {
+            setKpiValue('kpi-cpu-value', '—', null);
+            setKpiValue('kpi-cpu-sub', 'keine Systemdaten (noch kein Poll)', null);
+            setKpiCard('kpi-cpu-card', null);
+        }
+        // Speicher-Kachel (Auslastung wie Grafana: (total - available) / total)
+        if (sys.mem_total && sys.mem_available !== undefined) {
+            var totalB = kbToBytes(sys.mem_total);
+            var usedB = kbToBytes(sys.mem_total - sys.mem_available);
+            var pct = Math.min(100, usedB / totalB * 100);
+            var memOk = pct < 90;
+            setKpiValue('kpi-mem-value', Math.round(pct) + ' %', memOk ? 'ok' : 'err');
+            setKpiValue('kpi-mem-sub', fmtGiB(usedB) + ' von ' + fmtGiB(totalB) + ' belegt', null);
+            setKpiCard('kpi-mem-card', memOk ? 'ok' : 'err');
+            setKpiIcon('kpi-mem-icon', memOk ? 'ok' : 'err');
+        } else {
+            setKpiValue('kpi-mem-value', '—', null);
+            setKpiValue('kpi-mem-sub', 'keine Systemdaten (noch kein Poll)', null);
+            setKpiCard('kpi-mem-card', null);
+        }
+        // Verlaufs-Graphen
+        var chartSlot = document.getElementById('chart-cpu').parentNode;
+        var errNodes = chartSlot.querySelectorAll('.chart-err');
+        if (errNodes.length) errNodes[0].remove();
+        var hist = s.history;
+        if (hist && hist.error) {
+            ['chart-cpu', 'chart-mem-pct', 'chart-mem-total'].forEach(function (id) {
+                var el = document.getElementById(id);
+                if (el) el.innerHTML = '<p class="chart-err">Verlaufsdaten nicht verfügbar: ' + hist.error + '</p>';
+            });
+            return;
+        }
+        var rows = (hist && hist.rows) || [];
+        drawChart('chart-cpu', rows, [
+            { key: 'load1', color: '#4fc3f7' },
+            { key: 'load5', color: '#ffca28' },
+            { key: 'load15', color: '#ab47bc' }
+        ], { label: 'CPU-Last 1/5/15 Minuten', floorYMax: 0.5 });
+        drawChart('chart-mem-pct', rows, [{
+            key: 'mem_total', color: '#ffa726',
+            y: function (r) {
+                if (r.mem_total === undefined || r.mem_available === undefined || r.mem_total <= 0) return null;
+                return Math.min(100, (r.mem_total - r.mem_available) / r.mem_total * 100);
+            }
+        }], { label: 'Speicher-Auslastung in Prozent', fillFirst: true, floorYMax: 50, fmtY: function (v) { return Math.round(v) + '%'; } });
+        drawChart('chart-mem-total', rows, [
+            { key: 'mem_total', color: '#4fc3f7', y: function (r) { return r.mem_total === undefined ? null : kbToBytes(r.mem_total - r.mem_available); } },
+            { key: 'mem_total', color: '#9e9e9e', dash: '6 4', y: function (r) { return r.mem_total === undefined ? null : kbToBytes(r.mem_total); } }
+        ], { label: 'Speicher Total (belegt/gesamt)', fmtY: fmtGiB });
+    }
+
+    // ── Anlagen-Dropdown ──
+    var instSelect = document.getElementById('inst-select');
+    if (instSelect) instSelect.addEventListener('change', function () {
+        if (instSelect.value) window.location.href = instSelect.value;
+    });
+
+    // ── Auto-Refresh: 10-s-Takt mit Countdown (Muster v1.0.22/26) ──
+    var REFRESH_INTERVAL_S = 10;
+    var refreshCountdown = REFRESH_INTERVAL_S;
+    var refreshBusy = false;
+    function updateRefreshCountdown() {
+        var el = document.getElementById('refresh-countdown');
+        if (el) el.textContent = refreshCountdown;
+        var k = document.getElementById('refresh-countdown-kiosk-num');
+        if (k) k.textContent = refreshCountdown;
+    }
+    function refreshDetail() {
+        if (refreshBusy) return;
+        refreshBusy = true;
+        fetch('/api/monitoring/detail/' + INST_ID, { cache: 'no-store' })
+            .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+            .then(renderDetail)
+            .catch(function (e) { console.warn('Detail-Refresh fehlgeschlagen:', e); })
+            .finally(function () {
+                refreshBusy = false;
+                refreshCountdown = REFRESH_INTERVAL_S;
+                updateRefreshCountdown();
+            });
+    }
+
+    // ── Vollbild/Kiosk-Modus (Muster v1.0.20–v1.0.21) ──
+    var fsHideTimer = null;
+    function fsShow() {
+        var ex = document.getElementById('fs-exit');
+        if (!ex) return;
+        ex.classList.remove('fs-hidden');
+        clearTimeout(fsHideTimer);
+        fsHideTimer = setTimeout(function () { ex.classList.add('fs-hidden'); }, 2500);
+    }
+    function enterDetailFs() {
+        document.body.classList.add('kiosk');
+        var ex = document.getElementById('fs-exit');
+        if (ex) ex.style.display = 'inline-flex';
+        fsShow();
+        var el = document.documentElement;
+        try {
+            var p = el.requestFullscreen ? el.requestFullscreen()
+                  : (el.webkitRequestFullscreen ? el.webkitRequestFullscreen() : null);
+            if (p && p.catch) p.catch(function () { /* z. B. vom Browser abgelehnt */ });
+        } catch (e) { /* iOS Safari: In-Seiten-Kiosk greift */ }
+    }
+    function exitDetailFs() {
+        document.body.classList.remove('kiosk');
+        var ex = document.getElementById('fs-exit');
+        if (ex) { ex.style.display = 'none'; ex.classList.remove('fs-hidden'); }
+        clearTimeout(fsHideTimer);
+        try {
+            if (document.fullscreenElement || document.webkitFullscreenElement) {
+                if (document.exitFullscreen) document.exitFullscreen();
+                else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+            }
+        } catch (e) { /* ignore */ }
+    }
+    var fsBtn = document.getElementById('fs-btn');
+    if (fsBtn) fsBtn.addEventListener('click', enterDetailFs);
+    var fsExit = document.getElementById('fs-exit');
+    if (fsExit) fsExit.addEventListener('click', exitDetailFs);
+    function fsWake() { if (document.body.classList.contains('kiosk')) fsShow(); }
+    document.addEventListener('mousemove', fsWake);
+    document.addEventListener('touchstart', fsWake);
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && document.body.classList.contains('kiosk')) exitDetailFs();
+    });
+    document.addEventListener('fullscreenchange', function () {
+        var fsEl = document.fullscreenElement || document.webkitFullscreenElement || null;
+        if (!fsEl) exitDetailFs();
+    });
+    if (new URLSearchParams(window.location.search).get('kiosk') === '1') enterDetailFs();
+
+    // 1-s-Tick: Countdown herunterzählen, bei 0 den Refresh auslösen.
+    setInterval(function () {
+        if (refreshBusy) return;
+        refreshCountdown -= 1;
+        updateRefreshCountdown();
+        if (refreshCountdown <= 0) refreshDetail();
+    }, 1000);
+    if (INITIAL) renderDetail(INITIAL); // sofort anzeigen, dann frisch holen
+    refreshDetail(); // sofortiger erster Abgleich
+</script>
+{% endblock %}

@@ -293,7 +293,8 @@ base = {
     },
 }
 html = TEMPLATES.env.get_template("monitoring.html").render(
-    user={"username": "admin", "is_admin": True}, active="monitoring", status=base)
+    user={"username": "admin", "is_admin": True}, active="monitoring", status=base,
+    id_by_name={n: i for i, n in enumerate(base["installations"])})
 for marker in ["Modul-Status", 'id="mod-rows"',
                'title="Installierte Version entspricht der ausgelieferten."',
                'title="Auf der Anlage ist eine ältere Version installiert."',
@@ -313,7 +314,8 @@ for js in ["renderModuleRows(document.getElementById('mod-rows'), st.installatio
 st_mod = dict(base, last_error={"msg": "PBX-FAULT: STARFACE-Fehler: xy", "ts": 1787664390,
                                 "category": "module"})
 html2 = TEMPLATES.env.get_template("monitoring.html").render(
-    user={"username": "admin", "is_admin": True}, active="monitoring", status=st_mod)
+    user={"username": "admin", "is_admin": True}, active="monitoring", status=st_mod,
+    id_by_name={n: i for i, n in enumerate(base["installations"])})
 check("render: Fehlerbox warn bei category module",
       'class="errbox errbox-warn"' in html2, "warn-Klasse fehlt in Fehlerbox")
 
@@ -323,7 +325,8 @@ base_leer = dict(base, installations={
               "modules": {"ts": 1, "error": None, "list": []}},
 })
 html3 = TEMPLATES.env.get_template("monitoring.html").render(
-    user={"username": "admin", "is_admin": True}, active="monitoring", status=base_leer)
+    user={"username": "admin", "is_admin": True}, active="monitoring", status=base_leer,
+    id_by_name={n: i for i, n in enumerate(base["installations"])})
 check("render: ohne Modul-Daten Hinweistext statt Tabelle (kein Modul-Badge)",
       "Für keine Anlage liegen Modul-Status-Daten vor." in html3
       and 'id="tbl-mod"' not in html3

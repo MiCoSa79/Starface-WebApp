@@ -343,6 +343,88 @@ def _collect_module_status(inst, token, name, *,
     return {**base, "list": items}
 
 
+def _system_vals(members: dict) -> dict:
+    """Zieht die Systemwerte für die Anlagen-Detail-Kacheln (F60) aus GetStats.
+
+    Liefert nur Felder, die der Member wirklich enthält (int/float-Cast defensiv,
+    analog build_points): load1/load5/load15, mem_total/mem_free/mem_available,
+    cpu_cores.
+    """
+    out = {}
+    for key, mkey in (("load1", "load1"), ("load5", "load5"), ("load15", "load15")):
+        try:
+            out[key] = float(members[mkey])
+        except (KeyError, TypeError, ValueError):
+            pass
+    for key, mkey in (("mem_total", "memTotal"), ("mem_free", "memFree"),
+                      ("mem_available", "memAvailable"), ("cpu_cores", "cpuCores")):
+        try:
+            out[key] = int(members[mkey])
+        except (KeyError, TypeError, ValueError):
+            pass
+    return out
+
+
+_HISTORY_CACHE = {}  # installation -> (ts, result)
+
+
+def query_system_history(installation: str, minutes: int = 60,
+                         cache_ttl: float = 15.0) -> dict:
+    """Verlaufsdaten (letzte `minutes` Min.) aus dem system-Measurement (F60).
+
+    Flux-Query: 1-Minuten-Mittel der Felder load1/load5/load15/mem_total/
+    mem_free/mem_available, gepivotet auf Zeitzeilen. Ergebnis-Cache (15 s)
+    entlastet InfluxDB bei den 10-s-Refreshes der Detail-Seiten.
+
+    Rückgabe: {"rows": [{t, load1, ...}, ...]} oder {"error": str} — Aufrufer
+    zeigt bei "error" einen Hinweis an (Kacheln funktionieren trotzdem).
+    """
+    now = time.time()
+    hit = _HISTORY_CACHE.get(installation)
+    if hit and now - hit[0] < cache_ttl:
+        return hit[1]
+    if not InfluxDBClient or not INFLUXDB_TOKEN:
+        res = {"error": "InfluxDB nicht konfiguriert (INFLUXDB_TOKEN fehlt)"}
+        _HISTORY_CACHE[installation] = (now, res)
+        return res
+    safe = installation.replace('"', '\\"')
+    flux = (
+        f'from(bucket: "{INFLUXDB_BUCKET}")\n'
+        f'  |> range(start: -{int(minutes)}m)\n'
+        '  |> filter(fn: (r) => r._measurement == "system")\n'
+        f'  |> filter(fn: (r) => r.installation == "{safe}")\n'
+        '  |> filter(fn: (r) => r._field == "load1" or r._field == "load5"'
+        ' or r._field == "load15"\n'
+        '      or r._field == "mem_total" or r._field == "mem_free"'
+        ' or r._field == "mem_available")\n'
+        '  |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)\n'
+        '  |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")\n'
+        '  |> keep(columns: ["_time", "load1", "load5", "load15", "mem_total",'
+        ' "mem_free", "mem_available"])'
+    )
+    try:
+        with InfluxDBClient(url=INFLUXDB_URL, token=INFLUXDB_TOKEN, org=INFLUXDB_ORG,
+                            timeout=10_000) as client:
+            tables = client.query_api().query(flux)
+        rows = []
+        fields = ("load1", "load5", "load15", "mem_total", "mem_free", "mem_available")
+        for table in tables:
+            for rec in table.records:
+                row: dict = {"t": int(rec.get_time().timestamp())}
+                raw = rec.values
+                for f in fields:
+                    v = raw.get(f)
+                    if v is not None:
+                        row[f] = float(v)
+                rows.append(row)
+        rows.sort(key=lambda r: r["t"])
+        res = {"rows": rows}
+    except Exception as e:
+        res = {"error": str(e)}
+    _HISTORY_CACHE[installation] = (now, res)
+    return res
+
+
 def collect_installations() -> int:
     """Ein Poll über alle Installationen mit gesetzter Modul-Instanz."""
     conn = _db()
@@ -370,6 +452,8 @@ def collect_installations() -> int:
                 "providers": members.get("providerStatus", ""),
                 "points": len(points),
                 "ts": time.time(),
+                # F60: Systemwerte für die Anlagen-Detail-Seite (Live-Kacheln CPU/RAM)
+                "system": _system_vals(members),
             })
             # Modul-Status (nur wenn die App eigene Module ausliefert)
             vals["modules"] = _collect_module_status(
