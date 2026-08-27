@@ -105,7 +105,7 @@
                     <th style="width:44px;"></th>
                     <th style="width:56px;">Detail</th>
                 </tr>
-                <tbody id="inst-rows" data-ghref="{{ grafana_base }}/d/{{ grafana_uid }}/?var-installation=" data-gsuffix="&from=now-6h&to=now&kiosk=1&hideLogo" data-idmap="{{ id_by_name|default({})|tojson }}">
+                <tbody id="inst-rows" data-ghref="{{ grafana_base }}/d/{{ grafana_uid }}/?var-installation=" data-gsuffix="&from=now-6h&to=now&kiosk=1&hideLogo">
                 {% for name, vals in status.installations.items() %}
                 <tr>
                     <td>{{ name }}</td>
@@ -143,7 +143,7 @@
             </table>
             {% else %}
             <table id="tbl-inst" style="border:0;">
-                <tbody id="inst-rows" data-ghref="{{ grafana_base }}/d/{{ grafana_uid }}/?var-installation=" data-gsuffix="&from=now-6h&to=now&kiosk=1&hideLogo" data-idmap="{{ id_by_name|default({})|tojson }}">
+                <tbody id="inst-rows" data-ghref="{{ grafana_base }}/d/{{ grafana_uid }}/?var-installation=" data-gsuffix="&from=now-6h&to=now&kiosk=1&hideLogo">
                 <tr><td colspan="8" style="border:0;padding:0;">
                 {% if user and user.is_admin %}
                 <p style="color:#888;font-size:14px;margin:0;">Noch keine Werte. Hinweis: Der Sammler pollt nur Installationen, bei denen unter <b>Bearbeiten</b> das Feld <b>Monitoring-Modul-Instanz</b> gesetzt ist.</p>
@@ -155,6 +155,8 @@
             </table>
             {% endif %}
         </div>
+
+        <script type="application/json" id="inst-idmap">{{ id_by_name|default({})|tojson }}</script>
 
         <div class="card" id="card-modules">
             <h2 style="margin-top:0;">Modul-Status</h2>
@@ -268,7 +270,8 @@
             var ghref = tbody.getAttribute('data-ghref') || '';
             var gsuffix = tbody.getAttribute('data-gsuffix') || '';
             var idmap = {};
-            try { idmap = JSON.parse(tbody.getAttribute('data-idmap') || '{}'); } catch (e) { /* Anlagen-ID-Map fehlt (z. B. alter Kontext) */ }
+            var idmapEl = document.getElementById('inst-idmap');
+            if (idmapEl) { try { idmap = JSON.parse(idmapEl.textContent) || {}; } catch (e) { /* Anlagen-ID-Map fehlt (z. B. alter Kontext) */ } }
             var names = Object.keys(insts || {});
             if (names.length === 0) {
                 var tr0 = document.createElement('tr');

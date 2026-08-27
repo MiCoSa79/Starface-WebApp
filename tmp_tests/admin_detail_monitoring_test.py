@@ -186,13 +186,29 @@ check("/monitoring 200 (bob)", r.status_code == 200, str(r.status_code))
 check("Detail-Link Anlage A (bob)", f'href="/monitoring/installations/{a_id}"' in r.text)
 check("KEIN Detail-Link Anlage B (bob)", f'href="/monitoring/installations/{b_id}"' not in r.text)
 
-# 4b) renderRows (JS) baut die Detail-Zelle mit — Live-Bug v1.0.27: Beim
-# Auto-Refresh ersetzte renderRows die Zeilen OHNE Detail-Link (Spalte rutschte,
-# Grafana-Icon rückte in "Detail"). Fix: data-idmap am tbody + tdDetail in JS.
-check("idmap am tbody übergeben", 'data-idmap=' in r.text and f'"Anlage A": {a_id}' in r.text)
+# 4b) renderRows (JS) baut die Detail-Zelle mit — Live-Bugs:
+# v1.0.27: renderRows baute keine Detail-Zelle (Spalte rutschte, Grafana-Icon rückte in "Detail").
+# v1.0.29(live): tojson im HTML-Attribut bracht das Attribut ("Anlage A" → data-idmap="{...)
+#   → getAttribute lieferte '{' → JSON.parse-Fehler → idmap={} → Auge-Link ohne ID → 404 "Not Found".
+# Fix: idmap als <script type="application/json"> (tojson ist dafür gedacht); der Test parst
+# den JSON-Inhalt wirklich (String-Checks hätten den Attribut-Bug nie gefangen).
+import json as _json, html as _html, re as _re
 check("renderRows baut Detail-Zelle (tdDetail)", "var tdDetail" in r.text
       and "ad.href = '/monitoring/installations/'" in r.text)
 check("renderRows No-Data-colSpan 8", "td0.colSpan = 8" in r.text)
+check("idmap als script-Tag (kein data-idmap-Attribut)", 'data-idmap=' not in r.text
+      and '<script type="application/json" id="inst-idmap">' in r.text)
+check("renderRows liest idmap per getElementById",
+      "getElementById('inst-idmap')" in r.text and "JSON.parse(idmapEl.textContent)" in r.text)
+_m = _re.search(r'<script type="application/json" id="inst-idmap">(.*?)</script>', r.text, _re.S)
+_idmap_ok = False
+if _m:
+    try:
+        _idmap_data = _json.loads(_html.unescape(_m.group(1).strip()))
+        _idmap_ok = isinstance(_idmap_data, dict) and _idmap_data.get("Anlage A") == a_id
+    except Exception:
+        _idmap_ok = False
+check("idmap-JSON parst + enthält Anlage A (gefiltert)", _idmap_ok)
 
 # 5) Admin: Dropdown vorhanden (4 Anlagen) + Kacheln ohne Systemdaten bei C
 login("admin")
