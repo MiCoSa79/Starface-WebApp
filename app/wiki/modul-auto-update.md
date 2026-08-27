@@ -103,6 +103,7 @@ ZimaOS-Stack ───┐
 - ~~**P2:** `secure_link`-`$uri`-Normalisierung~~ → ✅ erledigt: Live-Test 26.08. lieferte signierte 200er auf `modules/<datei>.sfm` und `modules/versions.json` über NPM/SSL
 - **P3:** Tomcat-`maxPostSize` (>5-MB-Base64-Pakete) nur beim Push-Weg relevant — ggf. `ARC`-Kompression (Admin-Power-Pack-Muster)
 - **P4:** Phasen 2/3: zentrales Updater-Modul (RPCs `GetModuleVersions`/`UpdateModule`/`UpdateAll` + `importModule`), optional GUI-Tab-Button — separater Plan nach Freigabe
+- **🛠 P5 (27.08., TODO nicht freigegeben):** **Anlagen-Updates** (STARFACE-Server-Update) über das Deployment-Modul — Machbarkeit geprüft: **JA** (`LicenseComponent.fetchUpdates` → `ServerUpdateHandler.setUpdateUri/…` → `logoutAll(SERVER_UPDATE)` → `shutdownServices` → `startUpdate`; Referenz Admin Power Pack `EXECUTE_STARFACE_UPDATE`), aber bewusst getrennt vom Modul-Update-Flow und nur nach Freigabe Axel → vollständiger Befund + TODO-Liste: [[anlagen-update-deployment]]
 
 ## Abgrenzung
 
