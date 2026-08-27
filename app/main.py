@@ -85,8 +85,9 @@ def _decrypt(stored: str) -> str:
 # ─────────────────────────────────────────────────────────────
 
 def _db():
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA busy_timeout = 10000")
     return conn
 
 
@@ -130,6 +131,7 @@ def _module_update_base() -> str:
 
 def init_db():
     conn = _db()
+    conn.execute("PRAGMA journal_mode = WAL")
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -83,7 +83,8 @@ Quelle: `git for-each-ref refs/tags/v0.0.*` — Stichworte = Commit-Subject.
 
 | Version | Commit | Änderung |
 |---|---|---|
-| v1.0.8 | (27.08.) | fix(F58): „Zurück"-Link der Passkey-Seite auf `/admin` korrigiert (GET `/admin/users` existiert nicht → 405) — Hash folgt im nächsten Code-Commit |
+| v1.0.9 | (27.08.) | fix: SQLite-Härtung — WAL-Journal + busy_timeout(10s) → behebt „database is locked" bei parallelen Schreibern (Monitoring-Thread vs. Requests; Logout-500) — Hash folgt im nächsten Code-Commit |
+| v1.0.8 | `b8b11fb` | fix(F58): „Zurück"-Link der Passkey-Seite auf `/admin` korrigiert (GET `/admin/users` existiert nicht → 405) |
 | v1.0.7 | `1975fdd` | docs(wiki): F58-Historie v1.0.3–v1.0.6 nachgezogen (cbor2-Fix, Login-Optik, Browser-Dekodierung) |
 | v1.0.6 | `e0dcb8e` | fix(F58): WebAuthn-Options-Dekodierung — challenge/user.id als Byte-Arrays für create/get (Browser-DOMException „Invalid 'user.id' length") |
 | v1.0.5 | `f27d83c` | ui(F58): Passkey-Login in die Login-Karte integriert (Optik, UX-Feedback „nicht provisorisch") |
