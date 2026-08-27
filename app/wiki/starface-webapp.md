@@ -68,12 +68,21 @@ Modul-Updates (Deployment-Modul). Repo `MiCoSa79/Starface-WebApp`, Image
 1. **Tenant-Verwaltung** — Mandanten/Organisationen in der WebApp; Verwaltung ausschließlich durch eine **Super-Admin**-Rolle (Hinweis Axel).
 2. **Lizenzverwaltung für Module** — Lizenzen **tenant-basiert** (je Mandant je Modul) **und** für die STARFACE-WebApp selbst (**Super-Admins**).
 
+## Versionierung & Docker-Kanäle (ab v1.0.0, F57)
+
+- **Git-Tags:** `v1.0.0` … `v1.0.x` — Auto-Bump bei jedem Push auf main (Guard: bereits mit vX.Y.Z getaggter Commit wird nicht erneut gebumpt). Historische `v0.0.1`–`v0.0.211` bleiben bestehen.
+- **Docker-Kanäle** (`micosa79/starface-webapp`):
+  - `nightly` + `v1.0.x` — bei **jedem Push auf main** (Entwicklungsstand). Der ZimaOS-Stack läuft auf `nightly`, damit Axel neue Entwicklungsreleases automatisch ziehen und testen kann.
+  - `latest` + `v1.0.x` — **nur bei Freigabe durch Axel**: Chat an Hermes „vX.Y.Z als latest veröffentlichen“ → Hermes setzt/moved den Git-Tag `release-latest` auf den Stand → CI baut `latest`.
+  - **Keine Datums-Tags** mehr (Altbestand `2026-08-25`, `2026-08-26`, `2026-08-27` wird nach Hub-Löschung entfernt; Workflow erzeugt keine neuen).
+
 ## Versionshistorie (vollständig, aus Git-Tags)
 
 Quelle: `git for-each-ref refs/tags/v0.0.*` — Stichworte = Commit-Subject.
 
 | Version | Commit | Änderung |
 |---|---|---|
+| v1.0.0 | `cf713f2` | chore(versioning): Kanal-Modell — nightly + v1.0.x bei jedem Push, latest nur via release-latest-Tag (Freigabe Axel), keine Datums-Tags mehr (F57) |
 | v0.0.209 | `9ed26cf` | docs(wiki): Roadmap — Tenant-Verwaltung (Super-Admin) + Lizenzverwaltung für Module (tenant-basiert) und WebApp (Super-Admins) (F54) |
 | v0.0.208 | `5eb1c5d` | F53: Spiegel-Meldung vereinfacht — 'Update-Server-Spiegel aktiv — N Paket(e) vorhanden' (ohne Ordner /modules und Basis-URL) |
 | v0.0.207 | `790cf49` | F52: Tooltips (CSS-Blasen im Seitendesign) für 'Fehlende Module installieren' + 'Module aktualisieren' (data-tip, Hover + Fokus) |
