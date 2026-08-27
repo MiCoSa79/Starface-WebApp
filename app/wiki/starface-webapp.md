@@ -85,6 +85,7 @@ Quelle: `git for-each-ref refs/tags/v0.0.*` — Stichworte = Commit-Subject.
 
 | Version | Commit | Änderung |
 |---|---|---|
+| v1.0.45 | (27.08.) | fix(Axel, Screenshot 21:59): **Überschrift „Module“ dichter an die oberen Kacheln** — `#mod-sec-title { margin-top: 4px; }` (vorher 24 px h2 + 16 px Kartengap = ~40 px Leerraum; jetzt ~20 px). Test: CSS-Check, 19/19. |
 | v1.0.44 | (27.08.) | fix(Axel, Screenshot 21:58): **Modul-Karte LINKSBÜNDIG statt zentriert** — `justify-self: start` (war `center`; saß im Auto-Fit-Grid asymmetrisch). Gilt für Kiosk UND Normalansicht; <700 px weiter 100 %. Test: CSS-Check, 19/19. |
 | v1.0.43 | (27.08.) | fix(Axel, Screenshot 21:51): **Modul-Versionen explizit linksbündig** — `.mod-tbl .version-ist/.version-soll { text-align: left; }` für Eigene wie Drittanbieter (Grundregel war bereits left; Override ausgeschlossen). Test: CSS-Check, 19/19. |
 | v1.0.42 | (27.08.) | feat(Axel, Screenshot 21:46): **Modul-Bereich umgebaut** — EINE Tabelle: Spaltenkopf (Modul/Ist/Aktuellste) GANZ OBEN, dann Gruppenzeile „Eigene Module“ + Module, dann „Drittanbietermodule“ + Module (2 tbodys, Kopf 1×); rote Überschrift `<h2>Module</h2>` zwischen KPI-Kacheln und Modul-Karte (wie „Letzte Stunde“); **Modul-Karte 50 % Breite, zentriert** (`width:50%; justify-self:center`; Handy <700 px 100 %). JS-Refresh: Gruppzenzeilen in tbodys, HTML-escaped. Test: Kopf-1×-+Reihenfolge-Check, 19/19. |
