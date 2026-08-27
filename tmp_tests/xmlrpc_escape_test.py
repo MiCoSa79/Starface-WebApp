@@ -41,11 +41,11 @@ def fake_post(url, content=None, **kw):
 import httpx
 httpx.post = fake_post
 
-signed = "https://modulupdates.meiser.family/modules/UpdateDeployer.sfm?md5=abcxyz&expires=1234567890"
+signed = "https://www.sub.example.de/modules/Deployment-Modul.sfm?md5=abcxyz&expires=1234567890"
 try:
     app_main._xmlrpc("https://anlage.example/xml-rpc", "jwt123",
                      "Ping", {"signedUrl": signed, "updateToken": ""},
-                     instance_name="UpdateDeployer")
+                     instance_name="Deployment-Modul")
 except RuntimeError as e:
     if "STOP" not in str(e):
         raise
@@ -54,7 +54,7 @@ body = captured.get("body", b"")
 body = body.decode() if isinstance(body, bytes) else str(body)
 check("Body enthält escaped &amp;expires", "&amp;expires" in body, body[:260])
 check("Body enthält KEIN rohes &expires", "&expires" not in body)
-check("methodName = UpdateDeployer.Ping", "UpdateDeployer.Ping" in body)
+check("methodName = Deployment-Modul.Ping", "Deployment-Modul.Ping" in body)
 
 import xml.etree.ElementTree as ET
 ET.fromstring(body)  # wirft bei ungültigem XML

@@ -1,7 +1,7 @@
-"""UpdateDeployer-Anbindung (Phase 2, T3): WebApp orchestriert Modul-Updates.
+"""Deployment-Modul-Anbindung (Phase 2, T3): WebApp orchestriert Modul-Updates.
 
 Die WebApp baut eine signierte, zeitbegrenzte Download-URL (updatesign.py,
-nginx secure_link) und ruft auf der STARFACE den UpdateDeployer-RPC auf:
+nginx secure_link) und ruft auf der STARFACE den Deployment-Modul-RPC auf:
 
     [Instanz].UpdateFromUrl(moduleName, signedUrl, targetVersion[, updateToken])
 

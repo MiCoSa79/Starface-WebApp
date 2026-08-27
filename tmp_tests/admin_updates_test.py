@@ -1,4 +1,4 @@
-"""T4-Tests: Admin-UI 'Modul-Updates' (Phase 2 UpdateDeployer).
+"""T4-Tests: Admin-UI 'Modul-Updates' (Phase 2 Deployment-Modul).
 
 Geprüft:
 1. Migration: installations hat deployer_instance_name + deployer_token
@@ -69,12 +69,12 @@ r = c.post(f"/admin/installations/{inst_id}", data={
     "name": "Testanlage", "url": "https://anlage.example",
     "auth_id": "", "auth_pass": "", "client_secret": "",
     "module_instance_name": "", "monitoring_instance_name": "",
-    "deployer_instance_name": "UpdateDeployer", "deployer_token": "geheim123",
+    "deployer_instance_name": "Deployment-Modul", "deployer_token": "geheim123",
     "is_starface10": "1"})
 stored = sqlite3.connect(DB).execute(
     "SELECT deployer_instance_name, deployer_token FROM installations WHERE id=?",
     (inst_id,)).fetchone()
-check("Instanzname gespeichert", stored[0] == "UpdateDeployer", str(stored))
+check("Instanzname gespeichert", stored[0] == "Deployment-Modul", str(stored))
 check("Token verschlüsselt in DB", stored[1] != "geheim123", stored[1])
 check("Token-Roundtrip", app_main._decrypt(stored[1]) == "geheim123",
       str(app_main._decrypt(stored[1]) if stored[1] else ""))
@@ -84,7 +84,7 @@ r = c.get("/admin/updates")
 check("GET /admin/updates -> 200", r.status_code == 200, str(r.status_code))
 html = r.text
 check("Anlagenname sichtbar", "Testanlage" in html)
-check("Deployer-Instanz sichtbar", "UpdateDeployer" in html)
+check("Deployer-Instanz sichtbar", "Deployment-Modul" in html)
 check("mind. ein Modul-Button", "Update anstoßen" in html)
 
 # --- 3b. Button-Beschriftung: Modul NICHT installiert -> "Installation anstoßen" --
@@ -93,7 +93,7 @@ r = c.post(f"/admin/installations/{inst_id}", data={
     "name": "Testanlage", "url": "https://anlage.example",
     "auth_id": "", "auth_pass": "", "client_secret": "",
     "module_instance_name": "", "monitoring_instance_name": "TelefonieMonitoring",
-    "deployer_instance_name": "UpdateDeployer", "deployer_token": "geheim123",
+    "deployer_instance_name": "Deployment-Modul", "deployer_token": "geheim123",
     "is_starface10": "1"})
 check("Anlage mit Monitoring-Instanz aktualisiert", r.status_code in (200, 303),
       f"{r.status_code}")

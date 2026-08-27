@@ -188,10 +188,10 @@ def build_pdf(module: str, titel: str, untertitel: str, profile: list[tuple[str,
 
 def module_version(name: str) -> str:
     return {"CallBlocker": "29", "TelefonieMonitoring": "8",
-            "UpdateDeployer": "6"}.get(name, "?")
+            "Deployment-Modul": "8"}.get(name, "?")
 
 
-STAND = "26.08.2026"
+STAND = "27.08.2026"
 
 
 def main() -> int:
@@ -244,7 +244,7 @@ def main() -> int:
                       "(„Fehlende Module installieren“ / „Module aktualisieren“).",
                       "WebApp lädt die signierte .sfm und importiert sie automatisch.")]},
                 {"nummer": 5, "titel": "Versionen & Wartung",
-                 "bullets": ["Updates laufen vollautomatisch über die WebApp (UpdateDeployer: "
+                 "bullets": ["Updates laufen vollautomatisch über die WebApp (Deployment-Modul: "
                              "signierter Download + Import + Neustart aktiver Instanzen).",
                              "Modul-Historie v1–v30 dokumentiert (Git-Tags im Repo).",
                              "Log-Ausgabe des Moduls zeigt nur geblockte Anrufe."]},
@@ -324,16 +324,16 @@ def main() -> int:
             ],
             STAND),
         build_pdf(
-            "UpdateDeployer",
-            "UpdateDeployer",
+            "Deployment-Modul",
+            "Deployment-Modul",
             "Zentrales HUB-Modul für automatische Modul-Updates über die WebApp.",
-            [("Modul", "UpdateDeployer"), ("Aktuelle Version", "v7 (Stand 26.08.2026)"),
+            [("Modul", "Deployment-Modul"), ("Aktuelle Version", "v8 (Stand 27.08.2026)"),
              ("Hersteller", "Axel Meiser - Kraemer IT"),
-             ("Installationsname (Empfehlung)", "UpdateDeployer"),
+             ("Installationsname (Empfehlung)", "Deployment-Modul"),
              ("Update-Basis-URL", "wird im Admin-Bereich der WebApp festgelegt")],
             [
                 {"nummer": 1, "titel": "Was macht das Modul?",
-                 "text": "UpdateDeployer ist das Verbindungsstück zwischen der WebApp und der "
+                 "text": "Das Deployment-Modul ist das Verbindungsstück zwischen der WebApp und der "
                          "Telefonanlage für automatische Modul-Updates: Er lädt signierte "
                          "Modul-Pakete (.sfm), importiert sie und startet die aktiven Instanzen "
                          "des Zielmoduls automatisch neu. Außerdem dient er als "
@@ -353,10 +353,10 @@ def main() -> int:
                              "(Instanz-Schutz)."]},
                 {"nummer": 3, "titel": "Einrichtung in der Telefonanlage",
                  "schritte": [
-                     ("Admin-UI → Modul-Import: das aktuelle UpdateDeployer.sfm laden "
-                      "(Download auf der Modul-Seite der WebApp).",
-                      "Modul erscheint in der Modul-Bibliothek."),
-                     ("Instanz anlegen (Empfehlung: UpdateDeployer).",
+                     ("Admin-UI → Modul-Import: das aktuelle Deployment-Modul.sfm laden "
+                     "(Download auf der Modul-Seite der WebApp).",
+                     "Modul erscheint in der Modul-Bibliothek."),
+                    ("Instanz anlegen (Empfehlung: Deployment-Modul).",
                       "Instanz erscheint in der Modul-Konfiguration."),
                      ("Tab „Sicherheit“ öffnen und GU_UPDATE_TOKEN setzen — derselbe Wert, "
                       "der in der WebApp als deployer_token hinterlegt ist.",
@@ -368,7 +368,7 @@ def main() -> int:
                      ("Admin → Anlage: Modul-Update-Basis-URL setzen (der im Betrieb "
                       "verwendete Update-Server; kein fester Wert).",
                       "versions.json wird vom Update-Server gespiegelt."),
-                     ("deployer_instance_name = Installationsname von UpdateDeployer.",
+                     ("deployer_instance_name = Installationsname des Deployment-Moduls.",
                       "WebApp ruft die richtige Instanz auf."),
                      ("deployer_token = GU_UPDATE_TOKEN aus Schritt 3.",
                       "Updates werden von der Anlage akzeptiert."),

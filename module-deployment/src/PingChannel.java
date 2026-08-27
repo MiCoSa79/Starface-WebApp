@@ -13,7 +13,7 @@ import de.vertico.starface.module.core.runtime.annotations.OutputVar;
 import de.vertico.starface.module.core.runtime.functions.system.Log2;
 
 /**
- * UpdateDeployer v1 (PingChannel): End-to-End-Beweis des Update-Kanals.
+ * Deployment-Modul v1 (PingChannel): End-to-End-Beweis des Update-Kanals.
  *
  * Lädt eine signierte, zeitbegrenzte Download-URL (nginx secure_link auf
  * modulupdates.meiser.family) direkt von der Anlage und meldet HTTP-Status +
@@ -29,7 +29,7 @@ import de.vertico.starface.module.core.runtime.functions.system.Log2;
  *   ERROR: <Klassenname>: <Meldung>          (netz/io)
  */
 @Function(visibility=Visibility.Private, rookieFunction=false,
-          description="UpdateDeployer v1: lädt einen signierten Download und meldet HTTP-Status + Größe (Kanal-Beweis).")
+          description="Deployment-Modul v1: lädt einen signierten Download und meldet HTTP-Status + Größe (Kanal-Beweis).")
 public class PingChannel implements IBaseExecutable
 {
 	@InputVar(label="signedUrl", description="Signierte, zeitbegrenzte Download-URL (nginx secure_link)", type=VariableType.STRING)
@@ -54,7 +54,7 @@ public class PingChannel implements IBaseExecutable
 			c.setConnectTimeout(15000);
 			c.setReadTimeout(15000);
 			c.setInstanceFollowRedirects(true);
-			c.setRequestProperty("User-Agent", "UpdateDeployer/1 (STARFACE)");
+			c.setRequestProperty("User-Agent", "Deployment-Modul/8 (STARFACE)");
 			int code = c.getResponseCode();
 			long size = 0L;
 			InputStream in = code >= 400 ? c.getErrorStream() : c.getInputStream();

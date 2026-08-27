@@ -23,7 +23,7 @@ import de.vertico.starface.module.core.runtime.annotations.OutputVar;
 import de.vertico.starface.module.core.runtime.functions.system.Log2;
 
 /**
- * UpdateDeployer v6 (UpdateFromUrl): echtes Modul-Update ueber die Anlage
+ * Deployment-Modul v8 (UpdateFromUrl): echtes Modul-Update ueber die Anlage
  * inkl. automatischem Neustart aller AKTIVEN Instanzen des Zielmoduls (T7).
  *
  * Ablauf (Anstoß immer von außen per XML-RPC):
@@ -52,7 +52,7 @@ import de.vertico.starface.module.core.runtime.functions.system.Log2;
  *   ERROR: <Klassenname>: <Meldung>             (netz/io/import/neustart)
  */
 @Function(visibility=Visibility.Private, rookieFunction=false,
-          description="UpdateDeployer v6: laedt ein signiertes .sfm-Paket, importiert es ueber ModuleRegistry und startet alle aktiven Instanzen des Zielmoduls automatisch neu.")
+          description="Deployment-Modul v8: laedt ein signiertes .sfm-Paket, importiert es ueber ModuleRegistry und startet alle aktiven Instanzen des Zielmoduls automatisch neu.")
 public class UpdateFromUrl implements IBaseExecutable
 {
 	@InputVar(label="moduleName", description="Name des Zielmoduls (Log/Status)", type=VariableType.STRING)
@@ -96,7 +96,7 @@ public class UpdateFromUrl implements IBaseExecutable
 			c.setConnectTimeout(15000);
 			c.setReadTimeout(30000);
 			c.setInstanceFollowRedirects(true);
-			c.setRequestProperty("User-Agent", "UpdateDeployer/6 (STARFACE)");
+			c.setRequestProperty("User-Agent", "Deployment-Modul/8 (STARFACE)");
 			int code = c.getResponseCode();
 			if (code != 200) {
 				c.disconnect();
@@ -104,7 +104,7 @@ public class UpdateFromUrl implements IBaseExecutable
 				log(context, "ERROR", "UpdateFromUrl: Download fehlgeschlagen (" + code + ") fuer " + moduleName);
 				return;
 			}
-			tmp = Files.createTempFile("updatedeployer-", ".sfm");
+			tmp = Files.createTempFile("deployment-modul-", ".sfm");
 			try (InputStream in = c.getInputStream();
 			     OutputStream out = Files.newOutputStream(tmp)) {
 				byte[] buf = new byte[8192];

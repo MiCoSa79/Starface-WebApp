@@ -66,13 +66,13 @@
     <h2>{{ inst.name }} <span class="muted">({{ inst.url }})</span></h2>
     {% if not inst.deployer_instance_name %}
     <p class="hint" style="margin-bottom:16px">
-        ⚠ Keine UpdateDeployer-Instanz gesetzt — bitte unter
+        ⚠ Keine Deployment-Modul-Instanz gesetzt — bitte unter
         <a href="/admin/installations/{{ inst.id }}/edit" style="color:#e94560">Anlage bearbeiten</a>
         Instanzname (+ optional Token) hinterlegen. Ohne Instanzname schlägt der Update-Aufruf fehl.
     </p>
     {% else %}
     <p class="hint" style="margin-bottom:16px">
-        UpdateDeployer-Instanz: <code>{{ inst.deployer_instance_name }}</code>
+        Deployment-Modul-Instanz: <code>{{ inst.deployer_instance_name }}</code>
         {% if inst.deployer_token %}· Token: gesetzt{% else %}· Token: nicht gesetzt (RPC ohne updateToken){% endif %}
     </p>
     {% endif %}
@@ -139,7 +139,7 @@
     {% endfor %}
 
     <p class="hint">Signierte, zeitbegrenzte Download-URL (5 min) wird serverseitig erzeugt; der
-       UpdateDeployer auf der Anlage lädt das Paket direkt vom konfigurierten Update-Server
+       Das Deployment-Modul auf der Anlage lädt das Paket direkt vom konfigurierten Update-Server
        (Basis-URL aus den Admin-Einstellungen) und importiert es via
        <code>ModuleRegistry.importModule()</code>. Geplante Updates erscheinen im
        Anlagen-Log (Modul log).</p>

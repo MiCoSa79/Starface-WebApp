@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<module lastChangedTime="1787778000000" moduleType="EXTENDED" createTime="1787767616269" id="ab50cee5-bae2-4cf4-9378-8ecfa7448791" name="UpdateDeployer" specVersion="5" vendor="Axel Meiser - Kraemer IT" version="7">
- <description>UpdateDeployer: zentrales HUB-Modul für automatische Modul-Updates. v1 = PingChannel (Kanal-Beweis). v2 = UpdateFromUrl: signierter Download + ModuleRegistry.importModule (echtes Update). v4 = GUI-Tab 'Sicherheit' mit Token-Feld (GU_UPDATE_TOKEN).</description>
+<module lastChangedTime="1787817600000" moduleType="EXTENDED" createTime="1787767616269" id="ab50cee5-bae2-4cf4-9378-8ecfa7448791" name="Deployment-Modul" specVersion="5" vendor="Axel Meiser - Kraemer IT" version="8">
+ <description>Deployment-Modul: zentrales HUB-Modul für automatische Modul-Updates. v1 = PingChannel (Kanal-Beweis). v2 = UpdateFromUrl: signierter Download + ModuleRegistry.importModule (echtes Update). v4 = GUI-Tab 'Sicherheit' mit Token-Feld (GU_UPDATE_TOKEN).</description>
     <descriptionURL />
     <disabled>false</disabled>
     <inputVars>
@@ -227,7 +227,7 @@
         </resourceKeys>
         <GUIDescriptors>
             <textInput maxLength="0" variableId="929c5d60-7afc-4d2c-b6ad-245b514ea039" createTime="1787772163640" id="e679671c-f1fe-44c7-a375-10373f9bb863" name="Update-Token" specVersion="0" vendor="" version="0">
-                <description>Geheimer Token fuer UpdateFromUrl. Muss mit dem Token in der WebApp (Anlage → UpdateDeployer-Token) uebereinstimmen. Leer lassen = Schutz inaktiv und Update ohne Token erlaubt.</description>
+                <description>Geheimer Token fuer UpdateFromUrl. Muss mit dem Token in der WebApp (Anlage → Deployment-Modul-Token) uebereinstimmen. Leer lassen = Schutz inaktiv und Update ohne Token erlaubt.</description>
                 <descriptionURL />
                 <disabled>false</disabled>
                 <defaultValue />
@@ -238,15 +238,15 @@
     <resourceKeys>
         <entries>
             <key>en</key>
-            <value>Update Deployer</value>
+            <value>Deployment Module</value>
         </entries>
         <entries>
             <key>de</key>
-            <value>UpdateDeployer</value>
+            <value>Deployment-Modul</value>
         </entries>
         <key>module.name{ab50cee5-bae2-4cf4-9378-8ecfa7448791}</key>
         <propertyName>NAME</propertyName>
     </resourceKeys>
     <shortDescription>Zentraler Modul-Updater (v4: GUI-Tab Update-Token + UpdateFromUrl)</shortDescription>
-    <writeHash>113d8d009759a1ec5390e501c89a7aa02de75819</writeHash>
-<noLicenseId>d4137ae9819a34d341bcd9f79a7a9c9e66530958</noLicenseId></module>
+    <writeHash>6a5867d7498984896eb49e8f16936e4f42dc844e</writeHash>
+<noLicenseId>c678729b57434d28e8e75b19a56d81818d896e77</noLicenseId></module>

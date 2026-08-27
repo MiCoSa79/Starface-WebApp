@@ -208,7 +208,7 @@ def init_db():
         icols = [r[1] for r in conn.execute("PRAGMA table_info(installations)").fetchall()]
         if "monitoring_instance_name" not in icols:
             conn.execute("ALTER TABLE installations ADD COLUMN monitoring_instance_name TEXT DEFAULT ''")
-        # Migration (Phase 2 UpdateDeployer): Instanzname + Update-Token
+        # Migration (Phase 2 Deployment-Modul): Instanzname + Update-Token
         icols = [r[1] for r in conn.execute("PRAGMA table_info(installations)").fetchall()]
         if "deployer_instance_name" not in icols:
             conn.execute("ALTER TABLE installations ADD COLUMN deployer_instance_name TEXT DEFAULT ''")
@@ -1021,7 +1021,7 @@ async def admin_third_party_upload(request: Request):
     Name/Version/Vendor werden aus dem module-descriptor.xml gelesen (keine
     manuelle Eingabe → keine Tippfehler). Gleicher Modulname erneut hochgeladen
     = Aktualisierung (Datei + Version ersetzen). Kollision mit eigenen Modulen
-    wird abgewiesen. Danach versions.json neu bauen (UpdateDeployer-Kanal).
+    wird abgewiesen. Danach versions.json neu bauen (Deployment-Modul-Kanal).
     """
     user = verify_session(request.cookies.get(SESSION_COOKIE))
     if not user or not user["is_admin"]:
@@ -1130,7 +1130,7 @@ async def admin_third_party_delete(request: Request, module_id: int):
 
 @app.get("/admin/updates", response_class=HTMLResponse)
 async def admin_updates_page(request: Request):
-    """Admin-Seite: Modul-Updates über den UpdateDeployer (Phase 2)."""
+    """Admin-Seite: Modul-Updates über das Deployment-Modul (Phase 2)."""
     user = verify_session(request.cookies.get(SESSION_COOKIE))
     if not user or not user["is_admin"]:
         return RedirectResponse("/dashboard")
@@ -1203,7 +1203,7 @@ def _norm_version(v):
 
 
 def _push_module(inst, module_name: str, filename: str, version: str, is_install: bool = False):
-    """Ein Modul-Update/Install auf einer Anlage anstoßen (UpdateDeployer-RPC).
+    """Ein Modul-Update/Install auf einer Anlage anstoßen (Deployment-Modul-RPC).
 
     Rückgabe: (status, msg) mit status in {"ok", "error"}. Bei is_install=True
     (Modul war noch nie installiert) lautet die Meldung „Installation angestoßen“.

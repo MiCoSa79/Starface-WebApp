@@ -1,4 +1,4 @@
-"""T3-Tests: WebApp-Update-Dienst module_updates.py (Phase 2 UpdateDeployer).
+"""T3-Tests: WebApp-Update-Dienst module_updates.py (Phase 2 Deployment-Modul).
 
 Geprüft:
 1. build_update_payload(): Payload-Struktur (ohne/mit updateToken)
@@ -50,7 +50,7 @@ check("payload mit Token", p2.get("updateToken") == "tok123" and p2["moduleName"
 
 # --- 2. Fehlerpfade ------------------------------------------------------
 os.environ.pop("MODULE_UPDATE_BASE_URL", None)
-inst = {"url": "https://anlage.example", "id": 1, "deployer_instance_name": "UpdateDeployer"}
+inst = {"url": "https://anlage.example", "id": 1, "deployer_instance_name": "Deployment-Modul"}
 
 r = mu.push_update(inst, "tok", module_name="M", filename="M.sfm", target_version="v1")
 check("Fehler: kein Kanal", r["status"] == "error" and "Kanal" in r["message"], repr(r))
@@ -79,7 +79,7 @@ r = mu.push_update(inst, "oauthtok", module_name="TelefonieMonitoring",
                    update_token="tok123")
 check("Erfolg-Status", r["status"] == "ok", repr(r))
 check("RPC-Methode exakt", captured["method"] == "UpdateFromUrl", captured["method"])
-check("Instanz-Präfix", captured["instance_name"] == "UpdateDeployer",
+check("Instanz-Präfix", captured["instance_name"] == "Deployment-Modul",
       captured.get("instance_name"))
 check("Token durchgereicht", captured["params"].get("updateToken") == "tok123",
       repr(captured.get("params")))

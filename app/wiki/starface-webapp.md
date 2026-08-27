@@ -8,7 +8,7 @@ updated: 2026-08-27
 
 Multi-User-Verwaltungs-WebApp für STARFACE-Installationen: Anlagen-Verwaltung (OAuth),
 CallBlocker-Pflege, Telefonie-Monitoring (Grafana/InfluxDB), Modul-Verwaltung und
-Modul-Updates (UpdateDeployer). Repo `MiCoSa79/Starface-WebApp`, Image
+Modul-Updates (Deployment-Modul). Repo `MiCoSa79/Starface-WebApp`, Image
 `micosa79/starface-webapp` (Docker Hub), CI taggt bei **jedem** Push automatisch
 `v0.0.x` (auch reine Doku-Commits). Container auf ZimaOS hinter NPM, Port 8895.
 
@@ -19,7 +19,7 @@ Modul-Updates (UpdateDeployer). Repo `MiCoSa79/Starface-WebApp`, Image
   je STARFACE-Anlage (Token verschlüsselt per Fernet in der DB).
 - **Import-Muster (Container):** App-Module liegen unter `/app/app/` — Zwei-Wege-Import
   `try: from main import ... except ImportError: from app.main import ...` in allen App-Teilen.
-- **Module im Repo:** `module-updatedeployer/` (UpdateDeployer, Tags `ud-vN`),
+- **Module im Repo:** `module-deployment/` (Deployment-Modul; Modul-Tags historisch `ud-vN` bis v7, ab v8 `dm-vN`),
   `module-monitoring/` (TelefonieMonitoring, Tags `vN`), CallBlocker (Tags `vN`) —
   Build via `build_sfm.py`, Spiegel nach `app/modules/` (SOLL-Versionen, mtime-Cache).
 - **Update-Server:** nginx-Service `module-updates` (Port 8896) mit Secure-Link-Signaturen
@@ -40,11 +40,11 @@ Modul-Updates (UpdateDeployer). Repo `MiCoSa79/Starface-WebApp`, Image
 | Wiki/API-Doku | `/wiki`, `/wiki/search`, `/wiki/{wiki_page}`, `/admin/api-doku`, `/sw.js` |
 | CallBlocker | `/installation/{id}/blocklist` (+ add/remove/update), `/installation/{id}/test` |
 
-**Stand 26.08. (F37/F38, v0.0.190):** Sammel-Buttons je Anlage auf der Modul-Updates-Seite (`POST /admin/updates/push-all`, Modi `install`/`update`) — Details [modul-auto-update](modul-auto-update.md). Modul-Seite: Download-Button **Icon-only**; neue Spalte **„Dokumentation“** (PDF-Badge → `/static/docs/<Modul>.pdf`: CallBlocker v30, TelefonieMonitoring v9, UpdateDeployer v7; Generator `app/scripts/generate_modul_pdfs.py` — nach Versions-Änderungen neu ausführen). Statusmeldungen auf der Modul-Updates-Seite mit **OK-Button** ausblendbar.
+**Stand 26.08. (F37/F38, v0.0.190):** Sammel-Buttons je Anlage auf der Modul-Updates-Seite (`POST /admin/updates/push-all`, Modi `install`/`update`) — Details [modul-auto-update](modul-auto-update.md). Modul-Seite: Download-Button **Icon-only**; neue Spalte **„Dokumentation“** (PDF-Badge → `/static/docs/<Modul>.pdf`: CallBlocker v30, TelefonieMonitoring v9, Deployment-Modul v8; Generator `app/scripts/generate_modul_pdfs.py` — nach Versions-Änderungen neu ausführen). Statusmeldungen auf der Modul-Updates-Seite mit **OK-Button** ausblendbar.
 
 **Stand 26.08. (F42, v0.0.196):** **Mobile-Fix Admin-URL-Felder** — auf Handys waren beide URL-Eingabefelder (Grafana-Basis-URL + Update-Server-Basis-URL) **380 px hoch**: das Inline-`flex:1 1 380px` wurde in der Mobile-`column`-Flexbox (`.form-row { flex-direction: column }`) als **Höhe** interpretiert (flex-basis wirkt auf die Hauptachse). Fix: CSS-Klasse `.url-field` (`flex: 1 1 380px; font-size:16px;` Desktop) + Media-Query-Override `.url-field { flex: 1 1 auto; min-height: 44px; }` (Mobile) — Inline-Styles entfernt. Beweis: Headless-Chrome-CDP-Test `tmp_tests/mobile_url_layout_cdp.mjs` (390×844): Höhe 380→44 px, Touch-Höhe 44 px, font-size 16 px (iOS-Zoom), Desktop-Breite ≥380 px bleibt.
 
-**Stand 27.08. (F44, v0.0.198):** **Drittanbietermodule** — Admins können auf der Modul-Seite echte Drittanbieter-`.sfm`-Pakete hochladen (ZIP mit `module-descriptor.xml` → Name/Version/Vendor werden automatisch ausgelesen, keine Tippfehler). Neue Spalte `source` in der `modules`-Tabelle (`own`/`third_party`), Speicherung unter `<data>/modules` (persistentes Volume); Spiegel + `versions.json` inkludieren die Pakete, sodass sie über die **Update-Seite je Anlage mit dem UpdateDeployer eingespielt/aktualisiert** werden können (Badge „Drittanbieter“). Die **Monitoring-Karte** zeigt Drittanbietermodule nur, wenn sie auf der Anlage installiert sind UND in der WebApp hinterlegt wurden (Filter `filter_third_party_missing` — keine Fehlanzeigen für noch nicht verteilte Pakete). Modul-Seite: zwei Tabellen („Verfügbare Module — eigene“ / „Drittanbietermodule“) + Upload-/Löschen-Aktionen; Download aus `<data>/modules` (identische Sicherheitskette: Dateiname aus DB, keine Pfad-Traversal). Test: `tmp_tests/third_party_modules_test.py` (43 Checks) + Suite grün.
+**Stand 27.08. (F44, v0.0.198):** **Drittanbietermodule** — Admins können auf der Modul-Seite echte Drittanbieter-`.sfm`-Pakete hochladen (ZIP mit `module-descriptor.xml` → Name/Version/Vendor werden automatisch ausgelesen, keine Tippfehler). Neue Spalte `source` in der `modules`-Tabelle (`own`/`third_party`), Speicherung unter `<data>/modules` (persistentes Volume); Spiegel + `versions.json` inkludieren die Pakete, sodass sie über die **Update-Seite je Anlage mit dem Deployment-Modul eingespielt/aktualisiert** werden können (Badge „Drittanbieter“). Die **Monitoring-Karte** zeigt Drittanbietermodule nur, wenn sie auf der Anlage installiert sind UND in der WebApp hinterlegt wurden (Filter `filter_third_party_missing` — keine Fehlanzeigen für noch nicht verteilte Pakete). Modul-Seite: zwei Tabellen („Verfügbare Module — eigene“ / „Drittanbietermodule“) + Upload-/Löschen-Aktionen; Download aus `<data>/modules` (identische Sicherheitskette: Dateiname aus DB, keine Pfad-Traversal). Test: `tmp_tests/third_party_modules_test.py` (43 Checks) + Suite grün.
 
 **Stand 27.08. (F45, v0.0.200):** **Mehr Bildschirmbreite + stabile Aktions-Buttons** (Axel: „Nutze mehr von der Breite des Bildschirms“, Screenshot Modul-Updates: Buttons der Xml-Monitoring-Zeile rutschten untereinander). Die Seitenbreite ist **Inline-CSS je Template** (keine zentrale CSS-Datei): `.container { max-width: … }` war 900/960/1100/720 px je Seite → einheitlich **1400 px** (9 Templates: `admin_updates`, `modules`, `monitoring`, `admin`, `base`, `wiki`, `api_doku`, `dashboard`, `blocklist`); **Login (`password.html`) bleibt bewusst schmal (520 px)**. Aktions-Zellen der Modul-Tabellen: `td form { display:flex; gap:8px; flex-wrap:nowrap; white-space:nowrap }` → Buttons („Installation anstoßen“ + „Download-Test (Ping)“ u. a.) bleiben auf Desktop **immer nebeneinander**; nur ≤640 px (`@media`) wieder `wrap` (Mobile). Regressionstest: `tmp_tests/admin_layout_width_test.py` (**19 Checks**: 1400 px auf allen Inhaltsseiten, keine alten Schmalklassen, Login 520 px, nowrap/wrap-Regeln).
 
@@ -52,7 +52,7 @@ Modul-Updates (UpdateDeployer). Repo `MiCoSa79/Starface-WebApp`, Image
 
 | Thema | Artikel |
 |---|---|
-| Modul-Updates/UpdateDeployer (T1–T7) | [modul-auto-update](modul-auto-update.md) |
+| Modul-Updates/Deployment-Modul (T1–T7) | [modul-auto-update](modul-auto-update.md) |
 | CallBlocker-Modul (inkl. älterer WebApp-Historie) | [starface-anrufblocker](starface-anrufblocker.md) |
 | Telefonie-Monitoring (Modul + Grafana) | [starface-telefonie-monitoring](starface-telefonie-monitoring.md) |
 | Admin Power Pack-RE (Import-API-Grundlage) | [admin-power-pack-re](admin-power-pack-re.md) |

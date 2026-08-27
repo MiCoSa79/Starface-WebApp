@@ -101,7 +101,7 @@ def mirror_modules(src_dir: str, dst_dir: str, base_url: str = "") -> dict:
             continue
     # Drittanbieter-Module (Admin-Uploads der Modul-Seite) liegen als .sfm im
     # Zielverzeichnis, stammen aber NICHT aus dem Image → gehören ebenfalls ins
-    # versions.json-Manifest (UpdateDeployer lädt sie über dieselbe signierte
+    # versions.json-Manifest (Deployment-Modul lädt sie über dieselbe signierte
     # URL). Nur gültige Pakete (ZIP + Descriptor) werden aufgenommen.
     for fname in sorted(os.listdir(dst_dir)):
         if not fname.endswith(".sfm") or fname in own_names:

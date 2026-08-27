@@ -53,7 +53,7 @@ def add_anlage(name: str, mon_inst: str) -> int:
         "name": name, "url": "https://anlage.example",
         "auth_id": "", "auth_pass": "", "client_secret": "",
         "module_instance_name": "", "monitoring_instance_name": mon_inst,
-        "deployer_instance_name": "UpdateDeployer", "deployer_token": "",
+        "deployer_instance_name": "Deployment-Modul", "deployer_token": "",
         "is_starface10": "1"})
     return iid
 

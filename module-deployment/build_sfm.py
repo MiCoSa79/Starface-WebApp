@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Builds the STARFACE 10.x UpdateDeployer .sfm as a JAR archive.
+"""Builds the STARFACE 10.x Deployment-Modul .sfm as a JAR archive.
 
 STARFACE 10.x module packets are JAR files: JarFile.getManifest() MUST find
 META-INF/MANIFEST.MF with at least:
@@ -10,7 +10,7 @@ module-descriptor.xml loaded via ModulePersister.
 
 Usage:
     python3 build_sfm.py
-Output: module-updatedeployer/UpdateDeployer.sfm (and copy to app/modules/UpdateDeployer.sfm)
+Output: module-deployment/Deployment-Modul.sfm (and copy to app/modules/Deployment-Modul.sfm)
 """
 import os
 import re
@@ -20,9 +20,9 @@ import zipfile
 ROOT = os.path.dirname(os.path.abspath(__file__))
 DESCRIPTOR = os.path.join(ROOT, "module-descriptor.xml")
 CLASSES_DIR = os.path.join(ROOT, "classes")
-OUT = os.path.join(ROOT, "UpdateDeployer.sfm")
+OUT = os.path.join(ROOT, "Deployment-Modul.sfm")
 MIRRORS = [
-    os.path.join(ROOT, "..", "app", "modules", "UpdateDeployer.sfm"),
+    os.path.join(ROOT, "..", "app", "modules", "Deployment-Modul.sfm"),
 ]
 
 # Java stores the manifest uncompressed, first entry, CRLF line endings.

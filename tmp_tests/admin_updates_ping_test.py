@@ -50,7 +50,7 @@ def add_anlage(name, with_deployer: bool) -> int:
         "name": name, "url": "https://anlage.example",
         "auth_id": "", "auth_pass": "", "client_secret": "",
         "module_instance_name": "", "monitoring_instance_name": "",
-        "deployer_instance_name": "UpdateDeployer" if with_deployer else "",
+        "deployer_instance_name": "Deployment-Modul" if with_deployer else "",
         "deployer_token": "", "is_starface10": "1"})
     return iid
 
@@ -67,32 +67,32 @@ check("Ping-Button vorhanden", r.text.count("Download-Test") >= 1,
 # --- 3. Anlage ohne Deployer-Instanz -> kontrollierter Fehler (KEIN Netz) ---
 app_main._get_token = lambda inst: "oauthtok"  # OAuth-Flow ist hier nicht Gegenstand
 r = c.post("/admin/updates/ping", data={
-    "installation_id": str(id_ohne), "module_name": "UpdateDeployer",
-    "filename": "UpdateDeployer.sfm"}, follow_redirects=False)
+    "installation_id": str(id_ohne), "module_name": "Deployment-Modul",
+    "filename": "Deployment-Modul.sfm"}, follow_redirects=False)
 check("ohne Instanz -> Redirect 303", r.status_code == 303,
       f"s={r.status_code} loc={r.headers.get('location')}")
 check("ohne Instanz -> Redirect auf /admin/updates",
       (r.headers.get("location") or "").startswith("/admin/updates"),
       r.headers.get("location", ""))
 r = c.post("/admin/updates/ping", data={
-    "installation_id": str(id_ohne), "module_name": "UpdateDeployer",
-    "filename": "UpdateDeployer.sfm"}, follow_redirects=True)
+    "installation_id": str(id_ohne), "module_name": "Deployment-Modul",
+    "filename": "Deployment-Modul.sfm"}, follow_redirects=True)
 check("ohne Instanz -> 'Keine Deployer-Instanz'",
       "Keine Deployer-Instanz" in r.text,
       "Keine Deployer-Instanz" not in r.text and r.text[-250:] or "")
 
 # --- 4. Unbekannte Anlage ---------------------------------------------------
 r = c.post("/admin/updates/ping", data={
-    "installation_id": "9999", "module_name": "UpdateDeployer",
-    "filename": "UpdateDeployer.sfm"}, follow_redirects=True)
+    "installation_id": "9999", "module_name": "Deployment-Modul",
+    "filename": "Deployment-Modul.sfm"}, follow_redirects=True)
 check("unbekannte Anlage -> 'Unbekannte Anlage.'", "Unbekannte Anlage" in r.text,
       "Unbekannte Anlage" not in r.text and r.text[-150:] or "")
 
 # --- 4b. PUSH (echte push_update, OHNE Mock) an Anlage ohne Instanz ---------
 # Regressionsschutz: push_update darf auf echten sqlite3-Rows nicht crashen.
 r = c.post("/admin/updates/push", data={
-    "installation_id": str(id_ohne), "module_name": "UpdateDeployer",
-    "filename": "UpdateDeployer.sfm", "version": "1"},
+    "installation_id": str(id_ohne), "module_name": "Deployment-Modul",
+    "filename": "Deployment-Modul.sfm", "version": "1"},
     follow_redirects=True)
 check("Push (echt, ohne Instanz) -> 'Keine Deployer-Instanz'",
       "Keine Deployer-Instanz" in r.text,
@@ -110,22 +110,22 @@ def fake_ping(inst, token, *, filename, instance_name=None):
 mu.ping_channel = fake_ping
 
 r = c.post("/admin/updates/ping", data={
-    "installation_id": str(id_mit), "module_name": "UpdateDeployer",
-    "filename": "UpdateDeployer.sfm"}, follow_redirects=True)
+    "installation_id": str(id_mit), "module_name": "Deployment-Modul",
+    "filename": "Deployment-Modul.sfm"}, follow_redirects=True)
 check("Erfolg -> Statuszeile 'Download-Test ok'", "Download-Test ok" in r.text,
       "Download-Test ok" not in r.text and r.text[:400] or "")
 check("Erfolg -> Antwort sichtbar", "HTTP 200 (4210 bytes)" in r.text,
       "HTTP 200" not in r.text and r.text[:400] or "")
-check("Ping-Args: filename", fake_calls.get("filename") == "UpdateDeployer.sfm", str(fake_calls))
+check("Ping-Args: filename", fake_calls.get("filename") == "Deployment-Modul.sfm", str(fake_calls))
 check("Ping-Args: token aus WebApp", fake_calls.get("token") == "oauthtok", str(fake_calls))
-check("Ping-Args: Instanzname", fake_calls.get("inst") == "UpdateDeployer", str(fake_calls))
+check("Ping-Args: Instanzname", fake_calls.get("inst") == "Deployment-Modul", str(fake_calls))
 
 # --- 6. Fehlerfall: ping_channel liefert error ------------------------------
 mu.ping_channel = lambda inst, token, **kw: {
     "status": "error", "message": "Testanlage nicht erreichbar"}
 r = c.post("/admin/updates/ping", data={
-    "installation_id": str(id_mit), "module_name": "UpdateDeployer",
-    "filename": "UpdateDeployer.sfm"}, follow_redirects=True)
+    "installation_id": str(id_mit), "module_name": "Deployment-Modul",
+    "filename": "Deployment-Modul.sfm"}, follow_redirects=True)
 check("Fehler -> FEHLER-Meldung in UI", "FEHLER" in r.text and "nicht erreichbar" in r.text,
       "nicht erreichbar" not in r.text and r.text[:400] or "")
 
