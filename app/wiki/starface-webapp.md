@@ -83,7 +83,7 @@ Quelle: `git for-each-ref refs/tags/v0.0.*` — Stichworte = Commit-Subject.
 
 | Version | Commit | Änderung |
 |---|---|---|
-| v1.0.2 | `3c750c3` | F58: Passkeys/WebAuthn (B mit C-Schalter) — fido2 2.2, Conditional UI, Geräteverwaltung, WEBAUTHN_PASSWORDLOGIN=0 (C-Schalter) |
+| v1.0.2 | `4ae79d9` | F58: Passkeys/WebAuthn (B mit C-Schalter) — fido2 2.2, Conditional UI, Geräteverwaltung, WEBAUTHN_PASSWORDLOGIN=0 (C-Schalter) |
 | v1.0.0 | `cf713f2` | chore(versioning): Kanal-Modell — nightly + v1.0.x bei jedem Push, latest nur via release-latest-Tag (Freigabe Axel), keine Datums-Tags mehr (F57) |
 | v0.0.209 | `9ed26cf` | docs(wiki): Roadmap — Tenant-Verwaltung (Super-Admin) + Lizenzverwaltung für Module (tenant-basiert) und WebApp (Super-Admins) (F54) |
 | v0.0.208 | `5eb1c5d` | F53: Spiegel-Meldung vereinfacht — 'Update-Server-Spiegel aktiv — N Paket(e) vorhanden' (ohne Ordner /modules und Basis-URL) |
@@ -322,6 +322,8 @@ WEBAUTHN_ORIGIN: https://<domain>       # muss exakt der Browser-URL entsprechen
 WEBAUTHN_RP_NAME: STARFACE WebApp        # optional, Anzeigename im Authenticator
 WEBAUTHN_PASSWORDLOGIN: "1"              # "0" = nur noch Passkey-Login (C)
 ```
+**Abhängigkeiten:** `fido2==2.2.1` **und `cbor2`** (explizit in requirements.txt — ohne cbor2
+setzt die App `FIDO2_OK=False` → „Passkeys sind nicht konfiguriert." (v1.0.3-Fix).
 
 ### Technik
 - Bibliothek: **fido2 2.2 (Yubico)** in `requirements.txt`; nur Verifikation,
