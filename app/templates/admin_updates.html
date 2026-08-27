@@ -38,6 +38,34 @@
         .empty { color: #666; text-align: center; padding: 24px; }
         .muted { color: #888; font-size: 12px; }
         .hint { color: #888; font-size: 12px; margin-top: 4px; }
+        /* F52: Tooltip-Blase passend zum dunklen Design (Hover + Tastatur-Fokus) */
+        .tooltip-btn { position: relative; }
+        .tooltip-btn::after {
+            content: attr(data-tip);
+            position: absolute; bottom: calc(100% + 10px); left: 50%;
+            transform: translateX(-50%) translateY(4px);
+            background: #1b1b1f; border: 1px solid #333; color: #e8e8e8;
+            padding: 8px 12px; border-radius: 8px; font-size: 12px;
+            line-height: 1.45; text-align: center;
+            width: max-content; max-width: 320px;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, .55);
+            opacity: 0; visibility: hidden;
+            transition: opacity .15s ease, transform .15s ease;
+            pointer-events: none; z-index: 50;
+        }
+        .tooltip-btn::before {
+            content: ""; position: absolute; bottom: calc(100% + 4px); left: 50%;
+            transform: translateX(-50%) translateY(4px);
+            border: 6px solid transparent; border-top-color: #1b1b1f;
+            opacity: 0; visibility: hidden;
+            transition: opacity .15s ease, transform .15s ease;
+            pointer-events: none; z-index: 50;
+        }
+        .tooltip-btn:hover::after, .tooltip-btn:focus-visible::after,
+        .tooltip-btn:hover::before, .tooltip-btn:focus-visible::before {
+            opacity: 1; visibility: visible;
+            transform: translateX(-50%) translateY(0);
+        }
 </style>
 {% endblock %}
 {% block content %}
@@ -81,12 +109,12 @@
         <form method="post" action="/admin/updates/push-all" style="display:inline; margin:0">
             <input type="hidden" name="installation_id" value="{{ inst.id }}">
             <input type="hidden" name="mode" value="install">
-            <button type="submit" class="btn-primary">Fehlende Module installieren</button>
+            <button type="submit" class="btn-primary tooltip-btn" data-tip="Es werden alle unten aufgeführten Module installiert, die noch nicht installiert sind">Fehlende Module installieren</button>
         </form>
         <form method="post" action="/admin/updates/push-all" style="display:inline; margin:0">
             <input type="hidden" name="installation_id" value="{{ inst.id }}">
             <input type="hidden" name="mode" value="update">
-            <button type="submit" class="btn-secondary">Module aktualisieren</button>
+            <button type="submit" class="btn-secondary tooltip-btn" data-tip="Nur installierte Module werden aktualisiert, es werden keine neuen Module installiert.">Module aktualisieren</button>
         </form>
     </div>
 

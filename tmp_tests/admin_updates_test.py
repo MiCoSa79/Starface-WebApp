@@ -367,6 +367,14 @@ check("F51: IST-Abruf-Fehler -> Fallback Update-Pfad (Push läuft weiter)",
       f"{calls10} | " + r.text[:400].replace("\n", " "))
 app_main._get_token = lambda inst: "oauthtok"
 
+# --- 11. F52: Tooltips der Sammel-Buttons (hover) -------------------------------
+r = c.get("/admin/updates")
+check("F52: Tooltip 'Fehlende Module installieren' vorhanden",
+      'data-tip="Es werden alle unten aufgeführten Module installiert, die noch nicht installiert sind"' in r.text)
+check("F52: Tooltip 'Module aktualisieren' vorhanden",
+      'data-tip="Nur installierte Module werden aktualisiert, es werden keine neuen Module installiert."' in r.text)
+check("F52: Tooltip-CSS aktiv", ".tooltip-btn::after" in r.text)
+
 print("\n" + ("ERGEBNIS: ALLE ADMIN-UPDATES-TESTS OK"
               if not FAIL else f"FEHLGESCHLAGEN: {FAIL}"))
 sys.exit(0 if not FAIL else 1)
