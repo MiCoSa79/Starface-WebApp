@@ -7,6 +7,8 @@ Geprüft:
 4. POST /admin/updates/push ruft push_update mit filename/version + Token
    und zeigt Erfolg; Fehlerfall zeigt die Meldung
 5. Ungültige installation_id → sauberer Redirect (kein Crash)
+6. Stale-Cleanup (F47): verwaiste eigene Module ohne .sfm-Datei werden vom
+   Scanner entfernt; vorhandene eigene bleiben; Drittanbieter unangetastet.
 
 Aufruf: python3 tmp_tests/admin_updates_test.py
 """
@@ -262,6 +264,32 @@ check("Modul-Seite: Download-Icon (Title '.sfm-Datei herunterladen')",
       'title=".sfm-Datei herunterladen"' in r.text, "")
 check("Modul-Seite: Statusmeldung 'Verfügbare Module'",
       "Verfügbare Module" in r.text, "")
+
+# --- 7. Stale-Cleanup (F47): verwaiste eigene Module ohne .sfm-Datei ---------
+conn3 = sqlite3.connect(DB)
+conn3.execute(
+    "INSERT INTO modules (name, filename, version, description, file_hash, "
+    "file_size, file_mtime, app_version, build_date, source) "
+    "VALUES (?,?,?,?,?,?,?,?,?, 'own')",
+    ("UpdateDeployer", "UpdateDeployer.sfm", "7", "alt",
+     "d41d8cd98f00b204e9800998ecf8427e", 1, "2026-08-27 00:00:00", "v0.0.200", ""))
+conn3.execute(
+    "INSERT INTO modules (name, filename, version, description, file_hash, "
+    "file_size, file_mtime, app_version, build_date, source) "
+    "VALUES (?,?,?,?,?,?,?,?,?, 'third_party')",
+    ("ThirdPartyGhost", "Ghost.sfm", "1", "alt",
+     "d41d8cd98f00b204e9800998ecf8427e", 1, "2026-08-27 00:00:00", "v0.0.200", ""))
+conn3.commit()
+conn3.close()
+app_main._scan_modules()
+conn3 = sqlite3.connect(DB)
+check("Stale-Cleanup: verwaistes eigenes Modul entfernt",
+      conn3.execute("SELECT id FROM modules WHERE name='UpdateDeployer' AND source='own'").fetchone() is None)
+check("Stale-Cleanup: vorhandenes eigenes Modul bleibt",
+      conn3.execute("SELECT id FROM modules WHERE name='Deployment-Modul' AND source='own'").fetchone() is not None)
+check("Stale-Cleanup: Drittanbieter unangetastet",
+      conn3.execute("SELECT id FROM modules WHERE name='ThirdPartyGhost' AND source='third_party'").fetchone() is not None)
+conn3.close()
 
 print("\n" + ("ERGEBNIS: ALLE ADMIN-UPDATES-TESTS OK"
               if not FAIL else f"FEHLGESCHLAGEN: {FAIL}"))

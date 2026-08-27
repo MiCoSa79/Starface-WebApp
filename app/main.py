@@ -238,23 +238,27 @@ def init_db():
 
 
 def _scan_modules():
-    """Scannt app/modules/*.sfm und pflegt die DB (INSERT + UPDATE).
+    """Scannt app/modules/*.sfm und pflegt die DB (INSERT + UPDATE + Stale-Cleanup).
 
     Pro Datei werden Version/Beschreibung aus module-descriptor.xml sowie
     Datei-Hash, Größe, mtime und die ausliefernde WebApp-Version gespeichert —
     so ist auf der Modul-Seite erkennbar, wann/womit eine .sfm aktualisiert
     wurde (bestehende Zeilen werden bei Änderung GEUPDATED, nicht nur initial
-    angelegt)."""
+    angelegt). Seit F47 werden verwaiste EIGENE Module (source='own'), deren
+    .sfm-Datei entfernt wurde (z. B. Umbenennung), aus der DB gelöscht —
+    Drittanbieter (source='third_party') bleiben unangetastet."""
     modules_dir = os.path.join(os.path.dirname(__file__), "modules")
     if not os.path.isdir(modules_dir):
         return
     app_version = os.environ.get("APP_VERSION", "dev")
     build_date = os.environ.get("BUILD_DATE", "")
     conn = _db()
+    seen_names = set()
     for fname in sorted(os.listdir(modules_dir)):
         if not fname.endswith(".sfm"):
             continue
         name = os.path.splitext(fname)[0]
+        seen_names.add(name)
         path = os.path.join(modules_dir, fname)
         version, description = _module_meta(path)
         st = os.stat(path)
@@ -275,6 +279,14 @@ def _scan_modules():
                 "build_date=?, source='own' WHERE name=?",
                 (fname, version, description, file_hash, st.st_size,
                  file_mtime, app_version, build_date, name))
+    # Stale-Cleanup (F47): eigene Module ohne .sfm-Datei entfernen (Umbenennung/Abkündigung)
+    if seen_names:
+        marks = ",".join("?" * len(seen_names))
+        conn.execute(
+            "DELETE FROM modules WHERE source='own' AND name NOT IN ({})".format(marks),
+            tuple(sorted(seen_names)))
+    else:
+        conn.execute("DELETE FROM modules WHERE source='own'")
     conn.commit()
     conn.close()
 
