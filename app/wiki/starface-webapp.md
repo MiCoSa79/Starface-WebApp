@@ -85,6 +85,7 @@ Quelle: `git for-each-ref refs/tags/v0.0.*` — Stichworte = Commit-Subject.
 
 | Version | Commit | Änderung |
 |---|---|---|
+| v1.0.39 | (27.08.) | fix(Axel, Screenshot 21:33): **Modul-Karte steht im Kiosk neben den 3 Charts** (`.charts`-Grid, 4. Spalte) — gehörte „unter die drei Kacheln“: `#card-inst-modules { grid-column: 1 / -1; }` → immer volle Breite unter den Graphen. Test: Grid-Durchstich-Check, 19/19. |
 | v1.0.38 | (27.08.) | fix(Axel): **Drittanbietermodule-Tabelle ohne Spaltenkopfzeile** (Spalten sind identisch mit „Eigene Module“ — nur Gruppenzeile bleibt, spart Platz); Kachel-Fix v1.0.37 bestätigt: `body.kiosk .kpis` 3fr + 700px-Media 1fr (Vollbild-TV: alle 3 nebeneinander). Tests: Kopf nur 1×, 19/19. |
 | v1.0.37 | (27.08.) | feat(Axel): **Kacheln 2-breit** (`repeat(2, 1fr)`, Handy weiter 1-spaltig via Media-Query) — damit die CPU-1/5/15-Werte Platz haben; **Modul-Tabelle in zwei Gruppen: „Eigene Module“ oben, „Drittanbietermodule“ darunter** (Split nach `source == 'own'`; Gruppenzeile `.mod-grp`; leere Gruppe ausgeblendet; JS-Refresh ebenso). Tests: Drittanbieter im Fake, 19/19. 99 Checks. |
 | v1.0.36 | (27.08.) | fix(Axel, „Fehler immer noch derselbe“): Modul-Tabelle nutzt **KEINEN eigenen Abruf mehr** — liest den **Sammler-Cache** (`status().installations[name].modules`, ≤ 60 s alt, exakt die Daten der funktionierenden Übersichtskarte). Kein OAuth/Token/RPC auf der Detail-Seite (auch nicht beim 10-s-/5-min-Refresh); Hinweis nur bei echtem Poll-Fehler (`modules.error`). Tests: modules im Fake-Status, 19/19. |
