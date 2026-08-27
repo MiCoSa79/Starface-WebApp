@@ -94,10 +94,18 @@ async function pkB64(buf) {
     for (const b of bytes) bin += String.fromCharCode(b);
     return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
+function pkB64ToBytes(s) {
+    const bin = atob(String(s).replace(/-/g, '+').replace(/_/g, '/'));
+    const u = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+    return u;
+}
 async function pkOptions() {
     const r = await fetch('/api/passkey/login/options', { method: 'POST' });
     const j = await r.json();
     if (!r.ok) throw new Error(j.message || 'Passkeys nicht verfügbar');
+    if (j.challenge) j.challenge = pkB64ToBytes(j.challenge);
+    if (Array.isArray(j.allowCredentials)) for (const c of j.allowCredentials) if (c.id) c.id = pkB64ToBytes(c.id);
     return j;
 }
 async function pkCredToJson(cred) {

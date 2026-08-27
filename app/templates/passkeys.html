@@ -77,6 +77,12 @@
             el.classList.toggle('hidden', !text);
             el.classList.toggle('error', !!isError);
         }
+        function pkB64ToBytes(s) {
+            const bin = atob(String(s).replace(/-/g, '+').replace(/_/g, '/'));
+            const u = new Uint8Array(bin.length);
+            for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+            return u;
+        }
         async function addPasskey() {
             const deviceName = (prompt('Name für dieses Gerät (z. B. "Windows-PC"):') || '').trim() || 'Unbenannt';
             const btn = document.getElementById('addPasskeyBtn');
@@ -85,7 +91,12 @@
                 const r1 = await fetch('/api/passkey/register/options', { method: 'POST' });
                 const opts = await r1.json();
                 if (!r1.ok) throw new Error(opts.message || 'Passkeys sind nicht konfiguriert.');
-                const cred = await navigator.credentials.create({ publicKey: opts });
+                const pkOpts = {
+                    ...opts,
+                    challenge: pkB64ToBytes(opts.challenge),
+                    user: opts.user ? { ...opts.user, id: pkB64ToBytes(opts.user.id) } : undefined
+                };
+                const cred = await navigator.credentials.create({ publicKey: pkOpts });
                 const payload = { credential: await pkCredToJson(cred), device_name: deviceName };
                 const r2 = await fetch('/api/passkey/register/verify', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
