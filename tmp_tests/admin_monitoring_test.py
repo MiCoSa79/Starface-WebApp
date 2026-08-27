@@ -167,7 +167,18 @@ c2.follow_redirects = False
 r = c2.get("/api/monitoring/admin")
 check("API ohne Login 401", r.status_code == 401, str(r.status_code))
 
-# 6) Admin-Seite verlinkt auf die neue Seite (Einstieg)
+# 6) Full-Screen/Kiosk-Modus (v1.0.20, Axel-Wunsch): Header/Footer/Browser-UI ausblendbar
+check("Vollbild-Button #fs-btn", 'id="fs-btn"' in body)
+check("Vollbild-Beenden-Button #fs-exit", 'id="fs-exit"' in body)
+check("Kiosk-CSS blendet Header aus", "body.kiosk .header-wrap" in body)
+check("Kiosk-CSS blendet Footer aus", "body.kiosk .footer" in body)
+check("Kiosk-CSS blendet Seitenkopf aus", "body.kiosk .monitor-head" in body)
+check("Enter-Funktion enterAdminFs", "function enterAdminFs" in body)
+check("Exit-Funktion exitAdminFs", "function exitAdminFs" in body)
+check("Kiosk-URL-Start ?kiosk=1", "get('kiosk') === '1'" in body)
+check("ESC/Fullscreenchange-Beenden", "function fullscreenchange" in body or "fullscreenchange" in body)
+
+# 7) Admin-Seite verlinkt auf die neue Seite (Einstieg)
 r = c.get("/admin")
 check("/admin 200 (Admin)", r.status_code == 200, str(r.status_code))
 check("/admin verlinkt Admin-Monitoring", 'href="/admin/monitoring"' in r.text)

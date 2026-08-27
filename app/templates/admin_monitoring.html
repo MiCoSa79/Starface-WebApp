@@ -70,6 +70,21 @@
                       transition: opacity .15s, border-color .15s, color .15s; }
         .grafana-dl:hover, .grafana-dl:focus { opacity:1; border-color:#4ea1ff; color:#4ea1ff; }
 
+        /* ── Full-Screen/Kiosk-Modus (Axel-Wunsch 27.08.) ──
+           In-Seiten-Kiosk (funktioniert überall, auch iPhone): blendet
+           Header/Nav, Footer und Seitenkopf aus; Browser-Fullscreen zusätzlich,
+           wenn der Browser ihn unterstützt (Desktop). */
+        #fs-btn { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+        #fs-exit { position: fixed; top: calc(12px + env(safe-area-inset-top, 0px)); right: 14px;
+                   z-index: 200; opacity: .8; cursor: pointer; }
+        #fs-exit:hover, #fs-exit:focus { opacity: 1; }
+        body.kiosk .header-wrap, body.kiosk .footer { display: none; }
+        body.kiosk .monitor-head { display: none; }
+        body.kiosk .container { max-width: 100%;
+                                padding: 16px 24px calc(12px + env(safe-area-inset-bottom, 0px)); }
+        body.kiosk .kpis { margin-bottom: 12px; }
+        @media (max-width: 640px) { body.kiosk .container { padding: 12px 12px calc(12px + env(safe-area-inset-bottom, 0px)); } }
+
         @media (max-width: 640px) {
             .container { padding: 16px 14px 60px; }
             .kpis { grid-template-columns: 1fr; }
@@ -82,14 +97,20 @@
 {% endblock %}
 {% block content %}
 <div class="container">
-    <h2>Admin-Monitoring</h2>
-    <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px;">
-        <a href="/admin" class="btn-secondary" style="text-decoration:none;">← Zurück zum Admin</a>
+    <div class="monitor-head">
+        <h2>Admin-Monitoring</h2>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px;">
+            <a href="/admin" class="btn-secondary" style="text-decoration:none;">← Zurück zum Admin</a>
+            <button type="button" id="fs-btn" class="btn-secondary" title="Vollbild-Modus: blendet Menü, Fußzeile, Seitenkopf und Browser-Leisten aus. Beenden: dieser Button erscheint oben rechts, ESC oder F11.">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+                Vollbild
+            </button>
         <a href="{{ grafana_base }}/d/{{ grafana_admin_uid }}/?from=now-6h&to=now&kiosk=1&hideLogo" target="_blank" rel="noopener" class="btn-secondary" title="Grafana-Admin-Übersicht (Ausfälle aller Anlagen) öffnen — läuft vorerst parallel weiter">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>
             Grafana Admin-Übersicht
         </a>
         <span style="color:#666;font-size:12px;margin-left:10px;">Seite aktualisiert sich alle 15 s</span>
+        </div>
     </div>
 
     <!-- KPI-Karten: 3 Kennzahlen -->
@@ -185,6 +206,11 @@
             {{ summary.no_data }} Anlage(n) ohne Monitoring-Daten — Monitoring-Modul-Instanz nicht gesetzt oder noch kein erfolgreicher Poll.
         </div>
     </div>
+    <!-- Schwebender Beenden-Button, nur im Kiosk-Modus sichtbar (Enter blendet Header/Footer aus) -->
+    <button type="button" id="fs-exit" class="btn-secondary" style="display:none;" title="Vollbild-Modus beenden (auch ESC oder F11)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3v3a2 2 0 0 1-2 2H3"/><path d="M21 8h-3a2 2 0 0 1-2-2V3"/><path d="M3 16h3a2 2 0 0 1 2 2v3"/><path d="M16 21v-3a2 2 0 0 1 2-2h3"/></svg>
+        Vollbild beenden
+    </button>
 </div>
 
 <script>
@@ -307,6 +333,47 @@
             })
             .catch(function (e) { console.warn('Admin-Monitoring-Refresh fehlgeschlagen:', e); });
     }
+    // --- Vollbild/Kiosk-Modus ---
+    // 1) In-Seiten-Kiosk (überall, auch iPhone): Header/Nav + Footer + Seitenkopf weg,
+    //    Inhalt nutzt die volle Fläche. 2) Echter Browser-Fullscreen, wenn der Browser
+    //    ihn unterstützt (Desktop): auch Adressleiste/Tabs verschwinden.
+    //    Beenden: schwebender Button oben rechts, ESC oder F11.
+    function enterAdminFs() {
+        document.body.classList.add('kiosk');
+        var ex = document.getElementById('fs-exit');
+        if (ex) ex.style.display = 'inline-flex';
+        var el = document.documentElement;
+        try {
+            var p = el.requestFullscreen ? el.requestFullscreen()
+                  : (el.webkitRequestFullscreen ? el.webkitRequestFullscreen() : null);
+            if (p && p.catch) p.catch(function () { /* z. B. vom Browser abgelehnt */ });
+        } catch (e) { /* iOS Safari: kein Element-Fullscreen — In-Seiten-Kiosk greift */ }
+    }
+    function exitAdminFs() {
+        document.body.classList.remove('kiosk');
+        var ex = document.getElementById('fs-exit');
+        if (ex) ex.style.display = 'none';
+        try {
+            if (document.fullscreenElement || document.webkitFullscreenElement) {
+                if (document.exitFullscreen) document.exitFullscreen();
+                else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+            }
+        } catch (e) { /* ignore */ }
+    }
+    var fsBtn = document.getElementById('fs-btn');
+    if (fsBtn) fsBtn.addEventListener('click', enterAdminFs);
+    var fsExit = document.getElementById('fs-exit');
+    if (fsExit) fsExit.addEventListener('click', exitAdminFs);
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && document.body.classList.contains('kiosk')) exitAdminFs();
+    });
+    document.addEventListener('fullscreenchange', function () {
+        var fsEl = document.fullscreenElement || document.webkitFullscreenElement || null;
+        if (!fsEl) exitAdminFs(); // Browser-Fullscreen (ESC/F11) verlassen -> Kiosk beenden
+    });
+    // ?kiosk=1 in der URL -> direkt im Kiosk-Modus starten (eigenes Monitor-Fenster)
+    if (new URLSearchParams(window.location.search).get('kiosk') === '1') enterAdminFs();
+
     setInterval(refreshAdminMonitoring, 15000);
     refreshAdminMonitoring(); // sofortiger erster Abgleich
 </script>
