@@ -76,7 +76,9 @@
            wenn der Browser ihn unterstützt (Desktop). */
         #fs-btn { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
         #fs-exit { position: fixed; top: calc(12px + env(safe-area-inset-top, 0px)); right: 14px;
-                   z-index: 200; opacity: .8; cursor: pointer; }
+                   z-index: 200; opacity: .8; cursor: pointer;
+                   transition: opacity .25s ease; }
+        #fs-exit.fs-hidden { opacity: 0; pointer-events: none; }
         #fs-exit:hover, #fs-exit:focus { opacity: 1; }
         body.kiosk .header-wrap, body.kiosk .footer { display: none; }
         body.kiosk .monitor-head { display: none; }
@@ -337,11 +339,21 @@
     // 1) In-Seiten-Kiosk (überall, auch iPhone): Header/Nav + Footer + Seitenkopf weg,
     //    Inhalt nutzt die volle Fläche. 2) Echter Browser-Fullscreen, wenn der Browser
     //    ihn unterstützt (Desktop): auch Adressleiste/Tabs verschwinden.
-    //    Beenden: schwebender Button oben rechts, ESC oder F11.
+    //    Beenden: schwebender Button oben rechts (blendet sich nach 2,5 s ohne
+    //    Mausbewegung selbst aus — erscheint bei jeder Bewegung wieder), ESC oder F11.
+    var fsHideTimer = null;
+    function fsShow() {
+        var ex = document.getElementById('fs-exit');
+        if (!ex) return;
+        ex.classList.remove('fs-hidden');
+        clearTimeout(fsHideTimer);
+        fsHideTimer = setTimeout(function () { ex.classList.add('fs-hidden'); }, 2500);
+    }
     function enterAdminFs() {
         document.body.classList.add('kiosk');
         var ex = document.getElementById('fs-exit');
         if (ex) ex.style.display = 'inline-flex';
+        fsShow(); // erst sichtbar (Lernphase), nach 2,5 s ohne Mausbewegung weg
         var el = document.documentElement;
         try {
             var p = el.requestFullscreen ? el.requestFullscreen()
@@ -352,7 +364,8 @@
     function exitAdminFs() {
         document.body.classList.remove('kiosk');
         var ex = document.getElementById('fs-exit');
-        if (ex) ex.style.display = 'none';
+        if (ex) { ex.style.display = 'none'; ex.classList.remove('fs-hidden'); }
+        clearTimeout(fsHideTimer);
         try {
             if (document.fullscreenElement || document.webkitFullscreenElement) {
                 if (document.exitFullscreen) document.exitFullscreen();
@@ -364,6 +377,10 @@
     if (fsBtn) fsBtn.addEventListener('click', enterAdminFs);
     var fsExit = document.getElementById('fs-exit');
     if (fsExit) fsExit.addEventListener('click', exitAdminFs);
+    // Mausbewegung oder Touch im Kiosk -> Beenden-Button kurz einblenden
+    function fsWake() { if (document.body.classList.contains('kiosk')) fsShow(); }
+    document.addEventListener('mousemove', fsWake);
+    document.addEventListener('touchstart', fsWake);
     document.addEventListener('keydown', function (e) {
         if (e.key === 'Escape' && document.body.classList.contains('kiosk')) exitAdminFs();
     });
