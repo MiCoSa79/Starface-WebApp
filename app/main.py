@@ -2632,24 +2632,27 @@ async def installation_monitoring_page(request: Request, installation_id: int):
 
 
 def _installed_modules(inst) -> list | None:
-    """Installierte Module einer Anlage (Ist) gegen SOLL (app/modules/*.sfm).
+    """Installierte Module einer Anlage aus dem Sammler-Cache (letzter Poll).
 
+    KEIN eigener Anlagen-Abruf: Der Sammler holt GetModuleStatus in seinem
+    60-s-Takt (dieselben Daten zeigt die Modul-Status-Karte auf /monitoring).
     Liefert NUR installierte Module (Axel: „Nicht installierte Module nicht
-    anzeigen“). Fehlertolerant: bei RPC/Token-Fehlern None (Template zeigt
-    Hinweis statt Tabelle) — die Detail-Seite darf nie deswegen brechen.
+    anzeigen“). None = keine Daten/Fehler im Poll (Template zeigt Hinweis) —
+    die Detail-Seite darf nie deswegen brechen.
     """
-    if not inst or not inst["monitoring_instance_name"]:
+    if not inst:
         return None
     try:
-        from monitoring import _collect_module_status
-        st = _collect_module_status(inst, _get_token(inst), inst["name"])
-        mods = [m for m in (st.get("list") or []) if m.get("installed")]
-        mods.sort(key=lambda m: (m["name"] or "").lower())
-        return mods
-    except Exception as e:
-        logger.warning("Modul-Status für Anlage %s fehlgeschlagen: %s",
-                       inst["name"] if inst else "?", e)
+        entry = (monitoring.status().get("installations") or {}).get(inst["name"]) or {}
+        mods = entry.get("modules") or {}
+    except Exception:
         return None
+    if mods.get("error"):
+        return None
+    items = mods.get("list") or []
+    out = [m for m in items if m.get("installed")]
+    out.sort(key=lambda m: (m["name"] or "").lower())
+    return out or None
 
 
 @app.get("/api/monitoring/modules/{installation_id}")

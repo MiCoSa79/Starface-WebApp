@@ -78,7 +78,22 @@ def fake_status():
                                     "mem_total": 16777216, "mem_free": 4194304,
                                     "mem_available": 10066330, "cpu_cores": 8},
                          "provider_summary": {"has_data": True, "all_ok": True, "count": 2,
-                                              "connected": 2, "disconnected": []}},
+                                              "connected": 2, "disconnected": []},
+                         # Modul-Status wie im Sammler-Cache (v1.0.36: Detail-Tabelle
+                         # liest hieraus — KEIN eigener Anlagen-Abruf)
+                         "modules": {"ts": 1725000100, "list": [
+                             {"name": "CallBlocker", "installed": True, "current": True,
+                              "version_ist": 30, "version_soll": 30,
+                              "vendor": "Axel Meiser - Kraemer IT", "instances": [],
+                              "source": "own", "status": "ok"},
+                             {"name": "TelefonieMonitoring", "installed": True, "current": False,
+                              "version_ist": 8, "version_soll": 9,
+                              "vendor": "Axel Meiser - Kraemer IT", "instances": [],
+                              "source": "own", "status": "outdated"},
+                             {"name": "NichtInstalliert", "installed": False, "current": False,
+                              "version_ist": None, "version_soll": 42,
+                              "vendor": "X", "instances": [], "source": "own",
+                              "status": "missing"}]}},
             "Anlage B": {"systemName": "pbx-b", "systemVersion": "10.0.1.9", "points": 90,
                          "ts": 1725000000,
                          "system": {"load1": 1.85, "load5": 1.52, "load15": 1.31,
@@ -92,7 +107,8 @@ def fake_status():
                          # kein "system": ältere Modul-Version -> CPU/RAM-Kachel '—'
                          "provider_summary": {"has_data": True, "all_ok": False, "count": 4,
                                               "connected": 2,
-                                              "disconnected": ["T-Online (Unregistered)"]}},
+                                              "disconnected": ["T-Online (Unregistered)"]},
+                         "modules": {"error": "GetModuleStatus: fault (Test)"}},
         },
     }
 app_main.monitoring.status = fake_status
@@ -116,28 +132,6 @@ def fake_history(installation, minutes=60, cache_ttl=15.0):
 
 
 app_main.monitoring.query_system_history = fake_history
-
-# --- Modul-Status (v1.0.35): Token + GetModuleStatus mocken; A liefert 2 Module,
-#     C wirft (RPC-Fehler -> Hinweis-Fall) ---
-def fake_module_status(inst, token, name):
-    if name == "Anlage A":
-        return {"ts": 1725000100, "list": [
-            {"name": "CallBlocker", "installed": True, "current": True,
-             "version_ist": 30, "version_soll": 30,
-             "vendor": "Axel Meiser - Kraemer IT", "instances": [],
-             "source": "own", "status": "ok"},
-            {"name": "TelefonieMonitoring", "installed": True, "current": False,
-             "version_ist": 8, "version_soll": 9,
-             "vendor": "Axel Meiser - Kraemer IT", "instances": [],
-             "source": "own", "status": "outdated"},
-            {"name": "NichtInstalliert", "installed": False, "current": False,
-             "version_ist": None, "version_soll": 42,
-             "vendor": "X", "instances": [], "source": "own", "status": "missing"}]}
-    if name == "Anlage B":
-        return {"ts": 1, "list": []}
-    raise RuntimeError("RPC-Fehler (Test)")
-app_main.monitoring._collect_module_status = fake_module_status
-app_main._get_token = lambda inst: "test-token"
 
 c = TestClient(app_main.app)
 c.follow_redirects = False  # Starlette 0.27: hartkodiert True
@@ -208,7 +202,8 @@ check("Modul-Karte rendert: Tabelle mit Modulen (Anlage A)", all(x in body for x
 check("Modul-Karte: nur installierte Module (Axel) — kein 'NichtInstalliert'", 'NichtInstalliert' not in body and '>42<' not in body)
 check("Modul-Karte: outdated-Zeile rot + Badge 'Update verfügbar'", all(x in body for x in ('mod-outdated', 'Update verfügbar', '>8<')))
 check("Modul-Refresh alle 5 min, nicht alle 10 s (Axel)", all(x in body for x in ('refreshModules', 'setInterval(refreshModules, 300000)', '/api/monitoring/modules/')))
-# Hinweis-Fall: Anlage C (RPC-Fehler) — explizit als admin
+check("Modul-Karte: Daten aus Sammler-Cache, kein separater Abruf (Axel)", 'kein separater Anlagen-Abruf' in body)
+# Hinweis-Fall: Anlage C (modules.error im Poll)
 login("admin")
 rc_ = c.get(f"/monitoring/installations/{c_id}")
 bc_ = rc_.text
