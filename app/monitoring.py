@@ -226,7 +226,10 @@ def _merge_third_party(expected: dict) -> dict:
             "SELECT name, filename, version, vendor FROM modules "
             "WHERE source = 'third_party'").fetchall()
         conn.close()
-    except Exception:
+    except Exception as e:
+        # DB nicht lesbar -> nur eigene Module bekannt. NIE still schlucken:
+        # Logs (docker logs) zeigen, warum Drittanbieter fehlen (Axel).
+        print(f"[Monitoring] Warnung: Drittanbietermodule nicht ladbar: {e!r}")
         return expected
     for r in rows:
         name = (r["name"] or "").strip()
@@ -316,7 +319,7 @@ def _collect_module_status(inst, token, name, *,
     - list == []     → keine Module erwartet (app/modules leer) → keine Anzeige
     - list == [..]   → Vergleichsliste (missing/outdated/ok je erwartetem Modul)
     """
-    base = {"ts": time.time(), "error": None, "list": None, "raw_installed": {}}
+    base = {"ts": time.time(), "error": None, "list": None}
     expected = _module_expectations()
     if not expected:
         return {**base, "list": []}
@@ -337,26 +340,11 @@ def _collect_module_status(inst, token, name, *,
         return {**base, "error": _classify_error(e)}
     items = _compare_modules(expected, (mres.get("members") or {}).get("moduleJson") or "",
                              filter_third_party_missing=filter_third_party_missing)
-    # Rohdaten: ALLE installierten Module laut Anlage (auch ohne hinterlegtes
-    # Paket) — Admin-Auswertung zeigt sie, damit veraltete Module nie unsichtbar
-    # sind (Axel). Names-/Versions-Cast defensiv, wie _compare_modules.
-    raw_installed = {}
-    try:
-        raw = json.loads((mres.get("members") or {}).get("moduleJson") or "[]")
-        if isinstance(raw, list):
-            for m in raw:
-                if isinstance(m, dict) and m.get("name"):
-                    try:
-                        raw_installed[m["name"]] = int(m.get("version", 0) or 0)
-                    except (TypeError, ValueError):
-                        raw_installed[m["name"]] = 0
-    except (ValueError, TypeError):
-        raw_installed = {}
     if items is None:
-        return {**base, "raw_installed": raw_installed,
+        return {**base,
                 "error": {"category": "module",
                 "msg": "Modul-Status konnte nicht ausgewertet werden"}}
-    return {**base, "list": items, "raw_installed": raw_installed}
+    return {**base, "list": items}
 
 
 def _system_vals(members: dict) -> dict:

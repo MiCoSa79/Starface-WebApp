@@ -76,11 +76,7 @@ def fake_status():
                               "current": False, "installed": True, "source": "own"},
                              {"name": "TelefonieMonitoring", "version_ist": "9", "version_soll": "9",
                               "current": True, "installed": True, "source": "own"},
-                         ],
-                                      # Rohdaten: ALLES installierte laut Anlage — inkl. Modul
-                                      # OHNE hinterlegtes Paket (Axel: nie unsichtbar, Soll="—")
-                                      "raw_installed": {"CallBlocker": 30, "Deployment-Modul": 7,
-                                                        "TelefonieMonitoring": 9, "Fremdmodul X": 4}}},
+                         ]}},
             "Anlage B": {"systemName": "pbx-b", "systemVersion": "10.0.1.9", "points": 90,
                          "ts": 1725000000,
                          "provider_summary": {"has_data": True, "all_ok": False, "count": 3,
@@ -91,8 +87,7 @@ def fake_status():
                               "current": False, "installed": True, "source": "own"},
                              {"name": "ThirdPartyConnector", "version_ist": "2", "version_soll": "3",
                               "current": False, "installed": True, "source": "third"},
-                         ],
-                                      "raw_installed": {"CallBlocker": 29, "ThirdPartyConnector": 2}}},
+                         ]}},
             "Anlage C": {"systemName": "pbx-c", "systemVersion": "10.0.0.1", "points": 60,
                          "ts": 1724999900,
                          "provider_summary": {"has_data": True, "all_ok": False, "count": 4,
@@ -200,8 +195,8 @@ check("outdated ThirdPartyConnector 2 -> 3 (Anlage B)",
 check("CallBlocker aktuell (A: 30/30) NICHT als Update-Zeile — >30< nur einmal (B-Soll)",
       body.count(">30<") == 1, str(body.count(">30<")))
 check("Aktuelles TelefonieMonitoring NICHT in Liste", "TelefonieMonitoring" not in body)
-check("Fremdmodul X (installiert, KEIN Paket) sichtbar — Soll-Zelle '—' (Axel)",
-      'class="out-ist">4</td>' in body and 'class="out-soll">—</td>' in body)
+check("Nur bekannte Module: Fremdmodul X (ohne Paket) NICHT in Tabelle (Axel)",
+      "Fremdmodul X" not in body and 'class="out-ist">4</td>' not in body)
 check("Anlage C Modul-Status ausgefallen -> Hinweis statt 'alle aktuell' (Axel)",
       "Modul-Status nicht verfügbar" in body and "Monitoring-Modul nicht installiert oder eingerichtet" in body)
 check("Kein 'alle aktuell'-Haken im HTML, wenn Modul-Status fehlt/flagged",
@@ -220,11 +215,10 @@ check("API failed_trunks=3", js["failed_trunks"] == 3, str(js.get("failed_trunks
 check("API no_data=1", js["no_data"] == 1, str(js.get("no_data")))
 check("API items=3 (nur gepollte)", len(js["items"]) == 3, str(len(js.get("items", []))))
 by_name = {it["name"]: it for it in js["items"]}
-check("API outdated_total=4", js.get("outdated_total") == 4, str(js.get("outdated_total")))
-check("API Anlage A outdated=2 (Deployment-Modul + Fremdmodul X ohne Paket)",
+check("API outdated_total=3", js.get("outdated_total") == 3, str(js.get("outdated_total")))
+check("API Anlage A outdated=1 (nur bekanntes Deployment-Modul)",
       by_name.get("Anlage A", {}).get("outdated_modules") == [
-          {"name": "Deployment-Modul", "version_ist": "7", "version_soll": "8"},
-          {"name": "Fremdmodul X", "version_ist": 4, "version_soll": None}],
+          {"name": "Deployment-Modul", "version_ist": "7", "version_soll": "8"}],
       str(by_name.get("Anlage A", {}).get("outdated_modules")))
 check("API Anlage C modules_error durchgereicht",
       by_name.get("Anlage C", {}).get("modules_error", {}).get("category") == "module",

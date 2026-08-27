@@ -2504,22 +2504,14 @@ def _admin_monitoring_summary(mstatus: dict, id_by_name: dict) -> dict:
             continue  # noch nie erfolgreich gepollt -> keine Daten
         ps = vals.get("provider_summary") or {}
         off = len(ps.get("disconnected") or [])
-        # Nicht aktuelle Module: NUR installierte, aus dem Sammler-Cache (kein Poll) —
-        # gleiche Daten wie die Modul-Karte der Detail-Seite (Axel)
+        # Nicht aktuelle Module: NUR Module, die die WebApp kennt (eigene +
+        # Drittanbieter aus der Modul-Verwaltung) und die auf der Anlage
+        # installiert sind (Axel). Daten aus dem Sammler-Cache, kein Poll.
         mods = vals.get("modules") or {}
         outdated = sorted(
             (m for m in (mods.get("list") or [])
              if m.get("installed") and not m.get("current")),
             key=lambda m: (m.get("name") or "").lower())
-        # Module, die laut Anlage installiert sind, aber für die die WebApp KEIN
-        # Paket erwartet (kein .sfm): sofort sichtbar machen — version_soll "—" —
-        # damit veraltete Fremdmodule nie unsichtbar bleiben (Axel)
-        known = {m.get("name") for m in (mods.get("list") or [])}
-        unknown_installed = sorted(
-            ({"name": n, "version_ist": v, "version_soll": None}
-             for n, v in (mods.get("raw_installed") or {}).items()
-             if n not in known),
-            key=lambda m: (m["name"] or "").lower())
         items.append({
             "id": inst_id, "name": name,
             "provider_summary": ps,
@@ -2528,11 +2520,10 @@ def _admin_monitoring_summary(mstatus: dict, id_by_name: dict) -> dict:
             "system_version": vals.get("systemVersion", ""),
             "ts": vals.get("ts"),
             "modules_error": (vals.get("modules") or {}).get("error"),
-            "modules_list_empty": not (mods.get("list") or []) and not mods.get("error"),
             "outdated_modules": [{"name": m.get("name", ""),
                                   "version_ist": m.get("version_ist", ""),
                                   "version_soll": m.get("version_soll", "")}
-                                 for m in outdated] + unknown_installed,
+                                 for m in outdated],
         })
         if off > 0:
             failed_inst += 1
