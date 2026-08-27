@@ -76,7 +76,11 @@ def fake_status():
                               "current": False, "installed": True, "source": "own"},
                              {"name": "TelefonieMonitoring", "version_ist": "9", "version_soll": "9",
                               "current": True, "installed": True, "source": "own"},
-                         ]}},
+                         ],
+                                      # Rohdaten: ALLES installierte laut Anlage — inkl. Modul
+                                      # OHNE hinterlegtes Paket (Axel: nie unsichtbar, Soll="—")
+                                      "raw_installed": {"CallBlocker": 30, "Deployment-Modul": 7,
+                                                        "TelefonieMonitoring": 9, "Fremdmodul X": 4}}},
             "Anlage B": {"systemName": "pbx-b", "systemVersion": "10.0.1.9", "points": 90,
                          "ts": 1725000000,
                          "provider_summary": {"has_data": True, "all_ok": False, "count": 3,
@@ -87,13 +91,18 @@ def fake_status():
                               "current": False, "installed": True, "source": "own"},
                              {"name": "ThirdPartyConnector", "version_ist": "2", "version_soll": "3",
                               "current": False, "installed": True, "source": "third"},
-                         ]}},
+                         ],
+                                      "raw_installed": {"CallBlocker": 29, "ThirdPartyConnector": 2}}},
             "Anlage C": {"systemName": "pbx-c", "systemVersion": "10.0.0.1", "points": 60,
                          "ts": 1724999900,
                          "provider_summary": {"has_data": True, "all_ok": False, "count": 4,
                                               "connected": 2,
                                               "disconnected": ["T-Online (Unregistered)",
-                                                               "SIP-Partner (NotRegistered)"]}},
+                                                               "SIP-Partner (NotRegistered)"]},
+                         # Modul-Status ausgefallen → Hinweis-Zeile statt "alle aktuell" (Axel)
+                         "modules": {"error": {"category": "module",
+                                               "msg": "Monitoring-Modul nicht installiert oder eingerichtet"},
+                                     "list": None, "raw_installed": {}}},
         },
     }
 app_main.monitoring.status = fake_status
@@ -181,6 +190,8 @@ check("Grafana-Detail-Link Anlage B", f"/d/starface-anlage-detail/?var-installat
 check("Sektion 'Module, die nicht aktuell sind' NACH Fehlerliste",
       body.index("Anlagen mit Provider-Fehlern") < body.index("Module, die nicht aktuell sind"))
 check("out-rows-Tbody vorhanden", 'id="outdated-rows"' in body)
+check("Überschrift-Abstand symmetrisch: #outdated-title margin-top -4px (16-4=12px, Kiosk wie Normal)",
+      "#outdated-title { margin-top: -4px; }" in body)
 check("Gruppenzeile Anlage A (out-grp)", 'class="out-grp">Anlage A</td>' in body)
 check("outdated Deployment-Modul 7 -> 8 (Anlage A)",
       all(x in body for x in ("Deployment-Modul", ">7<", ">8<")))
@@ -189,6 +200,12 @@ check("outdated ThirdPartyConnector 2 -> 3 (Anlage B)",
 check("CallBlocker aktuell (A: 30/30) NICHT als Update-Zeile — >30< nur einmal (B-Soll)",
       body.count(">30<") == 1, str(body.count(">30<")))
 check("Aktuelles TelefonieMonitoring NICHT in Liste", "TelefonieMonitoring" not in body)
+check("Fremdmodul X (installiert, KEIN Paket) sichtbar — Soll-Zelle '—' (Axel)",
+      'class="out-ist">4</td>' in body and 'class="out-soll">—</td>' in body)
+check("Anlage C Modul-Status ausgefallen -> Hinweis statt 'alle aktuell' (Axel)",
+      "Modul-Status nicht verfügbar" in body and "Monitoring-Modul nicht installiert oder eingerichtet" in body)
+check("Kein 'alle aktuell'-Haken im HTML, wenn Modul-Status fehlt/flagged",
+      '<p class="okline">\n                        <svg' not in body)
 check("Ist-Version rot (out-ist)", "out-ist" in body and "color: #ff6b6b; font-weight: 600;" in body)
 check("JS-Renderer renderOutdated + Einbindung in Refresh",
       "function renderOutdated" in body and "renderOutdated(document.getElementById('outdated-rows'), s.items)" in body)
@@ -203,11 +220,15 @@ check("API failed_trunks=3", js["failed_trunks"] == 3, str(js.get("failed_trunks
 check("API no_data=1", js["no_data"] == 1, str(js.get("no_data")))
 check("API items=3 (nur gepollte)", len(js["items"]) == 3, str(len(js.get("items", []))))
 by_name = {it["name"]: it for it in js["items"]}
-check("API outdated_total=3", js.get("outdated_total") == 3, str(js.get("outdated_total")))
-check("API Anlage A outdated=1 (Deployment-Modul)",
+check("API outdated_total=4", js.get("outdated_total") == 4, str(js.get("outdated_total")))
+check("API Anlage A outdated=2 (Deployment-Modul + Fremdmodul X ohne Paket)",
       by_name.get("Anlage A", {}).get("outdated_modules") == [
-          {"name": "Deployment-Modul", "version_ist": "7", "version_soll": "8"}],
+          {"name": "Deployment-Modul", "version_ist": "7", "version_soll": "8"},
+          {"name": "Fremdmodul X", "version_ist": 4, "version_soll": None}],
       str(by_name.get("Anlage A", {}).get("outdated_modules")))
+check("API Anlage C modules_error durchgereicht",
+      by_name.get("Anlage C", {}).get("modules_error", {}).get("category") == "module",
+      str(by_name.get("Anlage C", {}).get("modules_error")))
 check("API Anlage B outdated=2 (nur alphabetisch sortiert)",
       [m["name"] for m in by_name.get("Anlage B", {}).get("outdated_modules", [])] ==
       ["CallBlocker", "ThirdPartyConnector"],
