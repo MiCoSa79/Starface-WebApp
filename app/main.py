@@ -2470,10 +2470,91 @@ async def monitoring_page(request: Request):
          "grafana_admin_uid": "starface-admin-uebersicht"})
 
 
+def _admin_monitoring_summary(mstatus: dict, id_by_name: dict) -> dict:
+    """Aggregiert die Admin-Monitoring-Kennzahlen (SIP-Trunk-/Provider-Status, F59).
+
+    Semantik:
+    - total:         alle eingerichteten Anlagen (installations-Tabelle)
+    - items:         je Anlage mit Sammler-Daten (letzter Poll): provider_summary
+                     (count/connected/disconnected), systemName/systemVersion, ts
+                     sowie modules_error (nur falls der Modul-Status fehlschlug)
+    - failed_inst:   Anlagen mit mind. einem nicht verbundenen SIP-Provider/Trunk
+                     (provider_summary.disconnected nicht leer)
+    - failed_trunks: Summe der nicht verbundenen Provider über alle Anlagen
+    - no_data:       Anlagen ohne Sammler-Daten (noch nie erfolgreich gepollt —
+                     Monitoring-Modul-Instanz nicht gesetzt oder Anlage weg)
+    """
+    total = len(id_by_name)
+    items, failed_inst, failed_trunks = [], 0, 0
+    for name, inst_id in id_by_name.items():
+        vals = (mstatus.get("installations") or {}).get(name) or {}
+        if not vals.get("ts"):
+            continue  # noch nie erfolgreich gepollt -> keine Daten
+        ps = vals.get("provider_summary") or {}
+        off = len(ps.get("disconnected") or [])
+        items.append({
+            "id": inst_id, "name": name,
+            "provider_summary": ps,
+            "disconnected_count": off,
+            "system_name": vals.get("systemName", ""),
+            "system_version": vals.get("systemVersion", ""),
+            "ts": vals.get("ts"),
+            "modules_error": (vals.get("modules") or {}).get("error"),
+        })
+        if off > 0:
+            failed_inst += 1
+            failed_trunks += off
+    return {
+        "total": total,
+        "failed_inst": failed_inst,
+        "failed_trunks": failed_trunks,
+        "no_data": total - len(items),
+        "items": items,
+        "running": mstatus.get("running"),
+        "last_run": mstatus.get("last_run"),
+        "last_error": mstatus.get("last_error"),
+        "influx_configured": mstatus.get("influx_configured"),
+    }
+
+
 @app.get("/admin/monitoring", response_class=HTMLResponse)
-async def admin_monitoring(request: Request):
-    """Kompatibilitäts-Redirect auf /monitoring (seit v0.0.120 für alle eingeloggten User)."""
-    return RedirectResponse("/monitoring")
+async def admin_monitoring_page(request: Request):
+    """Admin-Monitoring-Übersicht (F59): 3 Kennzahlen (Anlagen gesamt, Anlagen mit
+    Provider-Fehlern, fehlerhafte SIP-Trunks/Provider) + Fehlerliste; Auto-Refresh 15 s.
+
+    Seit v1.0.18 eigenständige Admin-Seite (vorher Redirect auf /monitoring, v0.0.120).
+    Grafana bleibt parallel erreichbar (Button auf der Seite)."""
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user or not user["is_admin"]:
+        return RedirectResponse("/dashboard")
+
+    conn = _db()
+    inst_rows = conn.execute("SELECT id, name FROM installations ORDER BY name").fetchall()
+    conn.close()
+    id_by_name = {r["name"]: r["id"] for r in inst_rows}
+
+    return TEMPLATES.TemplateResponse("admin_monitoring.html",
+        {"request": request, "user": user, "active": "admin",
+         "summary": _admin_monitoring_summary(monitoring.status(), id_by_name),
+         "grafana_base": _grafana_base(),
+         "grafana_uid": "starface-anlage-detail",
+         "grafana_admin_uid": "starface-admin-uebersicht",
+         "version": os.environ.get("APP_VERSION", "dev")})
+
+
+@app.get("/api/monitoring/admin")
+async def api_monitoring_admin(request: Request):
+    """Admin-Monitoring-Kennzahlen (identisch zur Seite) — JSON für den 15-s-Refresh.
+    Nur Admins (Basis der Seite); 401 ohne Admin-Rechte."""
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user or not user["is_admin"]:
+        return JSONResponse({"ok": False, "message": "Nicht autorisiert"}, status_code=401)
+
+    conn = _db()
+    inst_rows = conn.execute("SELECT id, name FROM installations ORDER BY name").fetchall()
+    conn.close()
+    id_by_name = {r["name"]: r["id"] for r in inst_rows}
+    return JSONResponse(_admin_monitoring_summary(monitoring.status(), id_by_name))
 
 
 @app.get("/api/monitoring/status")

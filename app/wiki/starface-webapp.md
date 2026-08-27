@@ -1,7 +1,7 @@
 ---
 title: STARFACE WebApp — Gesamtdokumentation & Versionshistorie
 description: Die WebApp selbst: Architektur, Betrieb, Routen, Konventionen und die vollständige Versionshistorie (v0.0.1–v0.0.198, aus Git-Tags).
-updated: 2026-08-28
+updated: 2026-08-27
 ---
 
 # STARFACE WebApp
@@ -33,7 +33,7 @@ Modul-Updates (Deployment-Modul). Repo `MiCoSa79/Starface-WebApp`, Image
 | Bereich | Routen |
 |---|---|
 | Dashboard/Login | `/`, `/dashboard`, `/api/login`, `/api/2fa/verify`, `/password`, `/logout`, `/oauth/callback` |
-| Monitoring | `/monitoring`, `/api/monitoring/status`, `/admin/monitoring`, `/health`, `/version` |
+| Monitoring | `/monitoring`, `/api/monitoring/status`, `/admin/monitoring` (Admin-Seite F59, mit `/api/monitoring/admin`), `/health`, `/version` |
 | Anlagen | `/admin/installations` (+ `/…/{id}`, `/edit`, `/delete`, `/test-conn`, `/oauth-start`) |
 | Modul-Updates | `/admin/updates` (+ `/push`, `/push-all`, `/ping`), Anlagen-RPC `[Instanz].UpdateFromUrl` |
 | Modul-Verwaltung | `/admin/modules` (+ `/…/{id}/download`) |
@@ -48,6 +48,8 @@ Modul-Updates (Deployment-Modul). Repo `MiCoSa79/Starface-WebApp`, Image
 **Stand 27.08. (F44, v0.0.198):** **Drittanbietermodule** — Admins können auf der Modul-Seite echte Drittanbieter-`.sfm`-Pakete hochladen (ZIP mit `module-descriptor.xml` → Name/Version/Vendor werden automatisch ausgelesen, keine Tippfehler). Neue Spalte `source` in der `modules`-Tabelle (`own`/`third_party`), Speicherung unter `<data>/modules` (persistentes Volume); Spiegel + `versions.json` inkludieren die Pakete, sodass sie über die **Update-Seite je Anlage mit dem Deployment-Modul eingespielt/aktualisiert** werden können (Badge „Drittanbieter“). Die **Monitoring-Karte** zeigt Drittanbietermodule nur, wenn sie auf der Anlage installiert sind UND in der WebApp hinterlegt wurden (Filter `filter_third_party_missing` — keine Fehlanzeigen für noch nicht verteilte Pakete). Modul-Seite: zwei Tabellen („Verfügbare Module — eigene“ / „Drittanbietermodule“) + Upload-/Löschen-Aktionen; Download aus `<data>/modules` (identische Sicherheitskette: Dateiname aus DB, keine Pfad-Traversal). Test: `tmp_tests/third_party_modules_test.py` (43 Checks) + Suite grün.
 
 **Stand 27.08. (F45, v0.0.200):** **Mehr Bildschirmbreite + stabile Aktions-Buttons** (Axel: „Nutze mehr von der Breite des Bildschirms“, Screenshot Modul-Updates: Buttons der Xml-Monitoring-Zeile rutschten untereinander). Die Seitenbreite ist **Inline-CSS je Template** (keine zentrale CSS-Datei): `.container { max-width: … }` war 900/960/1100/720 px je Seite → einheitlich **1400 px** (9 Templates: `admin_updates`, `modules`, `monitoring`, `admin`, `base`, `wiki`, `api_doku`, `dashboard`, `blocklist`); **Login (`password.html`) bleibt bewusst schmal (520 px)**. Aktions-Zellen der Modul-Tabellen: `td form { display:flex; gap:8px; flex-wrap:nowrap; white-space:nowrap }` → Buttons („Installation anstoßen“ + „Download-Test (Ping)“ u. a.) bleiben auf Desktop **immer nebeneinander**; nur ≤640 px (`@media`) wieder `wrap` (Mobile). Regressionstest: `tmp_tests/admin_layout_width_test.py` (**19 Checks**: 1400 px auf allen Inhaltsseiten, keine alten Schmalklassen, Login 520 px, nowrap/wrap-Regeln).
+
+**Stand 27.08. (F59, v1.0.18):** **Admin-Monitoring-Seite** — `/admin/monitoring` ist statt Redirect (v0.0.120) eine eigene Admin-Seite mit 3 Kennzahlen: **Anlagen eingerichtet**, **Anlagen mit Provider-Fehlern**, **fehlerhafte SIP-Trunks/Provider** — darunter die Liste der betroffenen Anlagen (fehlerhafte Trunks mit Status, Verbunden-Badge, Edit-/Grafana-Links). Auto-Refresh alle 15 s über die neue API `/api/monitoring/admin` (Admin-only). Semantik: Fehler = Provider-Status ≠ „Registered“ aus dem letzten GetStats-Poll (`provider_summary.disconnected`); Anlagen ohne erfolgreichen Poll erscheinen als „Anlagen ohne Monitoring-Daten“. Grafana läuft vorerst parallel weiter (Buttons auf der Seite und auf `/admin`). Tests: `tmp_tests/admin_monitoring_test.py` (33 Checks) + `monitoring_rechte_e2e.py` Punkt 5 angepasst (Seite statt Redirect).
 
 ## Wo stehen welche Details?
 
@@ -83,6 +85,7 @@ Quelle: `git for-each-ref refs/tags/v0.0.*` — Stichworte = Commit-Subject.
 
 | Version | Commit | Änderung |
 |---|---|---|
+| v1.0.18 | (27.08.) | feat(F59): **Admin-Monitoring-Seite** — `/admin/monitoring` statt Redirect: 3 Kennzahlen (Anlagen gesamt, Anlagen mit Provider-Fehlern, fehlerhafte SIP-Trunks/Provider) + Fehlerliste der betroffenen Anlagen; Auto-Refresh 15 s über neue API `/api/monitoring/admin` (Admin-only); Einstieg auf `/admin`; Grafana bleibt parallel; Semantik: Provider ≠ „Registered“ aus letzten Poll, Anlagen ohne Daten separat; Tests: `admin_monitoring_test.py` (33 Checks), `monitoring_rechte_e2e.py` angepasst. Hash folgt |
 | v1.0.17 | (27.08.) | fix(F58): ROOT CAUSE iOS „Registrierung fehlgeschlagen“ — `pkCredToJson()` nutzte `Object.entries(cred.response)`; WebIDL-Attribute (clientDataJSON, attestationObject, …) sind Prototype-Getter, die Safari/iOS NICHT als own enumerable Properties exponiert → leere response → Server sah leeres clientDataJSON (JSONDecodeError „Expecting value … char 0“ trotz Face-ID-OK). Fix: direkter Feldzugriff über explizite Feldliste in passkeys.html UND login.html (gleicher Bug lauerte im Login!); plus View-sicheres pkB64 auch in login.html; Server-Diagnose-Log (response-/credential-Keys) in beiden Verify-Endpoints. Hash folgt |
 | v1.0.16 | (27.08.) | fix(F58): pkB64-Enkodierung berücksichtigt View-Offsets — Safari/iOS liefert WebAuthn-Response-Felder teils als Uint8Array-Views (byteOffset>0); vorher wurde der ganze Puffer (inkl. Vorlauf) enkodiert → kaputtes attestationObject → „Registrierung fehlgeschlagen“ bei iOS trotz Face-ID-OK. Hash folgt |
 | v1.0.15 | (27.08.) | fix(F58): `register/verify` loggt jetzt ValueError + IntegrityError per `logger.exception` — iOS-Registrierung: Face-ID-OK, aber „Registrierung fehlgeschlagen“ (Server-400) → Grund künftig direkt im Container-Log statt stillem 400. Hash folgt |

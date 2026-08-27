@@ -1,0 +1,313 @@
+{% extends "base.html" %}
+{% block title %}STARFACE WebApp — Admin-Monitoring{% endblock %}
+{% block styles %}
+<style>
+        .sr-only { position:absolute; width:1px; height:1px; margin:-1px; padding:0; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+               background: #1a1a2e; color: #e0e0e0; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 24px;
+                     padding-bottom: 60px; }
+        h2 { font-size: 18px; margin: 24px 0 12px; color: #e94560; }
+        h2:first-child { margin-top: 0; }
+        .card { background: #16213e; border-radius: 12px; padding: 20px; margin-bottom: 16px;
+                border: 1px solid #333; }
+        .badge { display: inline-block; background: #e94560; color: #fff;
+                 padding: 2px 8px; border-radius: 4px; font-size: 11px; }
+        .badge-green { background: #2d6a4f; }
+        .badge-red { background: #8b0000; }
+        .badge-gray { background: #333; }
+        .btn-secondary { padding: 8px 14px; border-radius: 6px; text-decoration: none;
+                         background: #333; color: #ccc; font-size: 13px;
+                         display: inline-flex; align-items: center; gap: 6px; }
+        .btn-secondary:hover { background: #0f3460; color: #fff; }
+        .errbox { background: #3d1a1a; border: 1px solid #8b0000; color: #ffb3b3;
+                  padding: 10px 14px; border-radius: 8px; font-size: 13px;
+                  white-space: pre-wrap; margin-top: 12px; }
+        .codes { font-family: monospace; word-break: break-all; }
+
+        /* ── KPI-Karten ── */
+        .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+                gap: 16px; margin-bottom: 16px; }
+        .kpi { margin: 0; padding: 22px 24px; display: flex; flex-direction: column;
+               gap: 4px; transition: border-color .2s ease; }
+        .kpi .kpi-top { display: flex; align-items: center; justify-content: space-between; }
+        .kpi-label { color: #888; font-size: 12px; text-transform: uppercase;
+                     letter-spacing: .06em; }
+        .kpi-value { font-size: 44px; font-weight: 700; line-height: 1.1; color: #e0e0e0; }
+        .kpi-value.ok { color: #95d5b2; }
+        .kpi-value.err { color: #ff6b6b; }
+        .kpi-sub { color: #666; font-size: 12px; }
+        .kpi-icon { width: 34px; height: 34px; border-radius: 8px; display: flex;
+                    align-items: center; justify-content: center; flex-shrink: 0; }
+        .kpi-icon.neutral { background: #0f3460; color: #e94560; }
+        .kpi-icon.ok { background: rgba(45,106,79,.25); color: #95d5b2; }
+        .kpi-icon.err { background: rgba(139,0,0,.3); color: #ff6b6b; }
+        .kpi.ok { border-color: #2d6a4f; }
+        .kpi.err { border-color: #8b0000; }
+
+        /* ── Statuszeile ── */
+        .statline { display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center;
+                    color: #888; font-size: 13px; margin: 4px 0 8px; }
+        .statline b { color: #ccc; font-weight: 600; }
+
+        /* ── Fehlerliste ── */
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th, td { text-align: left; padding: 8px; border-bottom: 1px solid #2a2a4a; }
+        th { color: #888; font-weight: 600; }
+        .tbl-wrap { overflow-x: auto; }
+        .inst-link { color: #e94560; text-decoration: none; font-weight: 600; }
+        .inst-link:hover { text-decoration: underline; }
+        .trunk-line { display: inline-block; background: rgba(139,0,0,.35);
+                      border: 1px solid #8b0000; color: #ffb3b3; padding: 2px 8px;
+                      border-radius: 4px; font-size: 12px; margin: 2px 6px 2px 0; }
+        .okline { display: flex; align-items: center; gap: 10px; color: #95d5b2;
+                  font-size: 14px; margin: 0; }
+        .nodata { color: #8b93a7; font-size: 13px; margin: 10px 0 0; }
+        .grafana-dl { display:inline-flex; align-items:center; justify-content:center;
+                      width:34px; height:34px; border:1px solid rgba(255,255,255,.28);
+                      border-radius:7px; color:inherit; text-decoration:none; opacity:.7;
+                      transition: opacity .15s, border-color .15s, color .15s; }
+        .grafana-dl:hover, .grafana-dl:focus { opacity:1; border-color:#4ea1ff; color:#4ea1ff; }
+
+        @media (max-width: 640px) {
+            .container { padding: 16px 14px 60px; }
+            .kpis { grid-template-columns: 1fr; }
+            .btn-secondary { width: 100%; min-height: 44px; padding: 12px;
+                             justify-content: center; }
+            table { white-space: normal; }
+            .trunk-line { white-space: normal; }
+        }
+</style>
+{% endblock %}
+{% block content %}
+<div class="container">
+    <h2>Admin-Monitoring</h2>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px;">
+        <a href="/admin" class="btn-secondary" style="text-decoration:none;">← Zurück zum Admin</a>
+        <a href="{{ grafana_base }}/d/{{ grafana_admin_uid }}/?from=now-6h&to=now&kiosk=1&hideLogo" target="_blank" rel="noopener" class="btn-secondary" title="Grafana-Admin-Übersicht (Ausfälle aller Anlagen) öffnen — läuft vorerst parallel weiter">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>
+            Grafana Admin-Übersicht
+        </a>
+        <span style="color:#666;font-size:12px;margin-left:10px;">Seite aktualisiert sich alle 15 s</span>
+    </div>
+
+    <!-- KPI-Karten: 3 Kennzahlen -->
+    <div class="kpis">
+        <div class="card kpi" id="kpi-total-card">
+            <div class="kpi-top">
+                <span class="kpi-label">Anlagen eingerichtet</span>
+                <span class="kpi-icon neutral" aria-hidden="true">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="8" rx="2"/><rect x="2" y="13" width="20" height="8" rx="2"/><path d="M6 7h.01M6 17h.01"/></svg>
+                </span>
+            </div>
+            <div class="kpi-value" id="kpi-total">{{ summary.total }}</div>
+            <div class="kpi-sub" id="kpi-total-sub">in der WebApp eingerichtet</div>
+        </div>
+        <div class="card kpi {% if summary.failed_inst > 0 %}err{% else %}ok{% endif %}" id="kpi-inst-card">
+            <div class="kpi-top">
+                <span class="kpi-label">Anlagen mit Provider-Fehlern</span>
+                <span class="kpi-icon {% if summary.failed_inst > 0 %}err{% else %}ok{% endif %}" aria-hidden="true">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.7 3.86a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+                </span>
+            </div>
+            <div class="kpi-value {% if summary.failed_inst > 0 %}err{% else %}ok{% endif %}" id="kpi-failed-inst">{{ summary.failed_inst }}</div>
+            <div class="kpi-sub" id="kpi-inst-sub">von {{ summary.total }} Anlagen</div>
+        </div>
+        <div class="card kpi {% if summary.failed_trunks > 0 %}err{% else %}ok{% endif %}" id="kpi-trunk-card">
+            <div class="kpi-top">
+                <span class="kpi-label">Fehlerhafte SIP-Trunks/Provider</span>
+                <span class="kpi-icon {% if summary.failed_trunks > 0 %}err{% else %}ok{% endif %}" aria-hidden="true">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9a7 7 0 0 1 14 0"/><path d="M8 12a4 4 0 0 1 8 0"/><path d="M12 16c.5 0 1 .4 1 1s-.5 1-1 1-1-.4-1-1 .5-1 1-1z"/></svg>
+                </span>
+            </div>
+            <div class="kpi-value {% if summary.failed_trunks > 0 %}err{% else %}ok{% endif %}" id="kpi-failed-trunks">{{ summary.failed_trunks }}</div>
+            <div class="kpi-sub" id="kpi-trunk-sub">über alle Anlagen</div>
+        </div>
+    </div>
+
+    <!-- Sammler-Status (dezent) -->
+    <div class="statline">
+        <span>Sammler: <b id="sum-running">{% if summary.running %}<span class="badge badge-green">Läuft</span>{% else %}<span class="badge badge-red">Gestoppt</span>{% endif %}</b></span>
+        <span>Letzter Poll: <b id="sum-lastrun" data-ts="{{ summary.last_run or 0 }}">—</b></span>
+        <span>InfluxDB: <b id="sum-influx">{% if summary.influx_configured %}<span class="badge badge-green">konfiguriert</span>{% else %}<span class="badge badge-red">kein Token</span>{% endif %}</b></span>
+    </div>
+    {% if summary.last_error %}
+    <div id="err-slot"><div class="errbox">Letzter Fehler{% if summary.last_error.ts %} (<span data-ts="{{ summary.last_error.ts }}">—</span>){% endif %}: {{ summary.last_error.msg }}</div></div>
+    {% else %}
+    <div id="err-slot"></div>
+    {% endif %}
+
+    <!-- Fehlerliste -->
+    <h2>Anlagen mit Provider-Fehlern</h2>
+    <div class="card">
+        <div class="tbl-wrap">
+        <table>
+            <tr>
+                <th>Anlage</th>
+                <th>Fehlerhafte SIP-Trunks/Provider</th>
+                <th>Verbunden</th>
+                <th>Letzter Poll</th>
+                <th style="width:1%;"></th>
+            </tr>
+            <tbody id="fail-rows">
+            {% for it in summary["items"] if it.disconnected_count > 0 %}
+            <tr>
+                <td><a class="inst-link" href="/admin/installations/{{ it.id }}/edit" title="Anlage bearbeiten">{{ it.name }}</a></td>
+                <td>
+                    {% for d in it.provider_summary.disconnected %}
+                    <span class="trunk-line">{{ d }}</span>
+                    {% endfor %}
+                </td>
+                <td><span class="badge badge-red">{{ it.provider_summary.connected }} von {{ it.provider_summary.count }} verbunden</span></td>
+                <td data-ts="{{ it.ts or 0 }}">—</td>
+                <td style="white-space:nowrap;">
+                    <a class="grafana-dl" target="_blank" rel="noopener" title="Grafana-Dashboard {{ it.name }} öffnen"
+                       href="{{ grafana_base }}/d/{{ grafana_uid }}/?var-installation={{ it.name|urlencode }}&from=now-6h&to=now&kiosk=1&hideLogo">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 15.5l2.8-3.2 2.4 2.2L15.6 9"/><path d="M16.5 14.5h1.2"/></svg>
+                    </a>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="5" style="border:0;padding:0;">
+                    <p class="okline">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                        Alle Provider aller Anlagen verbunden — keine Fehler bei SIP-Trunks/Providern.
+                    </p>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+        <div id="no-data-line" class="nodata" {% if summary.no_data == 0 %}style="display:none;"{% endif %}>
+            {{ summary.no_data }} Anlage(n) ohne Monitoring-Daten — Monitoring-Modul-Instanz nicht gesetzt oder noch kein erfolgreicher Poll.
+        </div>
+    </div>
+</div>
+
+<script>
+    // Zeiten IMMER in Europe/Berlin anzeigen, Sommer-/Winterzeit automatisch
+    // (timeZone-Option) — unabhängig von der Zeitzone des Client-Geräts.
+    function fmtTs(ts) {
+        if (!ts || ts <= 0) return '—';
+        try { return new Date(ts * 1000).toLocaleString('de-DE', { timeZone: 'Europe/Berlin', dateStyle: 'short', timeStyle: 'medium' }); }
+        catch (e) { return ts; }
+    }
+    document.querySelectorAll('[data-ts]').forEach(function (el) {
+        el.textContent = fmtTs(el.dataset.ts ? parseFloat(el.dataset.ts) : 0);
+    });
+
+    // --- Auto-Refresh alle 15 s (Kennzahlen + Fehlerliste) ---
+    function setKpi(id, val, ok) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        el.textContent = val;
+        el.classList.remove('ok', 'err');
+        el.classList.add(ok ? 'ok' : 'err');
+    }
+    function setVal(el, txt) {
+        if (el) el.textContent = (txt === null || txt === undefined) ? '—' : txt;
+    }
+    function setBadgeText(el, txt, cls) {
+        if (!el) return;
+        el.textContent = '';
+        var b = document.createElement('span');
+        b.className = 'badge ' + cls;
+        b.textContent = txt;
+        el.appendChild(b);
+    }
+    function setKpiCard(cardId, ok) {
+        var card = document.getElementById(cardId);
+        if (!card) return;
+        card.classList.remove('ok', 'err');
+        card.classList.add(ok ? 'ok' : 'err');
+    }
+    function renderError(slot, le) {
+        if (!slot) return;
+        slot.textContent = '';
+        if (!le) return;
+        var msg = (le && le.msg !== undefined) ? le.msg : le;
+        var ts = (le && le.ts) ? parseFloat(le.ts) : 0;
+        var box = document.createElement('div');
+        box.className = 'errbox';
+        box.textContent = 'Letzter Fehler' + (ts > 0 ? ' (' + fmtTs(ts) + '): ' : ': ') + msg;
+        slot.appendChild(box);
+    }
+    function renderFails(tbody, items) {
+        if (!tbody) return;
+        tbody.textContent = '';
+        var fails = (items || []).filter(function (it) { return (it.disconnected_count || 0) > 0; });
+        if (fails.length === 0) {
+            var tr = document.createElement('tr');
+            var td = document.createElement('td');
+            td.colSpan = 5; td.style.border = '0'; td.style.padding = '0';
+            var p = document.createElement('p');
+            p.className = 'okline';
+            p.textContent = 'Alle Provider aller Anlagen verbunden — keine Fehler bei SIP-Trunks/Providern.';
+            td.appendChild(p); tr.appendChild(td); tbody.appendChild(tr);
+            return;
+        }
+        fails.forEach(function (it) {
+            var ps = it.provider_summary || {};
+            var tr = document.createElement('tr');
+            var tdName = document.createElement('td');
+            var a = document.createElement('a');
+            a.className = 'inst-link'; a.href = '/admin/installations/' + it.id + '/edit';
+            a.title = 'Anlage bearbeiten'; a.textContent = it.name;
+            tdName.appendChild(a);
+            var tdDis = document.createElement('td');
+            (ps.disconnected || []).forEach(function (d) {
+                var s = document.createElement('span');
+                s.className = 'trunk-line';
+                s.textContent = d;
+                tdDis.appendChild(s);
+            });
+            var tdC = document.createElement('td');
+            var b = document.createElement('span');
+            b.className = 'badge badge-red';
+            b.textContent = (ps.connected || 0) + ' von ' + (ps.count || 0) + ' verbunden';
+            tdC.appendChild(b);
+            var tdTs = document.createElement('td');
+            tdTs.textContent = fmtTs(it.ts || 0);
+            var tdAct = document.createElement('td');
+            tdAct.style.whiteSpace = 'nowrap';
+            var dl = document.createElement('a');
+            dl.className = 'grafana-dl'; dl.target = '_blank'; dl.rel = 'noopener';
+            dl.title = 'Grafana-Dashboard ' + it.name + ' öffnen';
+            dl.href = '{{ grafana_base }}/d/{{ grafana_uid }}/?var-installation=' + encodeURIComponent(it.name) + '&from=now-6h&to=now&kiosk=1&hideLogo';
+            dl.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 15.5l2.8-3.2 2.4 2.2L15.6 9"/><path d="M16.5 14.5h1.2"/></svg>';
+            tdAct.appendChild(dl);
+            tr.appendChild(tdName); tr.appendChild(tdDis); tr.appendChild(tdC);
+            tr.appendChild(tdTs); tr.appendChild(tdAct);
+            tbody.appendChild(tr);
+        });
+    }
+    function refreshAdminMonitoring() {
+        fetch('/api/monitoring/admin', { cache: 'no-store' })
+            .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+            .then(function (s) {
+                setKpi('kpi-total', s.total, true);
+                setKpi('kpi-failed-inst', s.failed_inst, s.failed_inst === 0);
+                setKpi('kpi-failed-trunks', s.failed_trunks, s.failed_trunks === 0);
+                setKpiCard('kpi-inst-card', s.failed_inst === 0);
+                setKpiCard('kpi-trunk-card', s.failed_trunks === 0);
+                setVal(document.getElementById('kpi-inst-sub'), 'von ' + s.total + ' Anlagen');
+                setBadgeText(document.getElementById('sum-running'), s.running ? 'Läuft' : 'Gestoppt', s.running ? 'badge-green' : 'badge-red');
+                setVal(document.getElementById('sum-lastrun'), fmtTs(s.last_run || 0));
+                setBadgeText(document.getElementById('sum-influx'), s.influx_configured ? 'konfiguriert' : 'kein Token', s.influx_configured ? 'badge-green' : 'badge-red');
+                renderError(document.getElementById('err-slot'), s.last_error);
+                renderFails(document.getElementById('fail-rows'), s.items);
+                var nd = document.getElementById('no-data-line');
+                if (nd) {
+                    nd.style.display = s.no_data > 0 ? '' : 'none';
+                    if (s.no_data > 0) nd.textContent = s.no_data + ' Anlage(n) ohne Monitoring-Daten — Monitoring-Modul-Instanz nicht gesetzt oder noch kein erfolgreicher Poll.';
+                }
+            })
+            .catch(function (e) { console.warn('Admin-Monitoring-Refresh fehlgeschlagen:', e); });
+    }
+    setInterval(refreshAdminMonitoring, 15000);
+    refreshAdminMonitoring(); // sofortiger erster Abgleich
+</script>
+{% endblock %}

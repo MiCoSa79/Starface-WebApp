@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""E2E-Test v0.0.120: /monitoring rechtebasiert (Admin alle, User nur can_read),
-Grafana-Link-Spalte je Anlage, /admin/monitoring-Redirect, API-Filter, Nav-Sichtbarkeit."""
+"""E2E-Test v0.0.120/v1.0.18: /monitoring rechtebasiert (Admin alle, User nur can_read),
+Grafana-Link-Spalte je Anlage, /admin/monitoring-Seite (F59, seit v1.0.18; davor Redirect),
+API-Filter, Nav-Sichtbarkeit."""
 import os, sys, sqlite3, tempfile
 
 sys.path.insert(0, "app")
@@ -105,12 +106,20 @@ assert "Lese-Rechte" in body, "Hinweis für User ohne Rechte fehlt"
 ok += 1
 print("4. Eve: keine Anlage, kein Link, Hinweis  OK")
 
-# 5) /admin/monitoring -> Redirect auf /monitoring
+# 5) /admin/monitoring ist seit v1.0.18 die Admin-Monitoring-Seite (F59):
+#    Admin -> 200 mit Kennzahlen; User (nicht Admin) -> Redirect /dashboard
 login("admin")
 r = c.get("/admin/monitoring")
-assert r.status_code in (302, 307) and r.headers.get("location", "").endswith("/monitoring"), (r.status_code, r.headers.get("location"))
+assert r.status_code == 200, r.status_code
+assert "Admin-Monitoring" in r.text and "Anlagen mit Provider-Fehlern" in r.text, \
+    "Admin-Monitoring-Kennzahlen fehlen"
 ok += 1
-print("5. /admin/monitoring -> /monitoring  OK")
+login("bob")
+r = c.get("/admin/monitoring")
+assert r.status_code in (302, 307) and r.headers.get("location", "").endswith("/dashboard"), \
+    (r.status_code, r.headers.get("location"))
+ok += 1
+print("5. /admin/monitoring: Admin 200 (Kennzahlen) / User -> /dashboard  OK")
 
 # 6) API gefiltert: Bob nur A, Admin beide, ohne Login 401
 login("bob")

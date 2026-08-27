@@ -12,7 +12,7 @@ updated: 2026-08-27
 
 **Kurzantwort:** Heute **nein** (Modul v8 = reines Modul-Update), aber **technisch machbar und produktiv belegt**: Das Fremdmodul Admin Power Pack (Fluxpunkt) triggert Server-Updates exakt über die unten stehende Bean-Kette (`EXECUTE_STARFACE_UPDATE`). Offiziell gibt es **keinen** externen Trigger-Weg (nur GUI: Admin → Server → Status → „Jetzt suchen“, Auto-Backup, 2 Installationswege, Neustart).
 
-## Befundlage (27.08., 3 parallele Recherchen — alle Belege in der Hermes-Entity [[deployment-modul-anlagen-update]]-Abschnitt Artefakte)
+## Befundlage (27.08., 3 parallele Recherchen — alle Belege in der Hermes-Wiki-Entity „deployment-modul-anlagen-update“, Abschnitt „Artefakte“)
 
 1. **Lokal (SDK 10.0.2.5 per javap):** Die komplette Update-Pipeline ist im SDK vorhanden und aus Modulcode ansteuerbar (Spring-Beans per `springApplicationContext().getBean(...)` — Muster vom Plattform-Baustein `CheckUpdateOption` bytecode-verifiziert). Es gibt **keinen** fertigen Designer-Baustein dafür; `CheckUpdateOption` (experimentell) prüft nur die Lizenz-Abdeckung einer Version, kein Trigger.
 2. **Web (21 Quellen):** REST-API ohne Update-Endpunkte (STARFACEGmbH/rest-examples, 47 Pfade); `update.starface.de`-Protokoll nichtöffentlich; offizielles Modul „Update Helper“ (früher UpdateTool) nur für Major-Upgrades (6.4→7, USB-Stick, 4-GB-Download, Neustart-Bestätigung per Telefon/UI). Foren-Recherche teils blockiert → Lücke markiert.
