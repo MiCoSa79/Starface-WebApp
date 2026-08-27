@@ -82,12 +82,27 @@
             return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
         }
         async function pkCredToJson(cred) {
+            // KEIN Object.entries(cred.response)! WebIDL-Attribute (clientDataJSON,
+            // attestationObject, ...) sind laut Spezifikation Prototype-Getter — Safari/iOS
+            // exponiert sie NICHT als own enumerable Properties. Object.entries() liefert
+            // dort [] → leere response → Server: "clientDataJSON" leer → Registrierung
+            // fehlgeschlagen (obwohl Face ID ok war). Direkter Feldzugriff ist safe.
+            const RN = ['clientDataJSON', 'attestationObject', 'authenticatorData', 'signature', 'userHandle'];
+            const r = cred.response || {};
             const resp = {};
-            for (const [k, v] of Object.entries(cred.response)) {
+            for (const k of RN) {
+                const v = r[k];
+                if (v === undefined || v === null) continue;
                 resp[k] = v instanceof ArrayBuffer ? await pkB64(v)
                     : (ArrayBuffer.isView(v) ? await pkB64(v.buffer, v.byteOffset, v.byteLength) : v);
             }
-            return { id: cred.id, rawId: await pkB64(cred.rawId), type: cred.type, response: resp };
+            const rawId = cred.rawId;
+            return {
+                id: cred.id,
+                rawId: rawId instanceof ArrayBuffer ? await pkB64(rawId)
+                    : (ArrayBuffer.isView(rawId) ? await pkB64(rawId.buffer, rawId.byteOffset, rawId.byteLength) : rawId),
+                type: cred.type, response: resp
+            };
         }
         function setMsg(text, isError) {
             const el = document.getElementById('pkMsg');

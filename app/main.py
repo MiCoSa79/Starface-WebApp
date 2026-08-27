@@ -985,6 +985,12 @@ async def passkey_login_verify(request: Request):
         body = await request.json()
         credential = body.get("credential") or {}
         response = credential.get("response") or {}
+        if not isinstance(response, dict) or not response.get("clientDataJSON"):
+            logger.warning(
+                "Passkey-Login: response ohne clientDataJSON — response-Keys: %s, credential-Keys: %s",
+                list(response.keys()) if isinstance(response, dict) else type(response).__name__,
+                list(credential.keys()),
+            )
     except Exception:
         return JSONResponse({"status": "error", "message": "Ungültige Anfrage."}, status_code=400)
 
@@ -1088,6 +1094,12 @@ async def passkey_register_verify(request: Request):
         body = await request.json()
         credential = body.get("credential") or {}
         response = credential.get("response") or {}
+        if not isinstance(response, dict) or not response.get("clientDataJSON"):
+            logger.warning(
+                "Passkey-Registrierung: response ohne clientDataJSON — response-Keys: %s, credential-Keys: %s",
+                list(response.keys()) if isinstance(response, dict) else type(response).__name__,
+                list(credential.keys()),
+            )
         device_name = (body.get("device_name") or "Unbenanntes Gerät").strip()[:60]
         challenge = json.loads(_b64u_decode(str(response.get("clientDataJSON", ""))))["challenge"]
         pend = PENDING_PASSKEY.get(challenge)

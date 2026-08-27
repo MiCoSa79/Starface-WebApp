@@ -88,8 +88,12 @@
 const __pkEnabled = {{ 'true' if passkey_enabled else 'false' }};
 const __pkPassword = {{ 'true' if password_login_enabled else 'false' }};
 
-async function pkB64(buf) {
-    const bytes = new Uint8Array(buf);
+async function pkB64(buf, byteOffset = 0, byteLength) {
+    // View-sicher: Safari/iOS liefert WebAuthn-Felder teils als Uint8Array-VIEWS
+    // (byteOffset>0) über größeren Puffer — ohne Offset/Länge enkodiert man Vorlauf-Bytes.
+    const bytes = byteLength !== undefined
+        ? new Uint8Array(buf, byteOffset, byteLength)
+        : new Uint8Array(buf);
     let bin = '';
     for (const b of bytes) bin += String.fromCharCode(b);
     return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -109,12 +113,25 @@ async function pkOptions() {
     return j;
 }
 async function pkCredToJson(cred) {
+    // KEIN Object.entries(cred.response)! WebIDL-Attribute sind Prototype-Getter —
+    // Safari/iOS exponiert sie nicht als own enumerable Properties → Object.entries
+    // liefert [] → leere response → Server: clientDataJSON leer → Fehler bei Login.
+    const RN = ['clientDataJSON', 'attestationObject', 'authenticatorData', 'signature', 'userHandle'];
+    const r = cred.response || {};
     const resp = {};
-    for (const [k, v] of Object.entries(cred.response)) {
+    for (const k of RN) {
+        const v = r[k];
+        if (v === undefined || v === null) continue;
         resp[k] = v instanceof ArrayBuffer ? await pkB64(v)
-            : (ArrayBuffer.isView(v) ? await pkB64(v.buffer) : v);
+            : (ArrayBuffer.isView(v) ? await pkB64(v.buffer, v.byteOffset, v.byteLength) : v);
     }
-    return { id: cred.id, rawId: await pkB64(cred.rawId), type: cred.type, response: resp };
+    const rawId = cred.rawId;
+    return {
+        id: cred.id,
+        rawId: rawId instanceof ArrayBuffer ? await pkB64(rawId)
+            : (ArrayBuffer.isView(rawId) ? await pkB64(rawId.buffer, rawId.byteOffset, rawId.byteLength) : rawId),
+        type: cred.type, response: resp
+    };
 }
 async function pkVerifyAndRedirect(payload) {
     const r = await fetch('/api/passkey/login/verify', {
