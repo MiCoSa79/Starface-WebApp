@@ -2,7 +2,7 @@ version: '3'
 
 services:
   starface-webapp:
-    image: micosa79/starface-webapp:latest
+    image: micosa79/starface-webapp:nightly
     build: .
     restart: always
     ports:
