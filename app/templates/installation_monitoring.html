@@ -89,6 +89,15 @@
         body.kiosk .kiosk-banner { display: block; }
         .kiosk-name { font-size: 24px; font-weight: 700; color: #e94560; line-height: 1.25; }
         .kiosk-url { font-size: 14px; color: #8ab4f8; word-break: break-all; margin-top: 2px; }
+        /* Modul-Tabelle: Ist vs. aktuellste Version (Axel) */
+        .mod-tbl { width: 100%; border-collapse: collapse; }
+        .mod-tbl th, .mod-tbl td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #2a2f35; }
+        .mod-tbl th { color: #8ab4f8; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .4px; }
+        .mod-tbl .version-soll { color: #9e9e9e; }
+        .mod-outdated .version-ist { color: #ff6b6b; font-weight: 600; }
+        .mod-badge { display: inline-block; margin-left: 8px; padding: 1px 7px; border-radius: 10px; background: rgba(255, 107, 107, .15); color: #ff6b6b; font-size: 11px; font-weight: 600; vertical-align: middle; }
+        .mod-hint { color: #8a9aa8; font-size: 14px; }
+        .mod-note { font-size: 12px; color: #8a9aa8; margin-top: 8px; }
         .legend .dashline { display: inline-block; width: 14px; height: 0; border-top: 2px dashed #ff6b6b; vertical-align: middle; margin-right: 5px; }
         /* Kiosk-Refresh-Countdown in der Sammler-Zeile (Muster v1.0.24/25) */
         .kiosk-countdown { display: none; }
@@ -210,6 +219,25 @@
                 </span>
             </div>
             <div class="chart" id="chart-mem-total"><p class="chart-empty">Lade Verlaufsdaten…</p></div>
+        </div>
+
+        <!-- Module: Ist-Version vs. aktuellste Version — NUR installierte (Axel) -->
+        <div class="card" id="card-inst-modules">
+            <h3>Installierte Module</h3>
+            <table class="mod-tbl" id="mod-tbl"{% if not modules %} style="display:none"{% endif %}>
+                <thead><tr><th>Modul</th><th>Ist-Version</th><th>Aktuellste Version</th></tr></thead>
+                <tbody id="mod-rows">
+                {% for m in modules or [] %}
+                    <tr class="mod-{{ 'ok' if m.current else 'outdated' }}">
+                        <td>{{ m.name }}</td>
+                        <td class="version-ist">{{ m.version_ist }}{% if not m.current %}<span class="mod-badge">Update verfügbar</span>{% endif %}</td>
+                        <td class="version-soll">{{ m.version_soll }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            <div class="mod-hint" id="mod-hint"{% if modules %} style="display:none"{% endif %}>Keine Modul-Daten verfügbar — bitte die Monitoring-Instanz der Anlage prüfen (Einstellungen → Anlagen → Bearbeiten).</div>
+            <p class="mod-note">Aktualisiert beim Seitenaufruf und danach alle 5 Minuten (der 10-s-Refresh fragt die Anlage nicht erneut).</p>
         </div>
     </div>
 
@@ -528,6 +556,40 @@
     function fsWake() { if (document.body.classList.contains('kiosk')) fsShow(); }
     document.addEventListener('mousemove', fsWake);
     document.addEventListener('touchstart', fsWake);
+    // Modul-Tabelle alle 5 Minuten aktualisieren (Anlage NICHT alle 10 s anfragen).
+    // Toggle Tabelle/Hinweis; bei Fehler alte Anzeige behalten.
+    function refreshModules() {
+        fetch('/api/monitoring/modules/' + INST_ID, { headers: { 'Accept': 'application/json' } })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            var tbl = document.getElementById('mod-tbl');
+            var hint = document.getElementById('mod-hint');
+            var tbody = document.getElementById('mod-rows');
+            var has = data && data.ok && data.modules && data.modules.length;
+            if (!has) { if (tbl) tbl.style.display = 'none'; if (hint) hint.style.display = ''; return; }
+            if (tbody) {
+                tbody.innerHTML = '';
+                data.modules.forEach(function (m) {
+                    var tr = document.createElement('tr');
+                    tr.className = 'mod-' + (m.current ? 'ok' : 'outdated');
+                    var tdN = document.createElement('td'); tdN.textContent = m.name || '';
+                    var tdI = document.createElement('td'); tdI.className = 'version-ist';
+                    tdI.textContent = (m.version_ist !== undefined && m.version_ist !== null) ? m.version_ist : '—';
+                    if (!m.current) {
+                        var b = document.createElement('span'); b.className = 'mod-badge';
+                        b.textContent = 'Update verfügbar'; tdI.appendChild(b);
+                    }
+                    var tdS = document.createElement('td'); tdS.className = 'version-soll';
+                    tdS.textContent = m.version_soll !== undefined ? m.version_soll : '—';
+                    tr.appendChild(tdN); tr.appendChild(tdI); tr.appendChild(tdS);
+                    tbody.appendChild(tr);
+                });
+            }
+            if (tbl) tbl.style.display = '';
+            if (hint) hint.style.display = 'none';
+        }).catch(function () { /* alte Anzeige behalten */ });
+    }
+    setInterval(refreshModules, 300000);
     document.addEventListener('keydown', function (e) {
         if (e.key === 'Escape' && document.body.classList.contains('kiosk')) exitDetailFs();
     });

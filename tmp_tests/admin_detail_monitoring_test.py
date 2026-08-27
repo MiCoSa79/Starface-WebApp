@@ -10,6 +10,7 @@
 - Auto-Refresh 10-s-Takt mit Countdown + Kiosk-Modus (Muster Admin-Monitoring)
 - Einstieg: neue Detail-Spalte auf /monitoring (id_by_name in Route-Kontext)
 """
+from pathlib import Path
 import os, sys, sqlite3, tempfile
 from urllib.parse import urlparse
 
@@ -118,6 +119,9 @@ app_main.monitoring.query_system_history = fake_history
 
 c = TestClient(app_main.app)
 c.follow_redirects = False  # Starlette 0.27: hartkodiert True
+TEMPLATE_SRC = (Path(__file__).resolve().parent.parent / "app" / "templates"
+                / "installation_monitoring.html").read_text(encoding="utf-8")
+tsrc = TEMPLATE_SRC
 
 fails = 0
 checks = 0
@@ -175,6 +179,22 @@ check("90-%-Vermerk in Legende statt im Graph (Axel)", all(x in body for x in ("
 check("kein 90-%-Text mehr im SVG-Graph", "ttxt.textContent = opts.thresholdLabel" not in body)
 check("Kiosk-Banner: Anlagen-Name + URL zentriert (Axel)", all(x in body for x in ('id="kiosk-name"', 'id="kiosk-url"', "kiosk-banner", "body.kiosk .kiosk-banner { display: block; }")))
 check("Kiosk-Name in Rot wie Überschriften (Axel)", '.kiosk-name { font-size: 24px; font-weight: 700; color: #e94560;' in body)
+check("Modul-Tabelle unten (Axel): Karte + Spalten im Template", all(x in tsrc for x in (
+    'id="card-inst-modules"', '>Ist-Version</th>', '>Aktuellste Version</th>',
+    'id="mod-tbl"', 'id="mod-rows"', 'id="mod-hint"', 'mod-badge')))
+check("Modul-Karte rendert (Hinweis-Fall im E2E)", 'id="card-inst-modules"' in body and 'id="mod-hint"' in body and 'id="mod-rows"' in body)
+check("Modul-Refresh alle 5 min, nicht alle 10 s (Axel)", all(x in body for x in ('refreshModules', 'setInterval(refreshModules, 300000)', '/api/monitoring/modules/')))
+
+# --- API /api/monitoring/modules/{id}: Rechte + Struktur ---
+login("admin")
+rm = c.get(f"/api/monitoring/modules/{a_id}")
+rj = {}
+try: rj = rm.json()
+except Exception: pass
+check("API Modul-Liste 200 + ok:true + modules-Key", rm.status_code == 200 and rj.get("ok") is True and "modules" in rj)
+login("bob")
+rb = c.get(f"/api/monitoring/modules/{b_id}")
+check("API Modul-Liste: bob ohne Recht auf B → 403", rb.status_code == 403)
 check("Ueberschrift Letzte Stunde", "Letzte Stunde" in body)
 check("INITIAL-JSON (Server-Render)", "var INITIAL" in body and '"name": "Anlage A"' in body)
 check("INITIAL Systemwerte (load1)", '"load1": 0.42' in body)

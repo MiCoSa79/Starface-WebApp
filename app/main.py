@@ -2604,7 +2604,7 @@ async def installation_monitoring_page(request: Request, installation_id: int):
         return RedirectResponse("/")
 
     conn = _db()
-    inst = conn.execute("SELECT id, name, url FROM installations WHERE id = ?",
+    inst = conn.execute("SELECT id, name, url, monitoring_instance_name FROM installations WHERE id = ?",
                         (installation_id,)).fetchone()
     inst_rows = conn.execute("SELECT id, name FROM installations ORDER BY name").fetchall()
     conn.close()
@@ -2627,7 +2627,52 @@ async def installation_monitoring_page(request: Request, installation_id: int):
         "visible": visible,
         "show_dropdown": len(visible) > 1,
         "initial": _installation_detail_payload(inst["name"]),
+        "modules": _installed_modules(inst),
         "version": os.environ.get("APP_VERSION", "dev")})
+
+
+def _installed_modules(inst) -> list | None:
+    """Installierte Module einer Anlage (Ist) gegen SOLL (app/modules/*.sfm).
+
+    Liefert NUR installierte Module (Axel: „Nicht installierte Module nicht
+    anzeigen“). Fehlertolerant: bei RPC/Token-Fehlern None (Template zeigt
+    Hinweis statt Tabelle) — die Detail-Seite darf nie deswegen brechen.
+    """
+    if not inst or not inst["monitoring_instance_name"]:
+        return None
+    try:
+        from monitoring import _collect_module_status
+        st = _collect_module_status(inst, _get_token(inst), inst["name"])
+        mods = [m for m in (st.get("list") or []) if m.get("installed")]
+        mods.sort(key=lambda m: (m["name"] or "").lower())
+        return mods
+    except Exception as e:
+        logger.warning("Modul-Status für Anlage %s fehlgeschlagen: %s",
+                       inst["name"] if inst else "?", e)
+        return None
+
+
+@app.get("/api/monitoring/modules/{installation_id}")
+async def api_monitoring_modules(request: Request, installation_id: int):
+    """Modul-Ist-Liste einer Anlage — für den 5-Minuten-Refresh der Detail-Seite.
+
+    Rechte wie die Detail-Seite (Admin oder can_read); liefert nur installierte
+    Module ({ok, modules}) bzw. modules=null bei Fehler/Konfig-Lücke.
+    """
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user:
+        return JSONResponse({"ok": False, "message": "Nicht autorisiert"}, status_code=401)
+    conn = _db()
+    inst = conn.execute(
+        "SELECT id, name, url, monitoring_instance_name FROM installations WHERE id = ?",
+        (installation_id,)).fetchone()
+    conn.close()
+    if not inst:
+        return JSONResponse({"ok": False, "message": "Anlage nicht gefunden"}, status_code=404)
+    acc = get_access(user["user_id"], installation_id)
+    if not acc["can_read"] and not acc["is_admin"]:
+        return JSONResponse({"ok": False, "message": "Keine Leseberechtigung"}, status_code=403)
+    return JSONResponse({"ok": True, "modules": _installed_modules(inst)})
 
 
 @app.get("/api/monitoring/detail/{installation_id}")
