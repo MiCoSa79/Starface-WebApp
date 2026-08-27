@@ -63,6 +63,11 @@ Modul-Updates (Deployment-Modul). Repo `MiCoSa79/Starface-WebApp`, Image
 - **Axel:** Die WebApp-Seite wird zunehmend unübersichtlich → **Redesign erforderlich**.
 - Weitere Infos folgen; bis dahin kein Umbau, keine Layout-/Stack-Entscheidung (Hermes-Wiki log.md F35).
 
+## Roadmap / Geplante Features (27.08. — Axel)
+
+1. **Tenant-Verwaltung** — Mandanten/Organisationen in der WebApp; Verwaltung ausschließlich durch eine **Super-Admin**-Rolle (Hinweis Axel).
+2. **Lizenzverwaltung für Module** — Lizenzen **tenant-basiert** (je Mandant je Modul) **und** für die STARFACE-WebApp selbst (**Super-Admins**).
+
 ## Versionshistorie (vollständig, aus Git-Tags)
 
 Quelle: `git for-each-ref refs/tags/v0.0.*` — Stichworte = Commit-Subject.
