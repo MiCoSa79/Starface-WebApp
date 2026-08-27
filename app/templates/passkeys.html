@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Passkeys — {{ u.username }}</title>
+    <style>
+        :root { --bg: #141417; --card: #1b1b1f; --border: #333; --text: #e8e8e8; --muted: #999; --accent: #8ab4f8; }
+        * { box-sizing: border-box; }
+        body { margin: 0; font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); }
+        .container { max-width: 720px; margin: 0 auto; padding: 24px 16px; }
+        .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-top: 16px; }
+        h1 { font-size: 20px; margin: 0 0 4px; }
+        h2 { font-size: 15px; margin: 0 0 12px; color: var(--muted); font-weight: 500; }
+        table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+        th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--border); font-size: 14px; }
+        th { color: var(--muted); font-weight: 500; }
+        .btn { background: #333; color: #fff; border: 1px solid #555; border-radius: 8px; padding: 10px 14px; cursor: pointer; font-size: 14px; }
+        .btn:hover { background: #3d3d44; }
+        .btn-danger { background: #4a1f1f; border-color: #7a3030; }
+        .back { color: var(--accent); text-decoration: none; font-size: 14px; }
+        .hint { color: var(--muted); font-size: 13px; margin-top: 12px; }
+        .error { color: #ff8080; font-size: 13px; margin-top: 10px; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a class="back" href="/admin/users">← Zurück zur Benutzerverwaltung</a>
+        <div class="card">
+            <h1>🔑 Passkeys — {{ u.username }}</h1>
+            <h2>Mit Passkeys melden Sie sich passwortlos an (Windows Hello, Face ID, Fingerabdruck oder Sicherheitsschlüssel).</h2>
+            <button type="button" class="btn" id="addPasskeyBtn">➕ Passkey hinzufügen</button>
+            <p class="error hidden" id="pkMsg"></p>
+
+            <table>
+                <thead>
+                    <tr><th>Gerät</th><th>Registriert</th><th>Zuletzt genutzt</th><th></th></tr>
+                </thead>
+                <tbody>
+                    {% for pk in passkeys %}
+                    <tr>
+                        <td>{{ pk.device_name or 'Unbenannt' }}</td>
+                        <td>{{ pk.created_at }}</td>
+                        <td>{{ pk.last_used_at or '—' }}</td>
+                        <td style="text-align:right;">
+                            <button type="button" class="btn btn-danger" onclick="deletePasskey({{ pk.id }})">Entfernen</button>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="4" style="color:var(--muted);">Noch keine Passkeys registriert.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <p class="hint">Passkeys funktionieren nur über HTTPS (Anmeldung über den SSL-Host, z. B. via Reverse-Proxy). Geräte hier zu entfernen widerruft sofort deren Anmeldung.</p>
+        </div>
+    </div>
+
+    <script>
+        async function pkB64(buf) {
+            const bytes = new Uint8Array(buf);
+            let bin = '';
+            for (const b of bytes) bin += String.fromCharCode(b);
+            return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        }
+        async function pkCredToJson(cred) {
+            const resp = {};
+            for (const [k, v] of Object.entries(cred.response)) {
+                resp[k] = v instanceof ArrayBuffer ? await pkB64(v)
+                    : (ArrayBuffer.isView(v) ? await pkB64(v.buffer) : v);
+            }
+            return { id: cred.id, rawId: await pkB64(cred.rawId), type: cred.type, response: resp };
+        }
+        function setMsg(text, isError) {
+            const el = document.getElementById('pkMsg');
+            el.textContent = text || '';
+            el.classList.toggle('hidden', !text);
+            el.classList.toggle('error', !!isError);
+        }
+        async function addPasskey() {
+            const deviceName = (prompt('Name für dieses Gerät (z. B. "Windows-PC"):') || '').trim() || 'Unbenannt';
+            const btn = document.getElementById('addPasskeyBtn');
+            btn.disabled = true; setMsg('', false);
+            try {
+                const r1 = await fetch('/api/passkey/register/options', { method: 'POST' });
+                const opts = await r1.json();
+                if (!r1.ok) throw new Error(opts.message || 'Passkeys sind nicht konfiguriert.');
+                const cred = await navigator.credentials.create({ publicKey: opts });
+                const payload = { credential: await pkCredToJson(cred), device_name: deviceName };
+                const r2 = await fetch('/api/passkey/register/verify', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const j = await r2.json();
+                if (!r2.ok || j.status !== 'ok') throw new Error(j.message || 'Registrierung fehlgeschlagen');
+                window.location.reload();
+            } catch (e) {
+                if (e && e.name === 'NotAllowedError') { setMsg('', false); return; }
+                setMsg((e && e.message) || 'Registrierung fehlgeschlagen', true);
+            } finally { btn.disabled = false; }
+        }
+        async function deletePasskey(id) {
+            if (!confirm('Diesen Passkey wirklich entfernen?')) return;
+            setMsg('', false);
+            const r = await fetch('/api/passkey/delete', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id })
+            });
+            const j = await r.json();
+            if (!r.ok || j.status !== 'ok') { setMsg(j.message || 'Löschen fehlgeschlagen', true); return; }
+            window.location.reload();
+        }
+        document.getElementById('addPasskeyBtn').addEventListener('click', addPasskey);
+    </script>
+</body>
+</html>

@@ -42,6 +42,26 @@ ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "")
 SESSION_COOKIE = "sf_webapp_session"
 SESSION_LIFETIME = 8 * 3600  # Sekunden
 
+# ── Passkeys / WebAuthn (F58) ─────────────────────────────────────────
+# Ohne WEBAUTHN_RP_ID + WEBAUTHN_ORIGIN bleibt die Passkey-Funktion
+# deaktiviert (Login-Seite blendet den Bereich aus, APIs liefern 503).
+WEBAUTHN_RP_ID = os.environ.get("WEBAUTHN_RP_ID", "").strip()
+WEBAUTHN_ORIGIN = os.environ.get("WEBAUTHN_ORIGIN", "").strip()
+WEBAUTHN_RP_NAME = os.environ.get("WEBAUTHN_RP_NAME", "STARFACE WebApp")
+# C-Schalter: WEBAUTHN_PASSWORDLOGIN=0 ⇒ nur noch Passkey-Login (Default: 1)
+PASSWORD_LOGIN_ENABLED = os.environ.get("WEBAUTHN_PASSWORDLOGIN", "1") != "0"
+PENDING_PASSKEY = {}          # challenge_b64 -> {"state", "user_id", "username", "expires"}
+PENDING_PASSKEY_TTL = 300     # 5 Minuten, single-use
+
+try:
+    import cbor2
+    from fido2.server import Fido2Server
+    from fido2.webauthn import (AttestedCredentialData,
+                                PublicKeyCredentialRpEntity, PublicKeyCredentialUserEntity)
+    FIDO2_OK = True
+except Exception:
+    FIDO2_OK = False
+
 TEMPLATES = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 # Version global für ALLE Templates (Footer in base.html) — Routen müssen sie nicht mehr selbst übergeben
 TEMPLATES.env.globals["version"] = os.environ.get("APP_VERSION", "dev")
@@ -119,6 +139,17 @@ def init_db():
             otp_secret TEXT,
             backup_codes TEXT,
             otp_confirmed INTEGER DEFAULT 0
+        );
+        CREATE TABLE IF NOT EXISTS passkeys (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            credential_id TEXT UNIQUE NOT NULL,
+            public_key TEXT NOT NULL,
+            sign_count INTEGER DEFAULT 0,
+            device_name TEXT,
+            transports TEXT,
+            created_at TEXT DEFAULT (datetime('now')),
+            last_used_at TEXT
         );
         CREATE TABLE IF NOT EXISTS installations (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -769,12 +800,24 @@ def _clean_pending():
 async def index(request: Request):
     if verify_session(request.cookies.get(SESSION_COOKIE)):
         return RedirectResponse("/dashboard")
-    return TEMPLATES.TemplateResponse("login.html", {"request": request})
+    return TEMPLATES.TemplateResponse("login.html", {
+        "request": request,
+        "passkey_enabled": bool(WEBAUTHN_RP_ID and WEBAUTHN_ORIGIN and FIDO2_OK),
+        "password_login_enabled": PASSWORD_LOGIN_ENABLED,
+    })
 
 
 @app.post("/api/login")
 async def login(username: str = Form(...), password: str = Form(...)):
     """Stufe 1: Benutzername + Passwort. Wenn TOTP aktiv → pending_token."""
+    if not PASSWORD_LOGIN_ENABLED:
+        if not _passkey_enabled():
+            return JSONResponse(
+                {"status": "error", "message": "Passwort-Login deaktiviert, aber Passkeys nicht konfiguriert (WEBAUTHN_RP_ID/WEBAUTHN_ORIGIN fehlen?)"},
+                status_code=503)
+        return JSONResponse(
+            {"status": "error", "message": "Passwort-Login ist deaktiviert — bitte mit Passkey anmelden."},
+            status_code=403)
     conn = _db()
     user = conn.execute(
         "SELECT id, username, is_admin, otp_secret, otp_confirmed, password_hash FROM users "
@@ -839,6 +882,283 @@ async def login_2fa_verify(pending_token: str = Form(...), code: str = Form(...)
     resp = JSONResponse({"status": "ok", "is_admin": bool(user["is_admin"])})
     resp.set_cookie(SESSION_COOKIE, sid, httponly=True, samesite="lax", max_age=SESSION_LIFETIME)
     return resp
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Passkeys / WebAuthn (F58)
+# Verifikation: fido2 2.2 (Yubico). Options-JSON baut die App selbst.
+# Besonderheiten: fido2 2.2 verifiziert ES256 direkt (RAW r||s wie vom
+# Browser — keine Transformation); Origin-Check + sign_count-Monotonie
+# sind Aufgabe der App.
+# ═══════════════════════════════════════════════════════════════════════
+import base64  # noqa: E402 — Sektion lokal (siehe try-Import oben)
+import json  # noqa: E402
+import logging  # noqa: E402
+logger = logging.getLogger("starface.webapp")
+
+
+def _b64u(b: bytes) -> str:
+    return base64.urlsafe_b64encode(b).rstrip(b"=").decode()
+
+
+def _b64u_decode(s: str) -> bytes:
+    return base64.urlsafe_b64decode(s + "=" * (-len(s) % 4))
+
+
+def _raw_to_der_b64(sig_b64u: str) -> str:
+    """WebAuthn-ES256 (RAW r||s) → DER, da fido2 2.2/OpenSSL die
+    Signatur unverändert an cryptography (DER-Format) übergibt."""
+    raw = _b64u_decode(sig_b64u)
+    if len(raw) != 64:
+        raise ValueError(f"ES256-Signatur muss 64 Bytes (r||s) sein, war: {len(raw)}")
+    from cryptography.hazmat.primitives.asymmetric import utils
+    r = int.from_bytes(raw[:32], "big")
+    s = int.from_bytes(raw[32:], "big")
+    return _b64u(utils.encode_dss_signature(r, s))
+
+
+def _passkey_enabled() -> bool:
+    return bool(WEBAUTHN_RP_ID and WEBAUTHN_ORIGIN and FIDO2_OK)
+
+
+def _fido2_server():
+    return Fido2Server(
+        PublicKeyCredentialRpEntity(id=WEBAUTHN_RP_ID, name=WEBAUTHN_RP_NAME),
+        attestation="none",
+        verify_origin=lambda origin: origin == WEBAUTHN_ORIGIN,
+    )
+
+
+def _clean_pending_passkey():
+    now = time.time()
+    for key in [k for k, v in PENDING_PASSKEY.items() if v["expires"] < now]:
+        PENDING_PASSKEY.pop(key, None)
+
+
+def _dss_signature_to_der(b64_raw: str) -> str:
+    """Raw r||s (Browser) → DER-encoded (fido2 2.2 erwartet DER)."""
+    from cryptography.hazmat.primitives.asymmetric import utils
+    raw = _b64u_decode(b64_raw)
+    if len(raw) != 64:
+        raise ValueError("Ungültige Signaturlänge")
+    r = int.from_bytes(raw[:32], "big")
+    s = int.from_bytes(raw[32:], "big")
+    return _b64u(utils.encode_dss_signature(r, s))
+
+
+@app.post("/api/passkey/login/options")
+async def passkey_login_options():
+    if not _passkey_enabled():
+        return JSONResponse({"status": "error", "message": "Passkeys sind nicht konfiguriert."}, status_code=503)
+    _clean_pending_passkey()
+    server = _fido2_server()
+    challenge = secrets.token_bytes(32)
+    _options, state = server.authenticate_begin(user_verification="preferred", challenge=challenge)
+    PENDING_PASSKEY[state["challenge"]] = {
+        "state": state,
+        "user_id": None,
+        "expires": time.time() + PENDING_PASSKEY_TTL,
+    }
+    return JSONResponse({
+        "challenge": state["challenge"],
+        "rpId": WEBAUTHN_RP_ID,
+        "userVerification": "preferred",
+        "timeout": 60000,
+    })
+
+
+@app.post("/api/passkey/login/verify")
+async def passkey_login_verify(request: Request):
+    if not _passkey_enabled():
+        return JSONResponse({"status": "error", "message": "Passkeys sind nicht konfiguriert."}, status_code=503)
+    try:
+        body = await request.json()
+        credential = body.get("credential") or {}
+        response = credential.get("response") or {}
+    except Exception:
+        return JSONResponse({"status": "error", "message": "Ungültige Anfrage."}, status_code=400)
+
+    try:
+        challenge = json.loads(_b64u_decode(str(response.get("clientDataJSON", ""))))["challenge"]
+        pend = PENDING_PASSKEY.get(challenge)
+        if not pend or pend["expires"] < time.time():
+            return JSONResponse({"status": "error", "message": "Challenge abgelaufen oder unbekannt."}, status_code=401)
+        PENDING_PASSKEY.pop(challenge, None)
+        credential["response"]["signature"] = _raw_to_der_b64(response.get("signature", ""))
+
+        row = _db().execute(
+            "SELECT user_id, public_key, sign_count FROM passkeys WHERE credential_id = ?",
+            (_b64u(_b64u_decode(str(credential.get("rawId", "")))),),
+        ).fetchone()
+        if not row:
+            return JSONResponse({"status": "error", "message": "Kein Passkey für dieses Gerät registriert."}, status_code=401)
+        cred_id = _b64u_decode(str(credential.get("rawId", "")))
+        pk_cbor = _b64u_decode(row["public_key"])
+        acd = AttestedCredentialData(b"\x00" * 16 + len(cred_id).to_bytes(2, "big") + cred_id + pk_cbor)
+
+        server = _fido2_server()
+        server.authenticate_complete(pend["state"], [acd], credential)
+
+        from fido2.webauthn import AuthenticationResponse
+        new_count = AuthenticationResponse.from_dict(credential).response.authenticator_data.counter
+        if new_count > 0 and row["sign_count"] > 0 and new_count <= row["sign_count"]:
+            return JSONResponse({"status": "error", "message": "Passkey-Wiederverwendung erkannt."}, status_code=401)
+
+        user = _db().execute("SELECT * FROM users WHERE id = ?", (row["user_id"],)).fetchone()
+        if not user:
+            return JSONResponse({"status": "error", "message": "Benutzer existiert nicht mehr."}, status_code=401)
+        conn = _db()
+        conn.execute(
+            "UPDATE passkeys SET sign_count = ?, last_used_at = datetime('now') WHERE credential_id = ?",
+            (new_count, _b64u(cred_id)),
+        )
+        conn.commit()
+        conn.close()
+        sid = create_session(user["id"])
+        resp = JSONResponse({"status": "ok", "is_admin": bool(user["is_admin"])})
+        resp.set_cookie(SESSION_COOKIE, sid, httponly=True, samesite="lax", max_age=SESSION_LIFETIME)
+        return resp
+    except ValueError:
+        logger.exception("Passkey-Login-Verify: ValueError")
+        return JSONResponse({"status": "error", "message": "Passkey-Überprüfung fehlgeschlagen."}, status_code=401)
+    except Exception:
+        logger.exception("Passkey-Login-Verify fehlgeschlagen")
+        return JSONResponse({"status": "error", "message": "Passkey-Überprüfung fehlgeschlagen."}, status_code=401)
+
+
+@app.post("/api/passkey/register/options")
+async def passkey_register_options(request: Request):
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user:
+        return JSONResponse({"status": "error", "message": "Nicht angemeldet."}, status_code=401)
+    if not _passkey_enabled():
+        return JSONResponse({"status": "error", "message": "Passkeys sind nicht konfiguriert."}, status_code=503)
+    _clean_pending_passkey()
+    server = _fido2_server()
+    user_id_bytes = f"u{user['user_id']}".encode()
+    user_entity = PublicKeyCredentialUserEntity(
+        id=user_id_bytes, name=user["username"], display_name=user["username"]
+    )
+    challenge = secrets.token_bytes(32)
+    _options, state = server.register_begin(
+        user_entity, challenge=challenge, resident_key_requirement="required",
+        user_verification="preferred",
+    )
+    PENDING_PASSKEY[state["challenge"]] = {
+        "state": state,
+        "user_id": user["user_id"],
+        "expires": time.time() + PENDING_PASSKEY_TTL,
+    }
+    return JSONResponse({
+        "challenge": state["challenge"],
+        "rp": {"id": WEBAUTHN_RP_ID, "name": WEBAUTHN_RP_NAME},
+        "user": {
+            "id": _b64u(user_id_bytes),
+            "name": user["username"],
+            "displayName": user["username"],
+        },
+        "pubKeyCredParams": [
+            {"type": "public-key", "alg": -7},
+            {"type": "public-key", "alg": -257},
+        ],
+        "authenticatorSelection": {"residentKey": "required", "userVerification": "preferred"},
+        "attestation": "none",
+        "timeout": 60000,
+    })
+
+
+@app.post("/api/passkey/register/verify")
+async def passkey_register_verify(request: Request):
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user:
+        return JSONResponse({"status": "error", "message": "Nicht angemeldet."}, status_code=401)
+    if not _passkey_enabled():
+        return JSONResponse({"status": "error", "message": "Passkeys sind nicht konfiguriert."}, status_code=503)
+    try:
+        body = await request.json()
+        credential = body.get("credential") or {}
+        response = credential.get("response") or {}
+        device_name = (body.get("device_name") or "Unbenanntes Gerät").strip()[:60]
+        challenge = json.loads(_b64u_decode(str(response.get("clientDataJSON", ""))))["challenge"]
+        pend = PENDING_PASSKEY.get(challenge)
+        if not pend or pend["expires"] < time.time() or pend["user_id"] != user["user_id"]:
+            return JSONResponse({"status": "error", "message": "Challenge abgelaufen oder unbekannt."}, status_code=401)
+        PENDING_PASSKEY.pop(challenge, None)
+
+        server = _fido2_server()
+        auth_data = server.register_complete(pend["state"], credential)
+        cred_data = auth_data.credential_data
+        try:
+            pk_cbor = cred_data.public_key.cbor
+        except AttributeError:
+            pk_cbor = cbor2.dumps(cred_data.public_key)
+        conn = _db()
+        conn.execute(
+            "INSERT INTO passkeys (user_id, credential_id, public_key, sign_count, device_name, transports) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (user["user_id"], _b64u(cred_data.credential_id), _b64u(pk_cbor), auth_data.counter,
+             device_name, json.dumps(credential.get("transports") or [])),
+        )
+        conn.commit()
+        conn.close()
+        return JSONResponse({"status": "ok", "credential_id": _b64u(cred_data.credential_id)})
+    except ValueError:
+        return JSONResponse({"status": "error", "message": "Registrierung fehlgeschlagen."}, status_code=400)
+    except sqlite3.IntegrityError:
+        return JSONResponse({"status": "error", "message": "Dieser Passkey ist bereits registriert."}, status_code=409)
+    except Exception:
+        logger.exception("Passkey-Registrierung fehlgeschlagen")
+        return JSONResponse({"status": "error", "message": "Registrierung fehlgeschlagen."}, status_code=400)
+
+
+@app.get("/api/passkey/list")
+async def passkey_list(request: Request):
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user:
+        return JSONResponse({"status": "error", "message": "Nicht angemeldet."}, status_code=401)
+    rows = _db().execute(
+        "SELECT id, device_name, created_at, last_used_at FROM passkeys WHERE user_id = ? ORDER BY id",
+        (user["user_id"],),
+    ).fetchall()
+    return JSONResponse({"passkeys": [dict(r) for r in rows]})
+
+
+@app.post("/api/passkey/delete")
+async def passkey_delete(request: Request):
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user:
+        return JSONResponse({"status": "error", "message": "Nicht angemeldet."}, status_code=401)
+    try:
+        body = await request.json()
+        pk_id = int(body.get("id") or 0)
+    except Exception:
+        return JSONResponse({"status": "error", "message": "Ungültige Anfrage."}, status_code=400)
+    cur = _db().execute("DELETE FROM passkeys WHERE id = ? AND user_id = ?", (pk_id, user["user_id"]))
+    _db().commit()
+    if cur.rowcount == 0:
+        return JSONResponse({"status": "error", "message": "Passkey nicht gefunden."}, status_code=404)
+    return JSONResponse({"status": "ok"})
+
+
+@app.get("/admin/users/{user_id}/passkeys", response_class=HTMLResponse)
+async def admin_passkeys_page(user_id: int, request: Request):
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user or not user.get("is_admin"):
+        return RedirectResponse("/", status_code=303)
+    conn = _db()
+    target = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+    if not target:
+        return RedirectResponse("/admin/users", status_code=303)
+    rows = conn.execute(
+        "SELECT id, device_name, created_at, last_used_at FROM passkeys WHERE user_id = ? ORDER BY id",
+        (user_id,),
+    ).fetchall()
+    return TEMPLATES.TemplateResponse("passkeys.html", {
+        "request": request,
+        "u": target,
+        "passkeys": [dict(r) for r in rows],
+        "version": os.environ.get("APP_VERSION", "dev"),
+    })
 
 
 @app.get("/logout")

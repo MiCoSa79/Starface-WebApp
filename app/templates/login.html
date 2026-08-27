@@ -64,8 +64,94 @@
         </form>
     </div>
 
+    <div id="passkeyCard" class="card hidden">
+        <div style="display:flex;align-items:center;gap:12px;margin:4px 0 16px;">
+            <div style="flex:1;height:1px;background:#333;"></div>
+            <span style="color:#666;font-size:12px;">oder</span>
+            <div style="flex:1;height:1px;background:#333;"></div>
+        </div>
+        <button type="button" id="passkeyBtn" style="background:#333;border:1px solid #555;color:#fff;padding:12px 16px;border-radius:8px;cursor:pointer;width:100%;">🔑 Mit Passkey anmelden</button>
+        <p id="passkeyError" class="error hidden"></p>
+    </div>
+
     <script>
         let pendingToken = null;
+
+// ── Passkeys / WebAuthn (F58) ─────────────────────────────────────
+const __pkEnabled = {{ 'true' if passkey_enabled else 'false' }};
+const __pkPassword = {{ 'true' if password_login_enabled else 'false' }};
+
+async function pkB64(buf) {
+    const bytes = new Uint8Array(buf);
+    let bin = '';
+    for (const b of bytes) bin += String.fromCharCode(b);
+    return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+async function pkOptions() {
+    const r = await fetch('/api/passkey/login/options', { method: 'POST' });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.message || 'Passkeys nicht verfügbar');
+    return j;
+}
+async function pkCredToJson(cred) {
+    const resp = {};
+    for (const [k, v] of Object.entries(cred.response)) {
+        resp[k] = v instanceof ArrayBuffer ? await pkB64(v)
+            : (ArrayBuffer.isView(v) ? await pkB64(v.buffer) : v);
+    }
+    return { id: cred.id, rawId: await pkB64(cred.rawId), type: cred.type, response: resp };
+}
+async function pkVerifyAndRedirect(payload) {
+    const r = await fetch('/api/passkey/login/verify', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    });
+    const j = await r.json();
+    if (!r.ok || j.status !== 'ok') throw new Error(j.message || 'Anmeldung fehlgeschlagen');
+    window.location.href = '/dashboard';
+}
+async function passkeyLogin() {
+    const errEl = document.getElementById('passkeyError');
+    errEl.classList.add('hidden'); errEl.textContent = '';
+    try {
+        const opts = await pkOptions();
+        const cred = await navigator.credentials.get({ publicKey: opts });
+        await pkVerifyAndRedirect({ credential: await pkCredToJson(cred) });
+    } catch (e) {
+        if (e && e.name === 'NotAllowedError') return;
+        errEl.textContent = (e && e.message) || 'Passkey-Anmeldung fehlgeschlagen';
+        errEl.classList.remove('hidden');
+    }
+}
+async function passkeyConditional() {
+    if (!window.PublicKeyCredential || !PublicKeyCredential.isConditionalMediationAvailable) return;
+    try {
+        if (!(await PublicKeyCredential.isConditionalMediationAvailable())) return;
+        const opts = await pkOptions();
+        const cred = await navigator.credentials.get({ publicKey: opts, mediation: 'conditional' });
+        await pkVerifyAndRedirect({ credential: await pkCredToJson(cred) });
+    } catch (e) { /* still — Button bleibt nutzbar */ }
+}
+// Verdrahten
+if (__pkEnabled) {
+    const pkCard = document.getElementById('passkeyCard');
+    const pkBtn = document.getElementById('passkeyBtn');
+    if (pkCard) pkCard.classList.remove('hidden');
+    if (pkBtn) pkBtn.addEventListener('click', passkeyLogin);
+    if (!window.isSecureContext) {
+        const errEl = document.getElementById('passkeyError');
+        errEl.textContent = 'Passkeys erfordern HTTPS (Anmeldung über den SSL-Host).';
+        errEl.classList.remove('hidden');
+    } else {
+        passkeyConditional();
+    }
+}
+if (!__pkPassword) {
+    const lf = document.getElementById('loginForm');
+    const of = document.getElementById('otpForm');
+    if (lf) lf.classList.add('hidden');
+    if (of) of.classList.add('hidden');
+}
 
         function showError(msg) {
             document.getElementById('loginError').textContent = msg || '';

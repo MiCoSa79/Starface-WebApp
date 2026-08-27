@@ -1,7 +1,7 @@
 ---
 title: STARFACE WebApp — Gesamtdokumentation & Versionshistorie
 description: Die WebApp selbst: Architektur, Betrieb, Routen, Konventionen und die vollständige Versionshistorie (v0.0.1–v0.0.198, aus Git-Tags).
-updated: 2026-08-27
+updated: 2026-08-28
 ---
 
 # STARFACE WebApp
@@ -15,7 +15,8 @@ Modul-Updates (Deployment-Modul). Repo `MiCoSa79/Starface-WebApp`, Image
 ## Architektur
 
 - **Stack:** FastAPI + SQLite (Bewegungsdaten in InfluxDB) + Jinja2-Templates + Service-Worker (PWA).
-- **Auth:** Session-Cookie + 2FA (TOTP), Rollen Admin/User, OAuth2-Authorization-Code-Flow
+- **Auth:** Session-Cookie + 2FA (TOTP) + **Passkeys (WebAuthn, optional, F58)**,
+  Rollen Admin/User, OAuth2-Authorization-Code-Flow
   je STARFACE-Anlage (Token verschlüsselt per Fernet in der DB).
 - **Import-Muster (Container):** App-Module liegen unter `/app/app/` — Zwei-Wege-Import
   `try: from main import ... except ImportError: from app.main import ...` in allen App-Teilen.
@@ -82,6 +83,7 @@ Quelle: `git for-each-ref refs/tags/v0.0.*` — Stichworte = Commit-Subject.
 
 | Version | Commit | Änderung |
 |---|---|---|
+| v1.0.2 | `3c750c3` | F58: Passkeys/WebAuthn (B mit C-Schalter) — fido2 2.2, Conditional UI, Geräteverwaltung, WEBAUTHN_PASSWORDLOGIN=0 (C-Schalter) |
 | v1.0.0 | `cf713f2` | chore(versioning): Kanal-Modell — nightly + v1.0.x bei jedem Push, latest nur via release-latest-Tag (Freigabe Axel), keine Datums-Tags mehr (F57) |
 | v0.0.209 | `9ed26cf` | docs(wiki): Roadmap — Tenant-Verwaltung (Super-Admin) + Lizenzverwaltung für Module (tenant-basiert) und WebApp (Super-Admins) (F54) |
 | v0.0.208 | `5eb1c5d` | F53: Spiegel-Meldung vereinfacht — 'Update-Server-Spiegel aktiv — N Paket(e) vorhanden' (ohne Ordner /modules und Basis-URL) |
@@ -295,4 +297,40 @@ Quelle: `git for-each-ref refs/tags/v0.0.*` — Stichworte = Commit-Subject.
 
 > Legende/Details: Lange Fachtexte zu Monitoring (v0.0.119 ff.) stehen im Hermes-Wiki
 > ([[telefonie-monitoring]]-Entity), zu Updates (v0.0.164 ff.) in [modul-auto-update](modul-auto-update.md).
+
+## Passkeys / WebAuthn (F58)
+
+**Stand (2026-08-28): umgesetzt — Option „B mit C-Schalter"** (Passkey als zusätzliche
+Login-Methode; Passwort-Login per Env-Flag abschaltbar).
+
+### Funktionsumfang
+- **Login:** „Mit Passkey anmelden" auf der Login-Seite plus **Conditional UI**
+  (Autofill-Vorschlag) — passwortlos über Windows Hello, Face ID, Fingerabdruck
+  oder Sicherheitsschlüssel (Discoverable Credentials, keine Usernamen-Eingabe).
+- **Verwaltung:** Admin → Benutzerliste → „Passkeys" (je Benutzer): Geräte-Liste,
+  hinzufügen (mit Gerätename), löschen (Widerruf).
+- **Sicherheit:** ES256 (attestation `none`), challenge single-use + 5-Min-TTL,
+  `sign_count`-Monotonie (Replay-Schutz), Origin-Check gegen `WEBAUTHN_ORIGIN`.
+- **C-Schalter:** `WEBAUTHN_PASSWORDLOGIN=0` → Passwort-Login deaktiviert
+  (Login-Seite zeigt nur noch Passkey; `/api/login` → 403). Erst mindestens einen
+  Passkey registrieren, dann Flag setzen — sonst Lockout-Sperre (503 mit Hinweis).
+
+### Konfiguration (Env)
+```yaml
+WEBAUTHN_RP_ID: <domain>                # z. B. webapp.example.de (ohne Protokoll)
+WEBAUTHN_ORIGIN: https://<domain>       # muss exakt der Browser-URL entsprechen
+WEBAUTHN_RP_NAME: STARFACE WebApp        # optional, Anzeigename im Authenticator
+WEBAUTHN_PASSWORDLOGIN: "1"              # "0" = nur noch Passkey-Login (C)
+```
+
+### Technik
+- Bibliothek: **fido2 2.2 (Yubico)** in `requirements.txt`; nur Verifikation,
+  Options-JSON erzeugt die App selbst (WebAuthn-Level-2-Struktur).
+- fido2 2.2/OpenSSL erwartet ES256-Signaturen in **DER-Form** — die App wandelt
+  RAW r||s (Browser) → DER (`_raw_to_der_b64`).
+- **Hinweis:** Passkeys funktionieren nur über **HTTPS** (NPM-Domain). Ohne
+  `WEBAUTHN_RP_ID`/`WEBAUTHN_ORIGIN` bleibt das Feature deaktiviert
+  (kein Button, API 503) — der C-Schalter blockt dann mit 503 statt Lockout.
+- Testabdeckung: `tmp_tests/passkeys_test.py` (14 Checks, echter Krypto-Flow mit
+  Software-Authenticator `tmp_tests/webauthn_fake.py` inkl. Replay-Schutz).
 
