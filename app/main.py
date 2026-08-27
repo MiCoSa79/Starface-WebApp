@@ -1220,11 +1220,31 @@ def _push_module(inst, module_name: str, filename: str, version: str, is_install
     Rückgabe: (status, msg) mit status in {"ok", "error"}. Bei is_install=True
     (Modul war noch nie installiert) lautet die Meldung „Installation angestoßen“.
     Wird von der Einzel-Route /admin/updates/push und den Sammel-Buttons (push-all)
-    genutzt.
+    genutzt. Seit F51: Ist das Modul bereits auf der SOLL-Version installiert,
+    wird KEIN Update-RPC ausgelöst, sondern der Hinweis
+    „<Modul>: Es ist bereits die aktuellste Version installiert“ geliefert
+    (IST-Abruf wie bei push-all; Fehler beim Abruf → Update-Pfad wie bisher).
     """
     try:
         token = _get_token(inst)
         update_token = _decrypt(inst["deployer_token"]) if inst["deployer_token"] else ""
+        # F51: Bereits-aktuell-Check — kein sinnloser Update-RPC, wenn IST == SOLL.
+        if not is_install and inst["monitoring_instance_name"]:
+            try:
+                from monitoring import _collect_module_status
+            except ImportError:
+                from app.monitoring import _collect_module_status
+            try:
+                st = _collect_module_status(inst, token, inst["name"])
+                cur = {it.get("name"): it for it in (st.get("list") or [])}.get(module_name)
+                cur_v = _norm_version((cur or {}).get("version_ist"))
+                soll_v = _norm_version(version)
+                if cur is not None and cur_v is not None and soll_v is not None \
+                        and cur_v == soll_v:
+                    return ("ok", f"{module_name}: Es ist bereits die aktuellste "
+                                  "Version installiert")
+            except Exception:
+                pass  # IST nicht ermittelbar → Update-Pfad wie bisher ausführen
         res = module_updates.push_update(inst, token, module_name=module_name,
                                          filename=filename, target_version=version,
                                          update_token=update_token)

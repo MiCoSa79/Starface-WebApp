@@ -210,6 +210,16 @@ app_main._get_token = lambda inst: "oauthtok"  # OAuth-Flow ist hier nicht Gegen
 from monitoring import _module_expectations
 m = _module_expectations()
 mod_name, mod_info = next(iter(m.items()))
+# F51: IST-Stand als VERALTET mocken, damit hier der push_update-Kontrakt
+# geprüft wird (sonst griffe der „bereits aktuell“-Hinweis bei gleicher Version).
+def fake_ist_veraltet(inst, token, name):
+    try:
+        v_ist = int(mod_info["version"]) - 1
+    except (TypeError, ValueError):
+        return {"list": []}
+    return {"list": [{"name": mod_name, "installed": True, "status": "ok",
+                      "version_ist": v_ist}]}
+_mon._collect_module_status = fake_ist_veraltet
 
 r = c.post("/admin/updates/push", data={
     "installation_id": str(inst_id), "module_name": mod_name,
@@ -309,6 +319,53 @@ check("Token-UI: Eye-Toggle (Anzeigen/Verbergen) vorhanden", 'id="token-toggle-b
 check("Token-UI: Beschreibung nennt Reiter 'Sicherheit' + Feld 'Update-Token'",
       "Reiter" in edit_html and "Sicherheit" in edit_html and "Update-Token" in edit_html)
 check("Token-UI: Kopieren-Button vorhanden", 'token-copy-btn' in edit_html)
+
+# --- 10. F51: Einzel-Push bei bereits aktueller Version -> Hinweis statt RPC -----
+def fake_aktuell(inst, token, name):
+    return {"list": [
+        {"name": "CallBlocker", "installed": True, "status": "ok", "version_ist": 30},
+        {"name": "TelefonieMonitoring", "installed": True, "status": "ok", "version_ist": 9},
+    ]}
+_mon._collect_module_status = fake_aktuell
+calls10 = {"pushed": 0}
+def fake_push10(inst, token, **kw):
+    calls10["pushed"] += 1
+    calls10.update(kw)
+    return {"status": "ok", "message": "ok", "raw": "<methodResponse>ok</methodResponse>"}
+mu.push_update = fake_push10
+r = c.post("/admin/updates/push", data={
+    "installation_id": str(inst_id), "module_name": "CallBlocker",
+    "filename": "CallBlocker.sfm", "version": "30"})
+check("F51: aktuelles Modul -> Hinweis 'Es ist bereits die aktuellste Version installiert'",
+      "CallBlocker: Es ist bereits die aktuellste Version installiert" in r.text,
+      r.text[:400].replace("\n", " "))
+check("F51: kein Update-RPC bei aktueller Version (push_update nicht aufgerufen)",
+      calls10["pushed"] == 0, str(calls10))
+
+def fake_veraltet(inst, token, name):
+    return {"list": [
+        {"name": "TelefonieMonitoring", "installed": True, "status": "ok", "version_ist": 8},
+    ]}
+_mon._collect_module_status = fake_veraltet
+calls10["pushed"] = 0
+r = c.post("/admin/updates/push", data={
+    "installation_id": str(inst_id), "module_name": "TelefonieMonitoring",
+    "filename": "TelefonieMonitoring.sfm", "version": "9"})
+check("F51: veraltetes Modul -> weiterhin 'Update angestoßen' + RPC",
+      "TelefonieMonitoring: Update angestoßen" in r.text and calls10["pushed"] == 1,
+      f"{calls10} | " + r.text[:400].replace("\n", " "))
+
+def fake_broken(inst, token, name):
+    raise RuntimeError("Anlage down")
+_mon._collect_module_status = fake_broken
+calls10["pushed"] = 0
+r = c.post("/admin/updates/push", data={
+    "installation_id": str(inst_id), "module_name": "TelefonieMonitoring",
+    "filename": "TelefonieMonitoring.sfm", "version": "9"})
+check("F51: IST-Abruf-Fehler -> Fallback Update-Pfad (Push läuft weiter)",
+      "TelefonieMonitoring: Update angestoßen" in r.text and calls10["pushed"] == 1,
+      f"{calls10} | " + r.text[:400].replace("\n", " "))
+app_main._get_token = lambda inst: "oauthtok"
 
 print("\n" + ("ERGEBNIS: ALLE ADMIN-UPDATES-TESTS OK"
               if not FAIL else f"FEHLGESCHLAGEN: {FAIL}"))
