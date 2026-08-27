@@ -32,7 +32,7 @@
         /* ── KPI-Karten ── */
         .kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); /* 3 Kacheln in einer Zeile (Axel) */
                 gap: 16px; margin-bottom: 16px; }
-        @media (max-width: 700px) { .kpis, .charts, body.kiosk .charts { grid-template-columns: 1fr; } }
+        @media (max-width: 700px) { .kpis, .charts, body.kiosk .charts { grid-template-columns: 1fr; } #card-inst-modules { width: 100%; } }
         .kpi { margin: 0; padding: 22px 24px; display: flex; flex-direction: column;
                gap: 4px; transition: border-color .2s ease; }
         .kpi .kpi-top { display: flex; align-items: center; justify-content: space-between; }
@@ -67,7 +67,8 @@
         body.kiosk .charts { grid-template-columns: repeat(3, minmax(0, 1fr)); } /* Kiosk: immer 3 Spalten, kein Auto-Fit-Leerraum (Axel) */
         .chart-card .chart-title { display: flex; align-items: center; justify-content: space-between;
                                    gap: 8px; margin-bottom: 8px; }
-        #card-inst-modules { grid-column: 1 / -1; } /* Modul-Tabelle immer volle Breite unter den Charts (Axel) */
+        #card-inst-modules { grid-column: 1 / -1; width: 50%; justify-self: center; } /* Modul-Karte 50 % Breite, zentriert (Axel) */
+        .mod-grp-row td { border-top: 2px solid #1d243e; }
         .chart-card h3 { font-size: 14px; color: #ccc; font-weight: 600; }
         .legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11px; color: #888; }
         .legend .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%;
@@ -227,17 +228,18 @@
         </div>
 
         <!-- Module: Ist-Version vs. aktuellste Version — NUR installierte (Axel);
-             eigene Module oben, Drittanbietermodule darunter -->
+             EINE Tabelle: Spaltenkopf ganz oben, dann Eigene Module, dann Drittanbietermodule -->
         {% set mods_own = (modules or []) | selectattr('source', 'equalto', 'own') | list %}
         {% set mods_third = (modules or []) | selectattr('source', 'ne', 'own') | list %}
-        <div class="card" id="card-inst-modules">
+        <h2 id="mod-sec-title">Module</h2>
+        <div class="card mod-card" id="card-inst-modules">
             <h3>Installierte Module</h3>
-            <table class="mod-tbl" id="mod-tbl-own"{% if not mods_own %} style="display:none"{% endif %}>
+            <table class="mod-tbl" id="mod-tbl">
                 <thead>
-                    <tr><th colspan="3" class="mod-grp">Eigene Module</th></tr>
                     <tr><th>Modul</th><th>Ist-Version</th><th>Aktuellste Version</th></tr>
                 </thead>
-                <tbody id="mod-rows-own">
+                <tbody id="mod-rows-own"{% if not mods_own %} style="display:none"{% endif %}>
+                    <tr class="mod-grp-row"><td colspan="3" class="mod-grp">Eigene Module</td></tr>
                 {% for m in mods_own %}
                     <tr class="mod-{{ 'ok' if m.current else 'outdated' }}">
                         <td>{{ m.name }}</td>
@@ -246,12 +248,8 @@
                     </tr>
                 {% endfor %}
                 </tbody>
-            </table>
-            <table class="mod-tbl" id="mod-tbl-third"{% if not mods_third %} style="display:none"{% endif %}>
-                <thead>
-                    <tr><th colspan="3" class="mod-grp">Drittanbietermodule</th></tr>
-                </thead>
-                <tbody id="mod-rows-third">
+                <tbody id="mod-rows-third"{% if not mods_third %} style="display:none"{% endif %}>
+                    <tr class="mod-grp-row"><td colspan="3" class="mod-grp">Drittanbietermodule</td></tr>
                 {% for m in mods_third %}
                     <tr class="mod-{{ 'ok' if m.current else 'outdated' }}">
                         <td>{{ m.name }}</td>
@@ -589,41 +587,35 @@
         .then(function (data) {
             var hint = document.getElementById('mod-hint');
             var has = data && data.ok && data.modules && data.modules.length;
+            var tOwn = document.getElementById('mod-rows-own');
+            var tThird = document.getElementById('mod-rows-third');
             if (!has) {
-                ['mod-tbl-own', 'mod-tbl-third'].forEach(function (id) {
-                    var t = document.getElementById(id); if (t) t.style.display = 'none';
-                });
+                if (tOwn) tOwn.style.display = 'none';
+                if (tThird) tThird.style.display = 'none';
                 if (hint) hint.style.display = '';
                 return;
             }
+            function fill(tbody, grp, list) {
+                if (!tbody) return;
+                tbody.style.display = list.length ? '' : 'none';
+                function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+                    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+                var rows = '<tr class="mod-grp-row"><td colspan="3" class="mod-grp">' + esc(grp) + '</td></tr>';
+                list.forEach(function (m) {
+                    var badge = m.current ? '' : '<span class="mod-badge">Update verfügbar</span>';
+                    var vi = (m.version_ist !== undefined && m.version_ist !== null) ? m.version_ist : '—';
+                    var vs = m.version_soll !== undefined ? m.version_soll : '—';
+                    rows += '<tr class="mod-' + (m.current ? 'ok' : 'outdated') + '">'
+                         + '<td>' + esc(m.name) + '</td>'
+                         + '<td class="version-ist">' + esc(vi) + badge + '</td>'
+                         + '<td class="version-soll">' + esc(vs) + '</td></tr>';
+                });
+                tbody.innerHTML = rows;
+            }
             var own = [], third = [];
             data.modules.forEach(function (m) { (m.source === 'own' ? own : third).push(m); });
-            function fill(tbl, tbody, list) {
-                if (!tbl || !tbody) return;
-                tbody.innerHTML = '';
-                list.forEach(function (m) {
-                    var tr = document.createElement('tr');
-                    tr.className = 'mod-' + (m.current ? 'ok' : 'outdated');
-                    var tdN = document.createElement('td'); tdN.textContent = m.name || '';
-                    var tdI = document.createElement('td'); tdI.className = 'version-ist';
-                    tdI.textContent = (m.version_ist !== undefined && m.version_ist !== null) ? m.version_ist : '—';
-                    if (!m.current) {
-                        var b = document.createElement('span'); b.className = 'mod-badge';
-                        b.textContent = 'Update verfügbar'; tdI.appendChild(b);
-                    }
-                    var tdS = document.createElement('td'); tdS.className = 'version-soll';
-                    tdS.textContent = m.version_soll !== undefined ? m.version_soll : '—';
-                    tr.appendChild(tdN); tr.appendChild(tdI); tr.appendChild(tdS);
-                    tbody.appendChild(tr);
-                });
-                tbl.style.display = '';
-            }
-            var tOwn = document.getElementById('mod-tbl-own');
-            var tThird = document.getElementById('mod-tbl-third');
-            if (tOwn) tOwn.style.display = 'none';
-            if (tThird) tThird.style.display = 'none';
-            fill(tOwn, document.getElementById('mod-rows-own'), own);
-            fill(tThird, document.getElementById('mod-rows-third'), third);
+            fill(tOwn, 'Eigene Module', own);
+            fill(tThird, 'Drittanbietermodule', third);
             if (hint) hint.style.display = 'none';
         }).catch(function () { /* alte Anzeige behalten */ });
     }

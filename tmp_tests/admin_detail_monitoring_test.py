@@ -199,12 +199,15 @@ check("90-%-Vermerk in Legende statt im Graph (Axel)", all(x in body for x in ("
 check("kein 90-%-Text mehr im SVG-Graph", "ttxt.textContent = opts.thresholdLabel" not in body)
 check("Kiosk-Banner: Anlagen-Name + URL zentriert (Axel)", all(x in body for x in ('id="kiosk-name"', 'id="kiosk-url"', "kiosk-banner", "body.kiosk .kiosk-banner { display: block; }")))
 check("Kiosk-Name in Rot wie Überschriften (Axel)", '.kiosk-name { font-size: 24px; font-weight: 700; color: #e94560;' in body)
-check("Modul-Tabelle unten (Axel): Karte + Spalten im Template", all(x in tsrc for x in (
-    'id="card-inst-modules"', '>Ist-Version</th>', '>Aktuellste Version</th>',
-    'id="mod-tbl-own"', 'id="mod-tbl-third"', 'id="mod-rows-own"', 'id="mod-rows-third"',
-    'id="mod-hint"', 'mod-badge')))
-check("Modul-Tabelle: Spaltenkopf nur EINMAL (Drittanbieter ohne Kopf, Axel)", tsrc.count('>Ist-Version</th>') == 1)
-check("Modul-Karte: volle Breite unter den Charts (Grid-Durchstich, Axel)", 'grid-column: 1 / -1' in body)
+check("Modul-Karte (Axel): EINE Tabelle, Kopf oben, Gruppen, 50 %", all(x in tsrc for x in (
+    'id="card-inst-modules"', 'id="mod-tbl"', 'id="mod-rows-own"', 'id="mod-rows-third"',
+    'id="mod-hint"', 'mod-badge', 'id="mod-sec-title"')))
+check("Modul-Tabelle: Spaltenkopf nur EINMAL und ganz oben, vor den Gruppen (Axel)",
+      tsrc.count('>Ist-Version</th>') == 1
+      and tsrc.index('>Ist-Version</th>') < tsrc.index('>Eigene Module<')
+      and tsrc.index('>Eigene Module<') < tsrc.index('>Drittanbietermodule<'))
+check("Modul-Karte: 50 % Breite, zentriert — Kiosk wie Normal (Axel)", 'width: 50%; justify-self: center' in body)
+check("Modul-Karte: volle Grid-Zeile unter den Charts (Grid-Durchstich)", 'grid-column: 1 / -1' in body)
 check("Modul-Gruppen: eigene oben, Drittanbieter unten (Axel)", all(x in body for x in (
     'Eigene Module', 'Drittanbietermodule', 'ThirdPartyConnector', 'mod-grp')))
 check("Modul-Karte rendert: Tabelle mit Modulen (Anlage A)", all(x in body for x in ('id="card-inst-modules"', 'CallBlocker', 'TelefonieMonitoring', 'id="mod-rows-own"')))

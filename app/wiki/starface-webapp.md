@@ -85,6 +85,7 @@ Quelle: `git for-each-ref refs/tags/v0.0.*` — Stichworte = Commit-Subject.
 
 | Version | Commit | Änderung |
 |---|---|---|
+| v1.0.42 | (27.08.) | feat(Axel, Screenshot 21:46): **Modul-Bereich umgebaut** — EINE Tabelle: Spaltenkopf (Modul/Ist/Aktuellste) GANZ OBEN, dann Gruppenzeile „Eigene Module“ + Module, dann „Drittanbietermodule“ + Module (2 tbodys, Kopf 1×); rote Überschrift `<h2>Module</h2>` zwischen KPI-Kacheln und Modul-Karte (wie „Letzte Stunde“); **Modul-Karte 50 % Breite, zentriert** (`width:50%; justify-self:center`; Handy <700 px 100 %). JS-Refresh: Gruppzenzeilen in tbodys, HTML-escaped. Test: Kopf-1×-+Reihenfolge-Check, 19/19. |
 | v1.0.41 | (27.08.) | fix(Axel, Screenshot 21:44 Kiosk): **Charts-Grid im Kiosk** — `auto-fit minmax(340px,1fr)` erzeugt auf breiten Vollbild-Screens 4–5 Spalten, 3 Charts lassen rechts Leerraum. Fix: `body.kiosk .charts { repeat(3, minmax(0,1fr)) }` (3 Spalten immer, 1fr unter 700 px auch im Kiosk). Test: CSS-Check, 19/19. |
 | v1.0.40 | (27.08.) | fix(Axel, Screenshot 21:42): **KPI-Kacheln auch im NORMALmodus 3 in einer Zeile** — `.kpis` auf `repeat(3, minmax(0, 1fr))` (Kiosk-Regel entfällt, war identisch); Handy bleibt 1-spaltig (< 700 px). Test: CSS-Check, 19/19. |
 | v1.0.39 | (27.08.) | fix(Axel, Screenshot 21:33): **Modul-Karte steht im Kiosk neben den 3 Charts** (`.charts`-Grid, 4. Spalte) — gehörte „unter die drei Kacheln“: `#card-inst-modules { grid-column: 1 / -1; }` → immer volle Breite unter den Graphen. Test: Grid-Durchstich-Check, 19/19. |
