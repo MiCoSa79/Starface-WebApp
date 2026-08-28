@@ -39,6 +39,24 @@
         .nav a.active { background: #e94560; color: #fff; font-weight: 600; }
         .nav .spacer { flex: 1; }
 
+        /* ── Dropdowns (Administration / Benutzerkonto) ── */
+        .nav details.drop { position: relative; }
+        .nav details.drop > summary { cursor: pointer; color: #aaa; padding: 6px 14px;
+                 border-radius: 6px; font-size: 13px; list-style: none;
+                 display: flex; align-items: center; gap: 4px; user-select: none; }
+        .nav details.drop > summary::-webkit-details-marker { display: none; }
+        .nav details.drop > summary:hover { background: #0f3460; color: #fff; }
+        .nav details.drop[open] > summary { background: #0f3460; color: #fff; }
+        .nav details.drop.active > summary { background: #e94560; color: #fff; font-weight: 600; }
+        .nav details.drop .drop-menu { position: absolute; top: calc(100% + 4px); left: 0;
+                 min-width: 240px; background: #16213e; border: 1px solid #333;
+                 border-radius: 8px; padding: 6px; box-shadow: 0 8px 24px rgba(0,0,0,.5);
+                 z-index: 45; display: flex; flex-direction: column; }
+        .nav details.drop .drop-menu a { padding: 8px 12px; border-radius: 6px; color: #ddd;
+                 white-space: nowrap; }
+        .nav details.drop .drop-menu a:hover { background: #0f3460; color: #fff; }
+        .nav details.drop .drop-menu a.active { background: #e94560; color: #fff; }
+
         .container { max-width: 1400px; margin: 0 auto; padding: 24px;
                      padding-bottom: 60px; }
 
@@ -57,6 +75,12 @@
             .nav a { padding: 14px 12px; font-size: 15px; border-bottom: 1px solid #222; border-radius: 0; }
             .nav a:last-child { border-bottom: none; }
             .nav .spacer { display: none; }
+            .nav details.drop > summary { font-size: 15px; padding: 14px 12px;
+                     border-bottom: 1px solid #222; border-radius: 0; }
+            .nav details.drop .drop-menu { position: static; box-shadow: none; border: none;
+                     border-left: 2px solid #333; margin: 4px 0 4px 12px; padding: 2px 0 2px 4px; }
+            .nav details.drop .drop-menu a { padding: 12px 12px; font-size: 14px;
+                     white-space: normal; }
             #nav-open:checked ~ .nav { display: flex; }
             .topbar { padding: calc(12px + env(safe-area-inset-top, 0px)) 16px 12px; }
             .topbar h1 { font-size: 17px; }
@@ -92,15 +116,26 @@
             <a href="/monitoring" class="{% if active=='monitoring' %}active{% endif %}">Monitoring</a>
             {% endif %}
             {% if user and user.is_admin %}
-            <a href="/admin" class="{% if active=='admin' %}active{% endif %}">Admin</a>
-            <a href="/admin/modules" class="{% if active=='modules' %}active{% endif %}">Module</a>
-            <a href="/admin/updates" class="{% if active=='updates' %}active{% endif %}">Modul-Updates</a>
-            <a href="/admin/api-doku" class="{% if active=='api-doku' %}active{% endif %}">API-Doku</a>
-            <a href="/wiki" class="{% if active=='wiki' %}active{% endif %}">Wiki</a>
+            <details class="drop {% if active in ['admin','modules','updates','api-doku','wiki'] %}active{% endif %}">
+                <summary>Administration ▾</summary>
+                <div class="drop-menu">
+                    <a href="/admin" class="{% if active=='admin' %}active{% endif %}">Admin</a>
+                    <a href="/admin/modules" class="{% if active=='modules' %}active{% endif %}">Module</a>
+                    <a href="/admin/updates" class="{% if active=='updates' %}active{% endif %}">Modul-Updates</a>
+                    <a href="/admin/api-doku" class="{% if active=='api-doku' %}active{% endif %}">API-Doku</a>
+                    <a href="/wiki" class="{% if active=='wiki' %}active{% endif %}">Wiki</a>
+                </div>
+            </details>
             {% endif %}
-            <a href="/password" class="{% if active=='password' %}active{% endif %}">Passwort</a>
-            <span class="spacer"></span>
-            {% if user %}<a href="/logout">Abmelden</a>{% endif %}
+            {% if user %}
+            <details class="drop {% if active=='konto' %}active{% endif %}">
+                <summary>👤 {{ user.username }} ▾</summary>
+                <div class="drop-menu">
+                    <a href="/konto" class="{% if active=='konto' %}active{% endif %}">Mein Konto</a>
+                    <a href="/logout">Abmelden</a>
+                </div>
+            </details>
+            {% endif %}
         </nav>
         {% endblock %}
     </div>

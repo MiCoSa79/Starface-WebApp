@@ -1,0 +1,280 @@
+{% extends "base.html" %}
+{% block title %}Mein Konto — STARFACE WebApp{% endblock %}
+{% block styles %}
+<style>
+        .card { background: #16213e; border-radius: 12px; padding: 20px; margin-bottom: 16px; border: 1px solid #333; }
+        h2 { font-size: 15px; color: #e94560; font-weight: 600; margin: 0 0 12px; }
+        h1 { font-size: 20px; margin: 0 0 4px; }
+        .sub { color: #888; font-size: 13px; margin-bottom: 18px; }
+        .kv { display: flex; gap: 12px; flex-wrap: wrap; font-size: 14px; }
+        .kv div { background: #0f3460; border-radius: 8px; padding: 10px 14px; }
+        .kv .k { color: #888; font-size: 12px; }
+        .kv .v { color: #eee; }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th, td { text-align: left; padding: 8px; border-bottom: 1px solid #2a2a4a; }
+        th { color: #888; font-weight: 600; }
+        button { padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer; font-size: 13px; font-weight: 600; }
+        .btn-primary { background: #e94560; color: #fff; }
+        .btn-primary:hover { background: #d63851; }
+        .btn-danger { background: #8b0000; color: #fff; }
+        .btn-danger:hover { background: #a30000; }
+        .btn-secondary { background: #333; color: #ccc; }
+        .btn-secondary:hover { background: #444; color: #fff; }
+        .hint { color: #666; font-size: 12px; margin-top: 8px; }
+        .error { color: #ff8080; font-size: 13px; margin-top: 10px; }
+        .ok { color: #7bc47f; font-size: 13px; margin-top: 10px; }
+        .hidden { display: none; }
+        form { margin-top: 6px; }
+        .form-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+        .form-row input {
+            flex: 1 1 220px; min-width: 200px; padding: 10px 12px; border-radius: 6px;
+            border: 1px solid #333; background: #0f172a; color: #eee; font-size: 16px;
+        }
+        .form-row input:focus { outline: none; border-color: #e94560; }
+        .pk-create-row { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+        .pk-create-row input {
+            flex: 1; min-width: 180px; padding: 8px 12px; border-radius: 6px;
+            border: 1px solid #333; background: #0f172a; color: #eee; font-size: 16px;
+        }
+        .pk-create-row input:focus { outline: none; border-color: #e94560; }
+        .qr { text-align: center; margin: 8px 0; }
+        .qr img { border: 4px solid #333; border-radius: 8px; max-width: 100%; height: auto; }
+        .key { color: #aaa; font-family: monospace; font-size: 14px; background: #0f3460;
+               padding: 10px; border-radius: 6px; text-align: center; margin-bottom: 12px;
+               word-break: break-all; }
+        .codes { font-family: monospace; font-size: 16px; line-height: 1.8; background: #0f3460;
+                 border: 1px solid #2d6a4f; border-radius: 8px; padding: 12px 16px; margin-top: 8px;
+                 color: #95d5b2; letter-spacing: 1px; }
+        .status { display: inline-block; padding: 4px 12px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+        .status.on { background: #2d6a4f; color: #95d5b2; }
+        .status.off { background: #444; color: #ccc; }
+        @media (max-width: 640px) {
+            .card { padding: 16px; }
+            table { display: block; overflow-x: auto; white-space: nowrap; }
+            .form-row input { flex: 1 1 100%; }
+        }
+</style>
+{% endblock %}
+{% block content %}
+<div class="container">
+    <h1>👤 Mein Konto</h1>
+    <p class="sub">Alle Einstellungen zu deinem Benutzerkonto — nur für dich sichtbar.</p>
+
+    {% if pw_ok %}
+    <div class="ok">✔ Passwort erfolgreich geändert.</div>
+    {% endif %}
+    {% if pw_err == 'nomatch' %}
+    <div class="error">✖ Die neuen Passwörter stimmen nicht überein.</div>
+    {% elif pw_err == 'empty' %}
+    <div class="error">✖ Das neue Passwort darf nicht leer sein.</div>
+    {% elif pw_err == 'wrong' %}
+    <div class="error">✖ Das aktuelle Passwort ist falsch.</div>
+    {% endif %}
+    {% if fa == 'setup' %}
+    <div class="ok">✔ 2FA einrichten: Scanne den QR-Code und gib den Code ein, um sie zu aktivieren.</div>
+    {% elif fa == 'done' and codes_once %}
+    <div class="ok">✔ 2FA ist jetzt aktiv. Deine Backup-Codes (einmalige Anzeige):</div>
+    {% elif fa == 'off' %}
+    <div class="ok">✔ 2FA wurde deaktiviert.</div>
+    {% endif %}
+    {% if fa_err == 'pw' %}
+    <div class="error">✖ Zum Ändern der 2FA-Einstellung ist dein aktuelles Passwort erforderlich.</div>
+    {% elif fa_err == 'code' %}
+    <div class="error">✖ Der eingegebene 2FA-Code ist falsch — bitte versuche es erneut.</div>
+    {% endif %}
+
+    <div class="card" id="profil">
+        <h2>Profil</h2>
+        <div class="kv">
+            <div><span class="k">Benutzername</span><br><span class="v">{{ u.username }}</span></div>
+            <div><span class="k">Rolle</span><br><span class="v">{% if u.is_admin %}Administrator{% else %}Benutzer{% endif %}</span></div>
+        </div>
+    </div>
+
+    <div class="card" id="sicherheit">
+        <h2>🔒 Sicherheit</h2>
+
+        <h3 style="font-size:14px; color:#aaa; margin:14px 0 4px;">Passwort ändern</h3>
+        <form method="POST" action="/konto/password">
+            <div class="form-row">
+                <input type="password" name="password" required autocomplete="current-password" placeholder="Aktuelles Passwort">
+                <input type="password" name="new_password" required autocomplete="new-password" minlength="4" placeholder="Neues Passwort">
+                <input type="password" name="confirm" required autocomplete="new-password" minlength="4" placeholder="Neues Passwort wiederholen">
+            </div>
+            <button type="submit" class="btn-primary">Passwort speichern</button>
+        </form>
+
+        <h3 style="font-size:14px; color:#aaa; margin:22px 0 4px;">Zwei-Faktor-Authentifizierung (2FA)</h3>
+        {% if otp_state == 'inactive' %}
+        <p class="hint" style="margin-bottom:8px;">2FA ist derzeit <span class="status off">deaktiviert</span> — beim Login zusätzlich zu Passwort und Passkey einen 6-stelligen Code verlangen.</p>
+        <form method="POST" action="/konto/2fa/setup">
+            <div class="form-row" style="max-width:360px;">
+                <input type="password" name="password" required autocomplete="current-password" placeholder="Aktuelles Passwort (Bestätigung)">
+            </div>
+            <button type="submit" class="btn-primary">2FA einrichten</button>
+        </form>
+        {% elif otp_state == 'setup' %}
+        <p class="hint" style="margin-bottom:8px;">Scanne den QR-Code mit deinem Authenticator (z. B. Google Authenticator) und gib den 6-stelligen Code ein.</p>
+        <div class="qr"><img src="{{ qr_data_uri }}" alt="QR-Code"></div>
+        <div class="key">Geheimer Schlüssel: {{ otp_secret }}</div>
+        <form method="POST" action="/konto/2fa/confirm" style="max-width:360px;">
+            <div class="form-row">
+                <input type="text" name="code" required maxlength="6" inputmode="numeric" autocomplete="one-time-code" placeholder="000000">
+            </div>
+            <button type="submit" class="btn-primary">Code bestätigen &amp; 2FA aktivieren</button>
+        </form>
+        {% else %}
+        <p class="hint" style="margin-bottom:8px;">2FA ist derzeit <span class="status on">aktiv</span>. Zum Deaktivieren bitte das aktuelle Passwort eingeben.</p>
+        <form method="POST" action="/konto/2fa/disable" style="max-width:360px;">
+            <div class="form-row">
+                <input type="password" name="password" required autocomplete="current-password" placeholder="Aktuelles Passwort (Bestätigung)">
+            </div>
+            <button type="submit" class="btn-danger">2FA deaktivieren</button>
+        </form>
+        {% endif %}
+
+        {% if codes_once %}
+        <p class="hint" style="margin-top:10px;">Bewahre sie sicher auf — sie werden nur dieses eine Mal angezeigt.</p>
+        <div class="codes">{{ codes_once }}</div>
+        {% endif %}
+
+        <h3 style="font-size:14px; color:#aaa; margin:22px 0 4px;">🔑 Passkeys</h3>
+        <div class="pk-create-row">
+            <input type="text" id="pkDeviceName" placeholder="Gerätename (z. B. iPhone 15)" maxlength="60" autocomplete="off">
+            <button type="button" class="btn-primary" id="addPasskeyBtn">➕ Passkey hinzufügen</button>
+        </div>
+        <p class="error hidden" id="pkMsg"></p>
+        <p class="hint hidden" id="pkDetail" style="font-family:monospace; font-size:11px; word-break:break-all;"></p>
+        <div class="hidden" id="pkIosTip" style="background:#1a1030; border:1px solid #5a3bb0; border-radius:8px; padding:10px 12px; font-size:12px; color:#c9b8ff; margin-top:10px;">
+            <b>📱 Falls es auf dem iPhone weiterhin scheitert:</b><br>
+            1. <b>Einstellungen → Passwörter</b>: iCloud-Schlüsselbund / „Passwörter" muss aktiviert sein (Passkeys werden dort gespeichert).<br>
+            2. <b>Face ID</b> muss eingerichtet sein (Einstellungen → Face ID & Code) — ohne Biometrie bricht iOS den Passkey-Dialog ab.<br>
+            3. Nicht im privaten Safari-Modus testen, und iOS sollte aktuell sein (≥ 16.3).<br>
+            4. Der Dialog verlangt nach der Namenseingabe einen <b>Face-ID-Prompt</b> — erst wenn der erscheint, ist alles normal. Kommt er nicht, stoppt iOS mit dem Fehler oben.
+        </div>
+        <table>
+            <thead>
+                <tr><th>Gerät</th><th>Registriert</th><th>Zuletzt genutzt</th><th></th></tr>
+            </thead>
+            <tbody>
+                {% for pk in passkeys %}
+                <tr>
+                    <td>{{ pk.device_name or 'Unbenannt' }}</td>
+                    <td>{{ pk.created_at }}</td>
+                    <td>{{ pk.last_used_at or '—' }}</td>
+                    <td style="text-align:right;">
+                        <button type="button" class="btn-danger" onclick="deletePasskey({{ pk.id }})">Entfernen</button>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4" style="color:#888;">Noch keine Passkeys registriert.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <p class="hint">Passkeys funktionieren nur über HTTPS (Anmeldung über den SSL-Host, z. B. via Reverse-Proxy). Geräte hier zu entfernen widerruft sofort deren Anmeldung.</p>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+        async function pkB64(buf, byteOffset = 0, byteLength) {
+            // ArrayBuffer ODER View (Safari liefert teils Uint8Array-Views mit byteOffset!)
+            const bytes = byteLength !== undefined
+                ? new Uint8Array(buf, byteOffset, byteLength)
+                : new Uint8Array(buf);
+            let bin = '';
+            for (const b of bytes) bin += String.fromCharCode(b);
+            return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        }
+        async function pkCredToJson(cred) {
+            // KEIN Object.entries(cred.response)! WebIDL-Attribute (clientDataJSON,
+            // attestationObject, ...) sind laut Spezifikation Prototype-Getter — Safari/iOS
+            // exponiert sie NICHT als own enumerable Properties. Object.entries() liefert
+            // dort [] → leere response → Server: "clientDataJSON" leer → Registrierung
+            // fehlgeschlagen (obwohl Face ID ok war). Direkter Feldzugriff ist safe.
+            const RN = ['clientDataJSON', 'attestationObject', 'authenticatorData', 'signature', 'userHandle'];
+            const r = cred.response || {};
+            const resp = {};
+            for (const k of RN) {
+                const v = r[k];
+                if (v === undefined || v === null) continue;
+                resp[k] = v instanceof ArrayBuffer ? await pkB64(v)
+                    : (ArrayBuffer.isView(v) ? await pkB64(v.buffer, v.byteOffset, v.byteLength) : v);
+            }
+            const rawId = cred.rawId;
+            return {
+                id: cred.id,
+                rawId: rawId instanceof ArrayBuffer ? await pkB64(rawId)
+                    : (ArrayBuffer.isView(rawId) ? await pkB64(rawId.buffer, rawId.byteOffset, rawId.byteLength) : rawId),
+                type: cred.type, response: resp
+            };
+        }
+        function setMsg(text, isError) {
+            const el = document.getElementById('pkMsg');
+            el.textContent = text || '';
+            el.classList.toggle('hidden', !text);
+            el.classList.toggle('error', !!isError);
+            if (!text) {
+                document.getElementById('pkDetail').classList.add('hidden');
+                document.getElementById('pkIosTip').classList.add('hidden');
+            }
+        }
+        function pkB64ToBytes(s) {
+            const bin = atob(String(s).replace(/-/g, '+').replace(/_/g, '/'));
+            const u = new Uint8Array(bin.length);
+            for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+            return u;
+        }
+        let busy = false;
+        async function addPasskey() {
+            if (busy) return; // Button bleibt klickbar, aber ein paralleler Dialog wird verhindert
+            busy = true;
+            const deviceName = (document.getElementById('pkDeviceName').value || '').trim() || 'Unbenannt';
+            const btn = document.getElementById('addPasskeyBtn');
+            setMsg('', false);
+            try {
+                const r1 = await fetch('/api/passkey/register/options', { method: 'POST' });
+                const opts = await r1.json();
+                if (!r1.ok) throw new Error(opts.message || 'Passkeys sind nicht konfiguriert.');
+                const pkOpts = {
+                    ...opts,
+                    challenge: pkB64ToBytes(opts.challenge),
+                    user: opts.user ? { ...opts.user, id: pkB64ToBytes(opts.user.id) } : undefined
+                };
+                const cred = await navigator.credentials.create({ publicKey: pkOpts });
+                const payload = { credential: await pkCredToJson(cred), device_name: deviceName };
+                const r2 = await fetch('/api/passkey/register/verify', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const j = await r2.json();
+                if (!r2.ok || j.status !== 'ok') throw new Error(j.message || 'Registrierung fehlgeschlagen');
+                window.location.reload();
+            } catch (e) {
+                if (e && e.name === 'NotAllowedError') {
+                    setMsg('Passkey-Dialog wurde abgebrochen oder ist abgelaufen — bitte erneut versuchen.', true);
+                    document.getElementById('pkDetail').textContent = 'Detail: ' + e.name + (e.message ? ': ' + e.message : '');
+                    document.getElementById('pkDetail').classList.remove('hidden');
+                    document.getElementById('pkIosTip').classList.remove('hidden');
+                    return;
+                }
+                setMsg((e && e.message) || 'Registrierung fehlgeschlagen', true);
+            } finally { busy = false; }
+        }
+        async function deletePasskey(id) {
+            if (!confirm('Diesen Passkey wirklich entfernen?')) return;
+            setMsg('', false);
+            const r = await fetch('/api/passkey/delete', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id })
+            });
+            const j = await r.json();
+            if (!r.ok || j.status !== 'ok') { setMsg(j.message || 'Löschen fehlgeschlagen', true); return; }
+            window.location.reload();
+        }
+        document.getElementById('addPasskeyBtn').addEventListener('click', addPasskey);
+        document.getElementById('pkDeviceName').addEventListener('keydown', (ev) => {
+            if (ev.key === 'Enter') { ev.preventDefault(); addPasskey(); }
+        });
+</script>
+{% endblock %}

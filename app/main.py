@@ -700,27 +700,27 @@ app.mount("/static", StaticFiles(directory=str(Path(__file__).parent / "static")
 
 @app.get("/password", response_class=HTMLResponse)
 async def password_page(request: Request):
+    """Passwort ändern. Eigenes Passwort → „Mein Konto“ (/konto#sicherheit);
+    Admin-Reset für einen anderen User bleibt als eigene Seite erhalten."""
     user = verify_session(request.cookies.get(SESSION_COOKIE))
     if not user:
-        return RedirectResponse("/")
+        return RedirectResponse("/", status_code=303)
     target_uid = request.query_params.get("uid")
-    target_name = ""
-    target_mode = False
-    if target_uid and user["is_admin"] and int(target_uid) != user["user_id"]:
+    if target_uid and target_uid.isdigit() and user["is_admin"] and int(target_uid) != user["user_id"]:
         # Admin öffnet Passwort-Formular für einen anderen User
         conn = _db()
         target = conn.execute("SELECT id, username FROM users WHERE id = ?", (int(target_uid),)).fetchone()
         conn.close()
         if target:
-            target_mode = True
-            target_name = target["username"]
-    return TEMPLATES.TemplateResponse("password.html",
-                                      {"request": request, "user": user,
-                                       "target_uid": target_uid,
-                                       "target_name": target_name,
-                                       "target_mode": target_mode,
-                                       "active": "password",
-                                       "version": os.environ.get("APP_VERSION", "dev")})
+            return TEMPLATES.TemplateResponse("password.html",
+                                              {"request": request, "user": user,
+                                               "target_uid": target_uid,
+                                               "target_name": target["username"],
+                                               "target_mode": True,
+                                               "active": "admin",
+                                               "version": os.environ.get("APP_VERSION", "dev")})
+    # Eigenes Passwort ändern → Self-Service in „Mein Konto“
+    return RedirectResponse("/konto#sicherheit", status_code=303)
 
 
 @app.post("/password")
@@ -773,6 +773,181 @@ async def password_change(request: Request,
     conn.commit()
     conn.close()
     return RedirectResponse("/dashboard?pw_ok=1", status_code=303)
+
+
+# ─────────────────────────────────────────────────────────────
+# Konto-Self-Service („Mein Konto“) — Passwort, 2FA, Passkeys
+# Admin-Weg für Fremduser bleibt unverändert bestehen (Support-/Reset-Fall)
+# ─────────────────────────────────────────────────────────────
+
+# Backup-Codes nach 2FA-Aktivierung: einmalig anzeigbar (TTL 5 Minuten)
+_pending_backup_codes: dict = {}
+
+
+def _clean_pending_codes():
+    now = time.time()
+    for uid in [u for u, d in _pending_backup_codes.items() if d["expires"] < now]:
+        _pending_backup_codes.pop(uid, None)
+
+
+def _check_current_password(user_id: int, password: str) -> bool:
+    """Re-Auth: prüft das aktuelle Passwort des Benutzers."""
+    row = _db().execute(
+        "SELECT password_hash FROM users WHERE id = ?", (user_id,)).fetchone()
+    return bool(row and bcrypt.checkpw(password.encode(), row["password_hash"].encode()))
+
+
+def _otp_state(row) -> str:
+    """'inactive' | 'setup' | 'active'"""
+    if not row["otp_secret"]:
+        return "inactive"
+    if not row["otp_confirmed"]:
+        return "setup"
+    return "active"
+
+
+@app.get("/konto", response_class=HTMLResponse)
+async def konto_page(request: Request):
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user:
+        return RedirectResponse("/", status_code=303)
+    _clean_pending_codes()
+    uid = user["user_id"]
+    db = _db()
+    try:
+        row = db.execute(
+            "SELECT id, username, is_admin, otp_secret, otp_confirmed FROM users WHERE id = ?",
+            (uid,)).fetchone()
+        passkeys = db.execute(
+            "SELECT id, device_name, created_at, last_used_at FROM passkeys WHERE user_id = ? ORDER BY id",
+            (uid,)).fetchall()
+    finally:
+        db.close()
+    if not row:
+        return RedirectResponse("/", status_code=303)
+
+    state = _otp_state(row)
+    qr_data_uri = ""
+    otp_secret = ""
+    if state == "setup":
+        # QR lokal erzeugen (data-URI, kein externer Dienst) — Muster otp_setup.html
+        import base64 as _b64
+        import io as _io
+        import qrcode
+        otp_secret = row["otp_secret"]
+        uri = pyotp.totp.TOTP(otp_secret).provisioning_uri(
+            f"user-{uid}", issuer_name="STARFACE-WebApp")
+        img = qrcode.make(uri)
+        buf = _io.BytesIO()
+        img.save(buf, format="PNG")
+        qr_data_uri = "data:image/png;base64," + _b64.b64encode(buf.getvalue()).decode()
+
+    codes_once = ""
+    pending = _pending_backup_codes.pop(uid, None)
+    if pending:
+        codes_once = pending["codes"]
+
+    return TEMPLATES.TemplateResponse("konto.html", {
+        "request": request, "user": user, "u": dict(row),
+        "otp_state": state, "otp_secret": otp_secret,
+        "qr_data_uri": qr_data_uri, "codes_once": codes_once,
+        "passkeys": [dict(r) for r in passkeys],
+        "active": "konto",
+        "version": os.environ.get("APP_VERSION", "dev"),
+    })
+
+
+@app.post("/konto/password")
+async def konto_password_change(request: Request):
+    """Eigenes Passwort ändern (Self-Service, mit aktuellen Passwort prüfen)."""
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user:
+        return RedirectResponse("/", status_code=303)
+    form = await request.form()
+    new_password = form.get("new_password", "")
+    if new_password != form.get("confirm", ""):
+        return RedirectResponse("/konto#sicherheit?pw_err=nomatch", status_code=303)
+    if not new_password:
+        return RedirectResponse("/konto#sicherheit?pw_err=empty", status_code=303)
+    if not _check_current_password(user["user_id"], str(form.get("password", ""))):
+        return RedirectResponse("/konto#sicherheit?pw_err=wrong", status_code=303)
+    new_hash = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt()).decode()
+    db = _db()
+    try:
+        db.execute("UPDATE users SET password_hash = ? WHERE id = ?",
+                   (new_hash, user["user_id"]))
+        db.commit()
+    finally:
+        db.close()
+    return RedirectResponse("/konto#sicherheit?pw_ok=1", status_code=303)
+
+
+@app.post("/konto/2fa/setup")
+async def konto_2fa_setup(request: Request):
+    """2FA einrichten (Self-Service, mit Passwort-Bestätigung)."""
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user:
+        return RedirectResponse("/", status_code=303)
+    form = await request.form()
+    if not _check_current_password(user["user_id"], str(form.get("password", ""))):
+        return RedirectResponse("/konto#sicherheit?fa_err=pw", status_code=303)
+    secret = pyotp.random_base32()
+    db = _db()
+    try:
+        db.execute("UPDATE users SET otp_secret=?, otp_confirmed=0, backup_codes=? WHERE id=?",
+                   (secret, _gen_backup_codes(), user["user_id"]))
+        db.commit()
+    finally:
+        db.close()
+    return RedirectResponse("/konto#sicherheit?fa=setup", status_code=303)
+
+
+@app.post("/konto/2fa/confirm")
+async def konto_2fa_confirm(request: Request):
+    """2FA-Code bestätigen → 2FA aktiv; Backup-Codes einmalig zwischenlagern."""
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user:
+        return RedirectResponse("/", status_code=303)
+    uid = user["user_id"]
+    conn = _db()
+    row = conn.execute(
+        "SELECT otp_secret, backup_codes, otp_confirmed FROM users WHERE id=?",
+        (uid,)).fetchone()
+    conn.close()
+    if not row or not row["otp_secret"] or row["otp_confirmed"]:
+        return RedirectResponse("/konto#sicherheit", status_code=303)
+    form = await request.form()
+    if not pyotp.TOTP(row["otp_secret"]).verify(form.get("code", "")):
+        return RedirectResponse("/konto#sicherheit?fa_err=code", status_code=303)
+    db = _db()
+    try:
+        db.execute("UPDATE users SET otp_confirmed=1 WHERE id=?", (uid,))
+        db.commit()
+    finally:
+        db.close()
+    _clean_pending_codes()
+    _pending_backup_codes[uid] = {
+        "codes": row["backup_codes"], "expires": time.time() + 300}
+    return RedirectResponse("/konto#sicherheit?fa=done", status_code=303)
+
+
+@app.post("/konto/2fa/disable")
+async def konto_2fa_disable(request: Request):
+    """2FA deaktivieren (Self-Service, mit Passwort-Bestätigung)."""
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user:
+        return RedirectResponse("/", status_code=303)
+    form = await request.form()
+    if not _check_current_password(user["user_id"], str(form.get("password", ""))):
+        return RedirectResponse("/konto#sicherheit?fa_err=pw", status_code=303)
+    db = _db()
+    try:
+        db.execute("UPDATE users SET otp_secret=NULL, backup_codes=NULL, otp_confirmed=0 WHERE id=?",
+                   (user["user_id"],))
+        db.commit()
+    finally:
+        db.close()
+    return RedirectResponse("/konto#sicherheit?fa=off", status_code=303)
 
 
 # ─────────────────────────────────────────────────────────────

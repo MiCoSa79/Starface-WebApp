@@ -34,6 +34,8 @@ conn = sqlite3.connect(DB)
 import bcrypt
 conn.execute("INSERT INTO users (username, password_hash, is_admin) VALUES (?,?,?)",
              ("admin", bcrypt.hashpw(b"pw123", bcrypt.gensalt()).decode(), 1))
+conn.execute("INSERT INTO users (username, password_hash, is_admin) VALUES (?,?,?)",
+             ("axel", bcrypt.hashpw(b"pw456", bcrypt.gensalt()).decode(), 0))
 conn.commit()
 conn.close()
 
@@ -68,12 +70,21 @@ for route in WIDE:
                                       "max-width: 1100px", "max-width: 720px")),
           "veraltete max-width-Breite noch im Template")
 
-# Login (password.html) bleibt schmal
-for route in ("/login", "/password"):
+# Login (password.html) bleibt schmal — jetzt nur noch im Admin-Reset-Modus
+# (GET /password ohne uid redirectet seit dem Menü-Umbau auf /konto#sicherheit)
+for route in ("/login",):
     r = c.get(route)
     if r.status_code == 200:
         check("Login-Seite Container 520px", "max-width: 520px" in r.text)
         break
+r = c.get("/password", params={"uid": "2"})  # Admin-Reset für Fremduser (uid 2)
+check("Admin-Reset password.html Container 520px",
+      r.status_code == 200 and "max-width: 520px" in r.text,
+      f"status={r.status_code}")
+r = c.get("/konto")
+check("Mein-Konto /konto Container 1400px",
+      r.status_code == 200 and "max-width: 1400px" in r.text,
+      f"status={r.status_code}")
 
 # Aktion-Buttons: Desktop nowrap, Mobil wrap (nur Modul-Tabellen)
 for route in ("/admin/updates", "/admin/modules"):
