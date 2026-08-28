@@ -92,10 +92,10 @@ import bcrypt as bc  # noqa: E402
 c = TestClient(main.app)
 c.follow_redirects = False
 with c:
-    # ohne Login → Admin-Muster: Redirect /dashboard (dort → Login-Seite)
+    # ohne Login → Admin-Muster: Redirect / (Startseite → Login-Seite)
     r = c.get("/wiki")
-    check("Ohne Login: /wiki → Redirect /dashboard",
-          r.status_code in (303, 307) and "dashboard" in r.headers.get("location", ""),
+    check("Ohne Login: /wiki → Redirect /",
+          r.status_code in (303, 307) and (r.headers.get("location", "").rstrip("/") == "" or r.headers.get("location", "").endswith("/")),
           f"{r.status_code} -> {r.headers.get('location')}")
     r = c.get("/wiki/search?q=test")
     check("Ohne Login: /wiki/search → leere JSON-Ergebnisse",
@@ -110,11 +110,11 @@ with c:
 
     c.post("/api/login", data={"username": "normal", "password": "userpass123"})
     r = c.get("/wiki")
-    check("User ohne Admin: /wiki → Redirect /dashboard",
-          r.status_code in (303, 307) and "dashboard" in r.headers.get("location", ""),
+    check("User ohne Admin: /wiki → Redirect /",
+          r.status_code in (303, 307) and (r.headers.get("location", "").rstrip("/") == "" or r.headers.get("location", "").endswith("/")),
           f"{r.status_code} -> {r.headers.get('location')}")
-    r = c.get("/dashboard")
-    check("User: Dashboard ohne Wiki-Nav", 'href="/wiki"' not in r.text)
+    r = c.get("/")
+    check("User: Startseite ohne Wiki-Nav", 'href="/wiki"' not in r.text)
     r = c.get("/wiki/search?q=SimpleMatch")
     check("User ohne Admin: Suche → leere JSON-Ergebnisse",
           r.status_code == 200 and r.json() == {"results": []})

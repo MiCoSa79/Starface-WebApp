@@ -1,0 +1,132 @@
+.sr-only { position:absolute; width:1px; height:1px; margin:-1px; padding:0; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+       background: #1a1a2e; color: #e0e0e0; }
+.topbar { background: #16213e; padding: calc(16px + env(safe-area-inset-top, 0px)) 24px 16px;
+          display: flex; justify-content: space-between; align-items: center;
+          border-bottom: 1px solid #333; position: relative; z-index: 2; }
+.topbar h1 { font-size: 20px; display: flex; align-items: center; gap: 8px; }
+.topbar h1 img { height: 24px; width: auto; }
+.topbar h1 span { color: #e94560; }
+.topbar a { color: #e94560; text-decoration: none; margin-left: 16px; }
+.container { max-width: 1400px; margin: 0 auto; padding: 24px;
+             padding-bottom: 60px; }
+h2 { font-size: 18px; margin: 24px 0 12px; color: #e94560; }
+h2:first-child { margin-top: 0; }
+.card { background: #16213e; border-radius: 12px; padding: 20px; margin-bottom: 16px;
+        border: 1px solid #333; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { text-align: left; padding: 8px; border-bottom: 1px solid #2a2a4a; }
+th { color: #888; font-weight: 600; }
+input, select { padding: 8px; border: 1px solid #333; border-radius: 6px;
+                background: #0f3460; color: #fff; font-size: 14px; }
+button { padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer;
+         font-size: 13px; font-weight: 600; }
+.btn-primary { background: #e94560; color: #fff; }
+.btn-secondary { background: #333; color: #ccc; }
+.btn-danger { background: #8b0000; color: #fff; }
+.form-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
+/* URL-Eingabefelder: Desktop min. 380px breit; Mobile darf flex-basis NICHT
+   als Hoehe greifen (column-Flexbox) → wird in der Media-Query ueberschrieben */
+.url-field { flex: 1 1 380px; font-size: 16px; }
+.hint { color: #666; font-size: 12px; margin-top: 4px; }
+.okmsg { background: #1b4332; color: #95d5b2; padding: 10px 16px; border-radius: 8px;
+         margin-bottom: 12px; font-size: 14px; }
+.badge { display: inline-block; background: #e94560; color: #fff;
+         padding: 2px 8px; border-radius: 4px; font-size: 11px; }
+.badge-gray { background: #333; }
+.codes { font-family: monospace; word-break: break-all; }
+
+/* Navigation */
+.nav { background: #16213e; border-bottom: 1px solid #333;
+       display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
+       padding: 8px 24px; }
+.nav a { color: #aaa; text-decoration: none; padding: 6px 14px;
+         border-radius: 6px; font-size: 13px; }
+.nav a:hover { background: #0f3460; color: #fff; }
+.nav a.active { background: #e94560; color: #fff; font-weight: 600; }
+.nav .spacer { flex: 1; }
+
+/* Fußzeile — fixiert am unteren Bildschirmrand */
+.footer { position: fixed; bottom: 0; left: 0; right: 0;
+          text-align: center; padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+          color: #555; font-size: 12px;
+          background: #16213e; border-top: 1px solid #222; z-index: 100; }
+
+/* ── Mobil (Hamburger-Menü + schmale Screens) ── */
+.hamburger { display: none; font-size: 22px; cursor: pointer;
+             color: #e94560; background: none; border: none;
+             padding: 4px 8px; line-height: 1; }
+@media (max-width: 640px) {
+                .hamburger { display: inline-block; }
+    .nav { display: none; flex-direction: column; padding: 8px 12px; gap: 2px; }
+    .nav a { padding: 14px 12px; font-size: 15px; border-bottom: 1px solid #222; border-radius: 0; }
+    .nav a:last-child { border-bottom: none; }
+    .nav .spacer { display: none; }
+    #nav-open:checked ~ .nav { display: flex; }
+    .topbar { padding: calc(12px + env(safe-area-inset-top, 0px)) 16px 12px; }
+    .topbar h1 { font-size: 17px; }
+    .container { padding: 16px 14px 60px; }
+    .card { padding: 16px; }
+    table { display: block; overflow-x: auto; white-space: nowrap; }
+    .form-row { flex-direction: column; align-items: stretch; }
+    /* flex-basis 380px wuerde in der column-Flexbox als HOEHE greifen → zuruecksetzen */
+    .url-field { flex: 1 1 auto; min-height: 44px; }
+    .btn-primary, .btn-secondary, .btn-danger { width: 100%; min-height: 44px; padding: 14px 12px; }
+    .container table button { width: auto; min-height: auto; padding: 8px 12px; font-size: 13px; }
+    .codes { font-size: 14px; }
+}
+    .header-wrap { position: sticky; top: 0; left: 0; right: 0;
+  z-index: 30; background: #16213e; box-shadow: 0 2px 8px rgba(0,0,0,.35); }
+
+/* ── Scrollbars an das Dark-Design anpassen (app-weit) ──── */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: rgba(255,255,255,.05); border-radius: 8px; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,.20); border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.34); }
+::-webkit-scrollbar-corner { background: transparent; }
+* { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.25) transparent; }
+
+/* ── Tabellen: Filter + Einklappen (Admin) ─────────────── */
+.tbl-head { display: flex; align-items: center; gap: 8px; }
+.collapse-btn { background: none; border: none; padding: 2px; cursor: pointer;
+                color: #e94560; display: inline-flex; align-items: center; }
+.collapse-btn:hover { opacity: .8; }
+.chev { transition: transform .18s ease; }
+.tbl-wrap.collapsed .chev { transform: rotate(-90deg); }
+.tbl-wrap.collapsed .tbl-filters,
+.tbl-wrap.collapsed table { display: none; }
+.tbl-filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; }
+.tbl-filters input, .tbl-filters select { background: #0f3460; border: 1px solid #333;
+                border-radius: 6px; color: #fff; padding: 8px 10px; }
+.tbl-filters input[type="text"] { width: 220px; }
+.tbl-filters select { max-width: 240px; }
+.tbl-count { color: #666; font-size: 12px; font-weight: 400; margin-left: auto; }
+@media (max-width: 640px) {
+    .tbl-filters { flex-direction: column; align-items: stretch; }
+    .tbl-filters input[type="text"],
+    .tbl-filters select { width: 100%; max-width: none; }
+}
+
+    /* ── Combobox (Dropdown mit Suchfeld, ab 3 Zeichen) ─────── */
+    .cb { position: relative; flex: 1 1 0; min-width: 260px; }
+    .cb-trigger { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  background: #0f3460; border: 1px solid #333; border-radius: 6px; color: #fff;
+  padding: 9px 10px; font-size: 16px; cursor: pointer; text-align: left; }
+    .cb-trigger:hover { border-color: #555; }
+    .cb-value { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .cb-value.placeholder { color: #8b93a7; }
+    .cb-chev { flex-shrink: 0; color: #e94560; transition: transform .18s ease; }
+    .cb.open .cb-chev { transform: rotate(180deg); }
+    .cb-pop { position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 60;
+  background: #16213e; border: 1px solid #333; border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.45); padding: 8px; }
+    .cb-pop[hidden] { display: none; }
+    .cb-search { width: 100%; box-sizing: border-box; font-size: 16px; background: #0f3460;
+  border: 1px solid #333; border-radius: 6px; color: #fff; padding: 8px 10px; }
+    .cb-list { list-style: none; margin: 6px 0 0; padding: 0; max-height: 220px; overflow-y: auto; }
+    .cb-list li { padding: 7px 10px; border-radius: 6px; cursor: pointer; color: #e0e0e0; }
+    .cb-list li:hover { background: rgba(233,69,96,.16); color: #fff; }
+    .cb-list li.empty { color: #8b93a7; cursor: default; background: none; }
+    .cb-native { position: absolute; opacity: 0; pointer-events: none; width: 1px; height: 1px; }
+    @media (max-width: 640px) { .cb { min-width: 100%; } }

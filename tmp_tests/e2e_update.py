@@ -63,7 +63,7 @@ with TestClient(main.app) as c:
         "is_starface10": 1,
     }, follow_redirects=False)
     check("Installation angelegt", r.status_code in (200, 303), f"status={r.status_code}")
-    dash = c.get("/dashboard").text
+    dash = c.get("/").text
     m = re.search(r"/installation/(\d+)/blocklist", dash)
     check("Instanz-ID gefunden", bool(m))
     inst_id = int(m.group(1))

@@ -116,10 +116,10 @@ assert "Admin-Monitoring" in r.text and "Anlagen mit Provider-Fehlern" in r.text
 ok += 1
 login("bob")
 r = c.get("/admin/monitoring")
-assert r.status_code in (302, 307) and r.headers.get("location", "").endswith("/dashboard"), \
+assert r.status_code in (302, 307) and r.headers.get("location", "").rstrip("/") == "", \
     (r.status_code, r.headers.get("location"))
 ok += 1
-print("5. /admin/monitoring: Admin 200 (Kennzahlen) / User -> /dashboard  OK")
+print("5. /admin/monitoring: Admin 200 (Kennzahlen) / User -> /  OK")
 
 # 6) API gefiltert: Bob nur A, Admin beide, ohne Login 401
 login("bob")
@@ -138,62 +138,69 @@ assert r.status_code == 401
 ok += 1
 print("6. API: Bob nur A / Admin beide / ohne Login 401  OK")
 
-# 7) Dashboard-Nav enthält Monitoring-Link für alle eingeloggten User
+# 7) Startseite (/) enthält Monitoring-Link für alle eingeloggten User
 login("eve")
-r = c.get("/dashboard")
-assert r.status_code == 200 and 'href="/monitoring"' in r.text, "Nav-Monitoring fehlt auf Dashboard"
+r = c.get("/")
+assert r.status_code == 200 and 'href="/monitoring"' in r.text, "Nav-Monitoring fehlt auf Startseite"
 ok += 1
-print("7. Nav-Link /monitoring auf /dashboard für Eve  OK")
+print("7. Nav-Link /monitoring auf / für Eve  OK")
 
-# 8) Admin /dashboard: 2 Karten, je 1 grafana-dl-Link
+# 8) Admin /: Anlagen-Tabelle mit 2 Zeilen (Test/Edit/Löschen), Formular
 login("admin")
-r = c.get("/dashboard")
+r = c.get("/")
 assert r.status_code == 200, r.status_code
 body = r.text
-assert body.count('class="card"') == 2, "Anzahl Karten != 2"
-assert body.count('class="grafana-dl"') == 2, "Admin erwartet 2 Dashboard-Links auf /dashboard"
-assert "Testanlage+A" in body.replace("Testanlage%20A", "Testanlage+A"), "urlencode des Anlagennamens fehlt im Dashboard-Link"
-assert "starface-anlage-detail" in body, "Grafana-UID fehlt im Dashboard-Link"
+assert body.count("⚡ Test") == 2, "Admin erwartet 2 Test-Buttons auf /"
+assert "Testanlage A" in body and "Testanlage B" in body, "Admin sieht nicht beide Anlagen"
+assert "Anlage hinzufügen" in body, "Admin-Formular (Anlegen) fehlt auf /"
 ok += 1
-print("8. Admin /dashboard: 2 Karten + 2 Links + korrekte URL  OK")
+print("8. Admin /: 2 Anlagen-Zeilen + 2 Test-Buttons + Anlegen-Formular  OK")
 
-# 9) Bob /dashboard: nur Anlage A sichtbar (can_read), genau 1 Link
+# 9) Bob /: nur Anlage A sichtbar (can_read), genau 1 Grafana-Link (Non-Admin-Spalte)
 login("bob")
-r = c.get("/dashboard")
+r = c.get("/")
 body = r.text
-assert "Testanlage A" in body and "Testanlage B" not in body, "Bob sieht auf /dashboard die falsche Anlagenmenge"
-assert body.count('class="card"') == 1 and body.count('class="grafana-dl"') == 1, "Bob: Karten/Links-Anzahl falsch"
+assert "Testanlage A" in body and "Testanlage B" not in body, "Bob sieht auf / die falsche Anlagenmenge"
+assert body.count('class="grafana-dl"') == 1, "Bob: genau 1 Grafana-Link erwartet"
+assert "Testanlage+A" in body.replace("Testanlage%20A", "Testanlage+A"), "urlencode des Anlagennamens fehlt im Grafana-Link"
+assert "starface-anlage-detail" in body, "Grafana-UID fehlt im Link"
+assert "Anlage hinzufügen" not in body, "Bob darf kein Anlegen-Formular sehen"
+assert body.count("⚡ Test") == 1, "Bob: genau 1 Test-Button (User-Route) erwartet"
 ok += 1
-print("9. Bob /dashboard: 1 Karte + 1 Link (nur can_read)  OK")
+print("9. Bob /: 1 Zeile (nur can_read) + 1 Grafana-Link + urlencode/UID  OK")
 
-# 10) Eve /dashboard: keine Karten, keine Links
+# 10) Eve /: keine Anlagen, keine Links, kein Formular
 login("eve")
-r = c.get("/dashboard")
+r = c.get("/")
 body = r.text
-assert body.count('class="card"') == 0 and body.count('class="grafana-dl"') == 0, "Eve darf keine Karten/Links sehen"
+assert "Testanlage" not in body and body.count('class="grafana-dl"') == 0, "Eve darf keine Anlagen/Links sehen"
+assert "Anlage hinzufügen" not in body, "Eve darf kein Formular sehen"
 ok += 1
-print("10. Eve /dashboard: 0 Karten, 0 Links  OK")
+print("10. Eve /: 0 Anlagen, 0 Links, kein Formular  OK")
 
 # 11) Admin-Einstellung: Grafana-Basis-URL hinterlegen -> Links nutzen die Domäne
 login("admin")
 r = c.post("/admin/settings", data={"grafana_base_url": "https://monitoring.meiser.family"})
 assert r.status_code == 303 and "set_ok=1" in r.headers.get("location", ""), (r.status_code, r.headers.get("location"))
-r = c.get("/dashboard")
+login("bob")
+r = c.get("/")
 body = r.text
-assert "https://monitoring.meiser.family/d/starface-anlage-detail/?var-installation=Testanlage+A" in body.replace("Testanlage%20A", "Testanlage+A"), "Dashboard-Link nutzt nicht die Admin-Domäne"
+assert "https://monitoring.meiser.family/d/starface-anlage-detail/?var-installation=Testanlage+A" in body.replace("Testanlage%20A", "Testanlage+A"), "Grafana-Link nutzt nicht die Admin-Domäne"
 assert "10.0.25.60" not in body, "Fallback-IP darf nicht mehr auftauchen"
 r = c.get("/monitoring")
 assert "https://monitoring.meiser.family/d/starface-anlage-detail/" in r.text, "Monitoring-Link nutzt nicht die Admin-Domäne"
-r = c.get("/admin")
+login("admin")
+r = c.get("/grundeinstellungen")
 body = r.text
-assert 'value="https://monitoring.meiser.family"' in body, "Admin-Formular zeigt hinterlegte URL nicht"
+assert 'value="https://monitoring.meiser.family"' in body, "Grundeinstellungen-Formular zeigt hinterlegte URL nicht"
 ok += 1
 print("11. Admin-Domäne wirkt auf Startseite + Monitoring + Formular  OK")
 
 # 12) Feld leeren -> Fallback (Env -> Default-IP)
 r = c.post("/admin/settings", data={"grafana_base_url": ""})
 assert r.status_code == 303
-r = c.get("/dashboard")
+login("bob")
+r = c.get("/")
 body = r.text
 assert "10.0.25.60:8894/d/starface-anlage-detail/" in body, "Leerer Wert muss auf Fallback-URL zurücksetzen"
 ok += 1
@@ -210,13 +217,13 @@ assert "starface-admin-uebersicht" not in body, "Bob darf den Admin-Übersicht-L
 ok += 1
 print("13. Admin-Übersicht-Link nur für Admins (Monitoring)  OK")
 
-# 14) Admin-Seite: Einstellungen-Karte enthält den Admin-Übersicht-Link
+# 14) Grundeinstellungen-Seite: Karte enthält den Admin-Übersicht-Link
 login("admin")
-r = c.get("/admin")
+r = c.get("/grundeinstellungen")
 body = r.text
-assert "starface-admin-uebersicht" in body and "Grafana Admin-Übersicht öffnen" in body and "kiosk=1&hideLogo" in body, "Admin-Seite: Admin-Übersicht-Link/kiosk fehlt"
+assert "starface-admin-uebersicht" in body and "Grafana Admin-Übersicht öffnen" in body and "kiosk=1&hideLogo" in body, "Grundeinstellungen: Admin-Übersicht-Link/kiosk fehlt"
 ok += 1
-print("14. Admin-Seite: Admin-Übersicht-Link in Einstellungen  OK")
+print("14. Grundeinstellungen: Admin-Übersicht-Link in Einstellungen  OK")
 
 # 15) Monitoring-Auto-Refresh: JS-Marker + tbody auf der Monitoring-Seite (Admin)
 login("admin")

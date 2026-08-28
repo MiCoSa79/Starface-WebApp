@@ -86,7 +86,7 @@ async function main() {
   // ── Desktop: Admin ────────────────────────────────────────────
   await setViewport(1280, 800, false);
   await loginAs('admin', 'pw123');
-  await open('/dashboard');
+  await open('/');
   const adminNav = await evalJs(`(() => {
     const has = (sel) => !!document.querySelector(sel);
     const txt = (sel) => { const el = document.querySelector(sel); return el ? el.textContent : null; };
@@ -94,6 +94,7 @@ async function main() {
       adminDrop: has('details.drop > summary') && (txt('details.drop summary') || '').includes('Administration'),
       userDrop: (txt('.nav details:nth-of-type(2) summary') || '').includes('👤'),
       flatPw: has('a[href="/password"]'),
+      dashLink: has('a[href="/dashboard"]'),
       wikiLink: has('a[href="/wiki"]'),
       bodyOk: !document.body.innerHTML.includes('Traceback')
     };
@@ -101,10 +102,11 @@ async function main() {
   check('Admin: Administration-Dropdown in Nav', adminNav.adminDrop);
   check('Admin: Benutzer-Dropdown in Nav', adminNav.userDrop);
   check('Admin: kein flacher /password-Link', !adminNav.flatPw);
+  check('Admin: KEIN Dashboard-Link mehr', !adminNav.dashLink);
   check('Admin: Wiki-Link vorhanden (im Dropdown)', adminNav.wikiLink);
-  check('Admin: Dashboard ohne Traceback', adminNav.bodyOk);
+  check('Admin: Startseite ohne Traceback', adminNav.bodyOk);
 
-  // Administration aufklappen → Modul-Updates + Wiki sichtbar
+  // Administration aufklappen → 4 Bereiche + Modul-Updates + Wiki sichtbar
   await evalJs(`(() => { const s = document.querySelector('details.drop summary'); s.click(); })()`);
   await sleep(250);
   const dd = await evalJs(`(() => {
@@ -115,6 +117,9 @@ async function main() {
   })()`);
   check('Admin: Dropdown-Klick öffnet Menü', dd.h > 0 && dd.links.includes('Modul-Updates') && dd.links.includes('Wiki'),
         JSON.stringify(dd));
+  check('Admin: Dropdown enthält Anlagen/Benutzer/Rechteverwaltung/Grundeinstellungen',
+        dd.links.includes('Anlagen') && dd.links.includes('Benutzer') && dd.links.includes('Rechteverwaltung') && dd.links.includes('Grundeinstellungen'),
+        JSON.stringify(dd.links));
 
   // ── Desktop: /konto ───────────────────────────────────────────
   await open('/konto');
@@ -131,7 +136,7 @@ async function main() {
 
   // ── Desktop: Normaluser ───────────────────────────────────────
   await loginAs('axel', 'pw456');
-  await open('/dashboard');
+  await open('/');
   const userNav = await evalJs(`(() => {
     const sums = Array.from(document.querySelectorAll('details.drop summary')).map(s => s.textContent.trim());
     return { hasAdmin: sums.some(s => s.includes('Administration')), hasKonto: sums.some(s => s.includes('👤')), sums };
@@ -145,7 +150,7 @@ async function main() {
   // ── Mobile (390x844, iPhone-artig) — als Admin ───────────────
   await loginAs('admin', 'pw123');
   await setViewport(390, 844, true);
-  await open('/dashboard');
+  await open('/');
   const navClosed = await evalJs(`(() => {
     const nav = document.querySelector('.nav');
     const hamburger = document.querySelector('.hamburger');

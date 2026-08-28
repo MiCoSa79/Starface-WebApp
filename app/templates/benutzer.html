@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}STARFACE WebApp — Benutzer{% endblock %}
+{% block styles %}
+<link rel="stylesheet" href="/static/admin.css">
+{% endblock %}
+{% block content %}
+<div class="container">
+        {% if request.query_params.get('role_err') == 'lastadmin' %}
+        <div class="error" style="max-width:400px;margin:0 auto 16px;text-align:center;">Es muss immer mindestens ein Admin geben — der letzte Admin kann nicht entlassen werden.</div>
+        {% elif request.query_params.get('role_err') == 'notfound' %}
+        <div class="error">Benutzer nicht gefunden.</div>
+        {% endif %}
+        {% if request.query_params.get('pw_ok') %}
+        <div class="okmsg">✅ Passwort wurde zurückgesetzt.</div>
+        {% elif request.query_params.get('pw_err') == 'nomatch' %}
+        <div class="error">Neues Passwort und Bestätigung stimmen nicht überein.</div>
+        {% elif request.query_params.get('pw_err') == 'empty' %}
+        <div class="error">Neues Passwort darf nicht leer sein.</div>
+        {% elif request.query_params.get('pw_err') == 'notfound' %}
+        <div class="error">Benutzer nicht gefunden.</div>
+        {% endif %}
+        {% if request.query_params.get('tot_ok') %}
+        <div class="okmsg">2FA aktiviert! Backup-Codes (einmal nutzbar, sicher aufbewahren):<br>
+            <span class="codes">{{ request.query_params.get('codes', '') }}</span></div>
+        {% endif %}
+
+        <h2 class="tbl-head">
+            <button type="button" class="collapse-btn" data-collapse="users" aria-expanded="true" aria-label="Benutzer-Tabelle ein- oder ausklappen">
+                <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            Benutzer <span class="tbl-count" data-count="users">{{ users|length }} von {{ users|length }}</span>
+        </h2>
+        <div class="card">
+            <form method="POST" action="/admin/users">
+                <div class="form-row">
+                    <label class="sr-only" for="new_username">Benutzername</label>
+                    <input type="text" id="new_username" name="username" placeholder="Benutzername" required autocomplete="username" style="font-size:16px;">
+                    <label class="sr-only" for="new_password">Passwort</label>
+                    <input type="password" id="new_password" name="password" placeholder="Passwort" required autocomplete="new-password" style="font-size:16px;">
+                    <label style="color:#aaa; font-size:13px;"><input type="checkbox" name="is_admin" value="1"> Admin</label>
+                    <button type="submit" class="btn-primary">Benutzer anlegen</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="tbl-wrap" data-wrap="users">
+        <div class="tbl-filters">
+            <label class="sr-only" for="f-users-name">Benutzer nach Name filtern</label>
+            <input type="text" id="f-users-name" data-filter="tbl-users" data-col="1" data-minlen="3" placeholder="Benutzer filtern (ab 3 Zeichen)" style="font-size:16px;">
+        </div>
+        <table id="tbl-users">
+            <tr><th>ID</th><th>Benutzer</th><th>Rolle</th><th>2FA</th><th></th></tr>
+            {% for u in users %}
+            <tr>
+                <td>{{ u.id }}</td>
+                <td>{{ u.username }}</td>
+                <td>
+                    <form method="POST" action="/admin/users/{{ u.id }}/role" style="display:inline-flex;align-items:center;gap:4px;">
+                        <label class="sr-only" for="role_{{ u.id }}">Rolle von {{ u.username }}</label>
+                        <select name="is_admin" id="role_{{ u.id }}" autocomplete="off" style="padding:4px 8px;border:1px solid #333;border-radius:6px;background:#0f3460;color:#e0e0e0;font-size:13px;">
+                            <option value="0" {% if not u.is_admin %}selected{% endif %}>User</option>
+                            <option value="1" {% if u.is_admin %}selected{% endif %}>Admin</option>
+                        </select>
+                        <button type="submit" class="btn-secondary" style="padding:4px 10px;font-size:12px;">OK</button>
+                    </form>
+                </td>
+                <td>{% if u.otp_confirmed %}✅{% else %}{% if u.otp_secret %}⏳{% else %}—{% endif %}{% endif %}</td>
+                <td>
+                    <a href="/admin/users/{{ u.id }}/totp-setup" class="btn-secondary" style="padding:6px 12px;border-radius:6px;text-decoration:none;background:#333;color:#ccc;">2FA einrichten</a>
+                    <a href="/admin/users/{{ u.id }}/passkeys" class="btn-secondary" style="padding:6px 12px;border-radius:6px;text-decoration:none;background:#333;color:#ccc;">Passkeys</a>
+                    <a href="/password?uid={{ u.id }}" class="btn-secondary" style="padding:6px 12px;border-radius:6px;text-decoration:none;background:#333;color:#ccc;">Passwort zurücksetzen</a>
+                    {% if u.id != user.id %}
+                    <form method="POST" action="/admin/users/{{ u.id }}/delete" style="display:inline"
+                          onsubmit="return confirm('Benutzer {{ u.username }} wirklich löschen?');">
+                        <button type="submit" class="btn-danger">Löschen</button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+        </div>
+    </div>
+{% endblock %}
+{% block scripts %}
+    <script src="/static/admin.js" defer></script>
+{% endblock %}

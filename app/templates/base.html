@@ -56,6 +56,11 @@
                  white-space: nowrap; }
         .nav details.drop .drop-menu a:hover { background: #0f3460; color: #fff; }
         .nav details.drop .drop-menu a.active { background: #e94560; color: #fff; }
+        .nav details.drop .drop-sep { height: 1px; background: #333; margin: 5px 8px; }
+        .nav .logo-link { display: flex; align-items: center; gap: 8px;
+                 color: inherit; text-decoration: none; padding: 6px 14px;
+                 border-radius: 6px; }
+        .nav .logo-link:hover { background: #0f3460; }
 
         .container { max-width: 1400px; margin: 0 auto; padding: 24px;
                      padding-bottom: 60px; }
@@ -111,15 +116,22 @@
         </div>
         {% block nav %}
         <nav class="nav">
-            <a href="/dashboard" class="{% if active=='dashboard' %}active{% endif %}">Dashboard</a>
             {% if user %}
+            <a href="/" class="logo-link" title="Anlagenübersicht (Startseite)" style="{% if active=='anlagen' %}background:#e94560;color:#fff;font-weight:600;{% endif %}">
+                <img src="/static/kits-logo.png" alt="Logo" style="height:20px;width:auto;">Anlagen</a>
             <a href="/monitoring" class="{% if active=='monitoring' %}active{% endif %}">Monitoring</a>
+            {% else %}
+            <a href="/" class="logo-link"><img src="/static/kits-logo.png" alt="Logo" style="height:20px;width:auto;">STARFACE WebApp</a>
             {% endif %}
             {% if user and user.is_admin %}
-            <details class="drop {% if active in ['admin','modules','updates','api-doku','wiki'] %}active{% endif %}">
+            <details class="drop {% if active in ['anlagen','benutzer','rechte','grundeinstellungen','modules','updates','api-doku','wiki'] %}active{% endif %}">
                 <summary>Administration ▾</summary>
                 <div class="drop-menu">
-                    <a href="/admin" class="{% if active=='admin' %}active{% endif %}">Admin</a>
+                    <a href="/" class="{% if active=='anlagen' %}active{% endif %}">Anlagen</a>
+                    <a href="/benutzer" class="{% if active=='benutzer' %}active{% endif %}">Benutzer</a>
+                    <a href="/rechte" class="{% if active=='rechte' %}active{% endif %}">Rechteverwaltung</a>
+                    <a href="/grundeinstellungen" class="{% if active=='grundeinstellungen' %}active{% endif %}">Grundeinstellungen</a>
+                    <div class="drop-sep"></div>
                     <a href="/admin/modules" class="{% if active=='modules' %}active{% endif %}">Module</a>
                     <a href="/admin/updates" class="{% if active=='updates' %}active{% endif %}">Modul-Updates</a>
                     <a href="/admin/api-doku" class="{% if active=='api-doku' %}active{% endif %}">API-Doku</a>

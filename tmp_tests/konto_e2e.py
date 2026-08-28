@@ -71,8 +71,8 @@ check("GET /konto ohne Login -> Redirect", r.status_code == 303, str(r.status_co
 
 # ── 2) Admin-Login, Nav, Seiten ────────────────────────────────
 check("Login admin", login("admin", "pw123"))
-r = c.get("/dashboard")
-check("GET /dashboard -> 200", r.status_code == 200, str(r.status_code))
+r = c.get("/")
+check("GET / (Startseite=Anlagen) -> 200", r.status_code == 200, str(r.status_code))
 nav_admin = r.text
 check("Admin-Nav zeigt Administration-Dropdown", "<summary>Administration" in nav_admin)
 check("Admin-Nav zeigt Benutzer-Dropdown", "Mein Konto" in nav_admin)
@@ -170,8 +170,8 @@ check("Login mit neuem Passwort", login("admin", "neu123"))
 
 # ── 6) Normaluser: Nav ohne Administration ─────────────────────
 check("Login axel", login("axel", "pw456"))
-r = c.get("/dashboard")
-check("Normaluser-Dashboard -> 200", r.status_code == 200, str(r.status_code))
+r = c.get("/")
+check("Normaluser-Startseite -> 200", r.status_code == 200, str(r.status_code))
 check("Normaluser sieht KEIN Administration", "<summary>Administration" not in r.text)
 check("Normaluser sieht KEINEN Wiki-Link", ">Wiki<" not in r.text)
 check("Normaluser sieht Mein Konto", "Mein Konto" in r.text)

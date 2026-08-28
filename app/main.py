@@ -733,30 +733,30 @@ async def password_change(request: Request,
     (ohne das aktuelle Passwort des Ziel-Users zu kennen)."""
     user = verify_session(request.cookies.get(SESSION_COOKIE))
     if not user:
-        return RedirectResponse("/dashboard")
+        return RedirectResponse("/")
 
     if new_password != confirm:
         if user["is_admin"] and target_uid and target_uid != user["user_id"]:
-            return RedirectResponse("/admin?pw_err=nomatch", status_code=303)
-        return RedirectResponse("/dashboard?pw_err=nomatch", status_code=303)
+            return RedirectResponse("/benutzer?pw_err=nomatch", status_code=303)
+        return RedirectResponse("/?pw_err=nomatch", status_code=303)
 
     if user["is_admin"] and target_uid and target_uid != user["user_id"]:
         # Admin setzt Passwort eines anderen Users neu — kein aktuelles Passwort nötig.
         # Redirect zurück zum Admin-Bereich.
         target = target_uid
         if not new_password:
-            return RedirectResponse("/admin?pw_err=empty", status_code=303)
+            return RedirectResponse("/benutzer?pw_err=empty", status_code=303)
         conn = _db()
         target_row = conn.execute(
             "SELECT id, username FROM users WHERE id = ?", (target,)).fetchone()
         if not target_row:
             conn.close()
-            return RedirectResponse("/admin?pw_err=notfound", status_code=303)
+            return RedirectResponse("/benutzer?pw_err=notfound", status_code=303)
         new_hash = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt()).decode()
         conn.execute("UPDATE users SET password_hash = ? WHERE id = ?", (new_hash, target))
         conn.commit()
         conn.close()
-        return RedirectResponse("/admin?pw_ok=1", status_code=303)
+        return RedirectResponse("/benutzer?pw_ok=1", status_code=303)
 
     # Eigenes Passwort ändern (User oder Admin): aktuelles Passwort prüfen
     conn = _db()
@@ -764,7 +764,7 @@ async def password_change(request: Request,
         "SELECT password_hash FROM users WHERE id = ?", (user["user_id"],)).fetchone()
     conn.close()
     if not row or not bcrypt.checkpw(password.encode(), row["password_hash"].encode()):
-        return RedirectResponse("/dashboard?pw_err=wrong", status_code=303)
+        return RedirectResponse("/?pw_err=wrong", status_code=303)
 
     new_hash = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt()).decode()
     conn = _db()
@@ -772,7 +772,7 @@ async def password_change(request: Request,
                  (new_hash, user["user_id"]))
     conn.commit()
     conn.close()
-    return RedirectResponse("/dashboard?pw_ok=1", status_code=303)
+    return RedirectResponse("/?pw_ok=1", status_code=303)
 
 
 # ─────────────────────────────────────────────────────────────
@@ -975,13 +975,29 @@ def _clean_pending():
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
-    if verify_session(request.cookies.get(SESSION_COOKIE)):
-        return RedirectResponse("/dashboard")
-    return TEMPLATES.TemplateResponse("login.html", {
-        "request": request,
-        "passkey_enabled": bool(WEBAUTHN_RP_ID and WEBAUTHN_ORIGIN and FIDO2_OK),
-        "password_login_enabled": PASSWORD_LOGIN_ENABLED,
-    })
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user:
+        return TEMPLATES.TemplateResponse("login.html", {
+            "request": request,
+            "passkey_enabled": bool(WEBAUTHN_RP_ID and WEBAUTHN_ORIGIN and FIDO2_OK),
+            "password_login_enabled": PASSWORD_LOGIN_ENABLED,
+        })
+    # Startseite = Anlagenübersicht (F62): Admins sehen alle Anlagen
+    # (inkl. Anlegen-Formular), normale Benutzer nur ihre (Zugriff wie altes Dashboard).
+    conn = _db()
+    installations = conn.execute("SELECT * FROM installations ORDER BY name").fetchall()
+    conn.close()
+    if not user["is_admin"]:
+        installations = [i for i in installations
+                         if get_access(user["user_id"], i["id"])["can_read"]]
+    return TEMPLATES.TemplateResponse("anlagen.html",
+                                      {"request": request, "user": user,
+                                       "installations": installations,
+                                       "active": "anlagen",
+                                       "version": os.environ.get("APP_VERSION", "dev"),
+                                       "grafana_base": _grafana_base(),
+                                       "grafana_uid": "starface-anlage-detail",
+                                       "grafana_admin_uid": "starface-admin-uebersicht"})
 
 
 @app.post("/api/login")
@@ -1351,7 +1367,7 @@ async def admin_passkeys_page(user_id: int, request: Request):
     conn = _db()
     target = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
     if not target:
-        return RedirectResponse("/admin/users", status_code=303)
+        return RedirectResponse("/benutzer", status_code=303)
     rows = conn.execute(
         "SELECT id, device_name, created_at, last_used_at FROM passkeys WHERE user_id = ? ORDER BY id",
         (user_id,),
@@ -1382,29 +1398,9 @@ async def logout(request: Request):
 
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(request: Request):
-    user = verify_session(request.cookies.get(SESSION_COOKIE))
-    if not user:
-        return RedirectResponse("/")
-
-    conn = _db()
-    installations = conn.execute("SELECT * FROM installations ORDER BY name").fetchall()
-    conn.close()
-
-    rows = []
-    for inst in installations:
-        acc = get_access(user["user_id"], inst["id"])
-        if not acc["can_read"] and not acc["is_admin"]:
-            continue  # keine Sicht auf diese Anlage
-        rows.append({"id": inst["id"], "name": inst["name"], "url": inst["url"],
-                     "is_starface10": bool(inst["is_starface10"]), **acc})
-
-    return TEMPLATES.TemplateResponse("dashboard.html",
-                                      {"request": request, "user": user,
-                                       "installations": rows,
-                                       "active": "dashboard",
-                                       "version": os.environ.get("APP_VERSION", "dev"),
-                                       "grafana_base": _grafana_base(),
-                                       "grafana_uid": "starface-anlage-detail"})
+    """Entfernt (F62, Menü-Umbau): Dashboard gibt es nicht mehr —
+    Startseite ist die Anlagenübersicht (/). Kompatibler Redirect."""
+    return RedirectResponse("/")
 
 
 # ─────────────────────────────────────────────────────────────
@@ -1413,22 +1409,56 @@ async def dashboard(request: Request):
 
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_page(request: Request):
+    """Entfernt (F62): Admin-Seite aufgeteilt in /benutzer, /rechte,
+    /grundeinstellungen; Anlagen = Startseite (/). Kompatibler Redirect."""
+    return RedirectResponse("/")
+
+
+@app.get("/benutzer", response_class=HTMLResponse)
+async def benutzer_page(request: Request):
+    """Benutzerverwaltung (Admin): anlegen, Rolle, 2FA/Passkeys/Passwort-Reset, Löschen."""
     user = verify_session(request.cookies.get(SESSION_COOKIE))
     if not user or not user["is_admin"]:
-        return RedirectResponse("/dashboard")
-
+        return RedirectResponse("/")
     conn = _db()
-    installations = conn.execute("SELECT * FROM installations ORDER BY name").fetchall()
-    users = conn.execute("SELECT id, username, is_admin, otp_confirmed FROM users ORDER BY username").fetchall()
-    access = conn.execute("SELECT * FROM access").fetchall()
+    users = conn.execute(
+        "SELECT id, username, is_admin, otp_secret, otp_confirmed FROM users ORDER BY username").fetchall()
     conn.close()
-
-    return TEMPLATES.TemplateResponse("admin.html",
+    return TEMPLATES.TemplateResponse("benutzer.html",
                                       {"request": request, "user": user,
-                                       "installations": installations,
-                                       "users": users, "access": access,
-                                       "active": "admin",
-                                       "OTP_ISSUER": "STARFACE-WebApp",
+                                       "users": users,
+                                       "active": "benutzer",
+                                       "version": os.environ.get("APP_VERSION", "dev")})
+
+
+@app.get("/rechte", response_class=HTMLResponse)
+async def rechte_page(request: Request):
+    """Rechteverwaltung (Admin): Recht setzen (User → Anlage) + Liste der Berechtigungen."""
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user or not user["is_admin"]:
+        return RedirectResponse("/")
+    conn = _db()
+    installations = conn.execute("SELECT id, name FROM installations ORDER BY name").fetchall()
+    users = conn.execute("SELECT id, username, is_admin FROM users ORDER BY username").fetchall()
+    access = conn.execute("SELECT * FROM access ORDER BY user_id, installation_id").fetchall()
+    conn.close()
+    return TEMPLATES.TemplateResponse("rechte.html",
+                                      {"request": request, "user": user,
+                                       "users": users, "installations": installations,
+                                       "access": access,
+                                       "active": "rechte",
+                                       "version": os.environ.get("APP_VERSION", "dev")})
+
+
+@app.get("/grundeinstellungen", response_class=HTMLResponse)
+async def grundeinstellungen_page(request: Request):
+    """Grundeinstellungen (Admin): Basis-Domains (Grafana, Update-Server)."""
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user or not user["is_admin"]:
+        return RedirectResponse("/")
+    return TEMPLATES.TemplateResponse("grundeinstellungen.html",
+                                      {"request": request, "user": user,
+                                       "active": "grundeinstellungen",
                                        "version": os.environ.get("APP_VERSION", "dev"),
                                        "grafana_base": _grafana_base(),
                                        "grafana_admin_uid": "starface-admin-uebersicht",
@@ -1442,7 +1472,7 @@ async def admin_page(request: Request):
 async def admin_settings(request: Request):
     user = verify_session(request.cookies.get(SESSION_COOKIE))
     if not user or not user["is_admin"]:
-        return RedirectResponse("/dashboard")
+        return RedirectResponse("/")
     # Je Feld ein eigenes Formular (eigener Speichern-Button) → Feld fehlt im
     # POST = unangetastet lassen; "" = explizit leeren. Prüfung über die
     # request.form()-Keys ist robust (str|None = Form(None) kollabiert
@@ -1452,7 +1482,7 @@ async def admin_settings(request: Request):
         _set_setting("grafana_base_url", (form["grafana_base_url"] or "").strip())
     if "module_update_base_url" in form:
         _set_setting("module_update_base_url", (form["module_update_base_url"] or "").strip())
-    return RedirectResponse("/admin?set_ok=1", status_code=303)
+    return RedirectResponse("/grundeinstellungen?set_ok=1", status_code=303)
 
 
 @app.get("/sw.js")
@@ -1467,7 +1497,7 @@ async def admin_modules_page(request: Request):
     """Admin-Seite: Liste aller .sfm-Module mit Download-Button."""
     user = verify_session(request.cookies.get(SESSION_COOKIE))
     if not user or not user["is_admin"]:
-        return RedirectResponse("/dashboard")
+        return RedirectResponse("/")
     conn = _db()
     modules = conn.execute(
         "SELECT * FROM modules WHERE source = 'own' ORDER BY name").fetchall()
@@ -1562,7 +1592,7 @@ async def admin_third_party_upload(request: Request):
     """
     user = verify_session(request.cookies.get(SESSION_COOKIE))
     if not user or not user["is_admin"]:
-        return RedirectResponse("/dashboard")
+        return RedirectResponse("/")
     form = await request.form()
     upload = form.get("module_file")
     from starlette.datastructures import UploadFile as _UploadFile
@@ -1640,7 +1670,7 @@ async def admin_third_party_delete(request: Request, module_id: int):
     """Drittanbietermodul entfernen: Datei aus <data>/modules + DB-Zeile."""
     user = verify_session(request.cookies.get(SESSION_COOKIE))
     if not user or not user["is_admin"]:
-        return RedirectResponse("/dashboard")
+        return RedirectResponse("/")
     conn = _db()
     try:
         mod = conn.execute(
@@ -1670,7 +1700,7 @@ async def admin_updates_page(request: Request):
     """Admin-Seite: Modul-Updates über das Deployment-Modul (Phase 2)."""
     user = verify_session(request.cookies.get(SESSION_COOKIE))
     if not user or not user["is_admin"]:
-        return RedirectResponse("/dashboard")
+        return RedirectResponse("/")
     conn = _db()
     installations = conn.execute("SELECT * FROM installations ORDER BY name").fetchall()
     conn.close()
@@ -1711,7 +1741,7 @@ async def admin_updates_push(request: Request):
     """Stößt ein Modul-Update auf einer Anlage an (signierte URL + RPC)."""
     user = verify_session(request.cookies.get(SESSION_COOKIE))
     if not user or not user["is_admin"]:
-        return RedirectResponse("/dashboard")
+        return RedirectResponse("/")
     form = await request.form()
     try:
         inst_id = int(form.get("installation_id", "0"))
@@ -1787,7 +1817,7 @@ async def admin_updates_push_all(request: Request):
     alle installierten (veralteten) Module aktualisieren — in einem Klick."""
     user = verify_session(request.cookies.get(SESSION_COOKIE))
     if not user or not user["is_admin"]:
-        return RedirectResponse("/dashboard")
+        return RedirectResponse("/")
     form = await request.form()
     mode = form.get("mode", "")
     try:
@@ -1856,7 +1886,7 @@ async def admin_updates_ping(request: Request):
     """
     user = verify_session(request.cookies.get(SESSION_COOKIE))
     if not user or not user["is_admin"]:
-        return RedirectResponse("/dashboard")
+        return RedirectResponse("/")
     form = await request.form()
     try:
         inst_id = int(form.get("installation_id", "0"))
@@ -1890,7 +1920,7 @@ async def admin_module_download(request: Request, module_id: int):
     (Whitelist), nie direkt aus der URL → kein Pfad-Traversal."""
     user = verify_session(request.cookies.get(SESSION_COOKIE))
     if not user or not user["is_admin"]:
-        return RedirectResponse("/dashboard")
+        return RedirectResponse("/")
 
     conn = _db()
     mod = conn.execute("SELECT * FROM modules WHERE id = ?", (module_id,)).fetchone()
@@ -1935,7 +1965,7 @@ async def admin_api_doku(request: Request):
     """STARFACE-API-Dokumentation (in WebApp-Layout, nur Admins)."""
     user = verify_session(request.cookies.get(SESSION_COOKIE))
     if not user or not user["is_admin"]:
-        return RedirectResponse("/dashboard")
+        return RedirectResponse("/")
 
     return TEMPLATES.TemplateResponse("api_doku.html",
         {"request": request, "user": user, "active": "api-doku",
@@ -1966,7 +1996,7 @@ async def admin_installation_create(request: Request,
                                     is_starface10: int = Form(1)):
     user = verify_session(request.cookies.get(SESSION_COOKIE))
     if not user or not user["is_admin"]:
-        return RedirectResponse("/dashboard")
+        return RedirectResponse("/")
     conn = _db()
     conn.execute(
         "INSERT INTO installations (name, url, auth_id, auth_pass, client_secret, is_starface10) "
@@ -1976,21 +2006,21 @@ async def admin_installation_create(request: Request,
     conn.commit()
     conn.close()
     _log_event(None, user["user_id"], "installation_create", name)
-    return RedirectResponse("/admin", status_code=303)
+    return RedirectResponse("/", status_code=303)
 
 
 @app.post("/admin/installations/{inst_id}/delete")
 async def admin_installation_delete(request: Request, inst_id: int):
     user = verify_session(request.cookies.get(SESSION_COOKIE))
     if not user or not user["is_admin"]:
-        return RedirectResponse("/dashboard")
+        return RedirectResponse("/")
     conn = _db()
     conn.execute("DELETE FROM installations WHERE id = ?", (inst_id,))
     conn.execute("DELETE FROM access WHERE installation_id = ?", (inst_id,))
     conn.commit()
     conn.close()
     _log_event(inst_id, user["user_id"], "installation_delete", str(inst_id))
-    return RedirectResponse("/admin", status_code=303)
+    return RedirectResponse("/", status_code=303)
 
 
 @app.get("/admin/installations/{inst_id}/edit", response_class=HTMLResponse)
@@ -1998,12 +2028,12 @@ async def admin_installation_edit_page(request: Request, inst_id: int):
     """Bearbeitungsseite für eine Anlage."""
     user = verify_session(request.cookies.get(SESSION_COOKIE))
     if not user or not user["is_admin"]:
-        return RedirectResponse("/dashboard")
+        return RedirectResponse("/")
     conn = _db()
     inst = conn.execute("SELECT * FROM installations WHERE id=?", (inst_id,)).fetchone()
     if not inst:
         conn.close()
-        return RedirectResponse("/admin", status_code=303)
+        return RedirectResponse("/", status_code=303)
     # Daten entschlüsseln für die Form (zum Bearbeiten)
     inst_data = dict(inst)
     inst_data["auth_id"] = _decrypt(inst["auth_id"])
@@ -2045,12 +2075,12 @@ async def admin_installation_update(request: Request, inst_id: int,
     """Update einer bestehenden Anlage."""
     user = verify_session(request.cookies.get(SESSION_COOKIE))
     if not user or not user["is_admin"]:
-        return RedirectResponse("/dashboard")
+        return RedirectResponse("/")
     conn = _db()
     inst = conn.execute("SELECT * FROM installations WHERE id=?", (inst_id,)).fetchone()
     if not inst:
         conn.close()
-        return RedirectResponse("/admin", status_code=303)
+        return RedirectResponse("/", status_code=303)
     # Nur aktualisieren wenn Feld nicht leer
     new_auth_id = _encrypt(auth_id) if auth_id else inst["auth_id"]
     new_auth_pass = _encrypt(auth_pass) if auth_pass else inst["auth_pass"]
@@ -2064,7 +2094,7 @@ async def admin_installation_update(request: Request, inst_id: int,
     conn.commit()
     conn.close()
     _log_event(inst_id, user["user_id"], "installation_update", name)
-    return RedirectResponse("/admin", status_code=303)
+    return RedirectResponse("/", status_code=303)
 
 
 @app.get("/admin/installations/{inst_id}/test-conn")
@@ -2096,10 +2126,10 @@ async def admin_access_set(request: Request,
                            can_write: int = Form(0)):
     user = verify_session(request.cookies.get(SESSION_COOKIE))
     if not user or not user["is_admin"]:
-        return RedirectResponse("/dashboard")
+        return RedirectResponse("/")
     if not user_id or not installation_id:
         # Combobox ohne Auswahl abgeschickt — sauber abfangen statt 422
-        return RedirectResponse("/admin?err=missing", status_code=303)
+        return RedirectResponse("/rechte?err=missing", status_code=303)
     conn = _db()
     conn.execute(
         "INSERT INTO access (user_id, installation_id, can_read, can_write) VALUES (?,?,?,?) "
@@ -2109,7 +2139,7 @@ async def admin_access_set(request: Request,
     conn.commit()
     conn.close()
     _log_event(installation_id, user["user_id"], "access_set", f"u{user_id}")
-    return RedirectResponse("/admin", status_code=303)
+    return RedirectResponse("/rechte", status_code=303)
 
 
 @app.post("/admin/users")
@@ -2119,7 +2149,7 @@ async def admin_user_create(request: Request,
                             is_admin: int = Form(0)):
     user = verify_session(request.cookies.get(SESSION_COOKIE))
     if not user or not user["is_admin"]:
-        return RedirectResponse("/dashboard")
+        return RedirectResponse("/")
     ph = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
     conn = _db()
     try:
@@ -2130,22 +2160,22 @@ async def admin_user_create(request: Request,
         pass
     conn.close()
     _log_event(None, user["user_id"], "user_create", username)
-    return RedirectResponse("/admin", status_code=303)
+    return RedirectResponse("/benutzer", status_code=303)
 
 
 @app.post("/admin/users/{uid}/delete")
 async def admin_user_delete(request: Request, uid: int):
     user = verify_session(request.cookies.get(SESSION_COOKIE))
     if not user or not user["is_admin"]:
-        return RedirectResponse("/dashboard")
+        return RedirectResponse("/")
     if uid == user["user_id"]:
-        return RedirectResponse("/admin", status_code=303)
+        return RedirectResponse("/benutzer", status_code=303)
     conn = _db()
     conn.execute("DELETE FROM users WHERE id = ?", (uid,))
     conn.execute("DELETE FROM access WHERE user_id = ?", (uid,))
     conn.commit()
     conn.close()
-    return RedirectResponse("/admin", status_code=303)
+    return RedirectResponse("/benutzer", status_code=303)
 
 
 @app.post("/admin/users/{uid}/role")
@@ -2154,31 +2184,31 @@ async def admin_user_role(request: Request, uid: int, is_admin: int = Form(0)):
     kann nie entlassen werden (Schutz wie in Atlas)."""
     user = verify_session(request.cookies.get(SESSION_COOKIE))
     if not user or not user["is_admin"]:
-        return RedirectResponse("/dashboard")
+        return RedirectResponse("/")
 
     want_admin = 1 if is_admin == 1 else 0
     conn = _db()
     row = conn.execute("SELECT id, username, is_admin FROM users WHERE id = ?", (uid,)).fetchone()
     if not row:
         conn.close()
-        return RedirectResponse("/admin?role_err=notfound", status_code=303)
+        return RedirectResponse("/benutzer?role_err=notfound", status_code=303)
     current = row["is_admin"]
     if want_admin == current:
         conn.close()
-        return RedirectResponse("/admin", status_code=303)
+        return RedirectResponse("/benutzer", status_code=303)
 
     if want_admin == 0:
         # Schutz: Es muss immer mindestens ein Admin aktiv bleiben (wie Atlas)
         admin_count = conn.execute("SELECT COUNT(*) FROM users WHERE is_admin = 1").fetchone()[0]
         if admin_count <= 1:
             conn.close()
-            return RedirectResponse("/admin?role_err=lastadmin", status_code=303)
+            return RedirectResponse("/benutzer?role_err=lastadmin", status_code=303)
 
     conn.execute("UPDATE users SET is_admin = ? WHERE id = ?", (want_admin, uid))
     conn.commit()
     conn.close()
     _log_event(None, user["user_id"], "user_role", f"{row['username']}->{'admin' if want_admin else 'user'}")
-    return RedirectResponse("/admin", status_code=303)
+    return RedirectResponse("/benutzer", status_code=303)
 
 
 # ─────────────────────────────────────────────────────────────
@@ -2189,7 +2219,7 @@ async def admin_user_role(request: Request, uid: int, is_admin: int = Form(0)):
 async def admin_totp_setup(request: Request, uid: int):
     user = verify_session(request.cookies.get(SESSION_COOKIE))
     if not user or not user["is_admin"]:
-        return RedirectResponse("/dashboard")
+        return RedirectResponse("/")
     secret = pyotp.random_base32()
     conn = _db()
     conn.execute("UPDATE users SET otp_secret=?, otp_confirmed=0, backup_codes=? WHERE id=?",
@@ -2216,17 +2246,17 @@ async def admin_totp_setup(request: Request, uid: int):
 async def admin_totp_confirm(request: Request, uid: int, code: str = Form(...)):
     user = verify_session(request.cookies.get(SESSION_COOKIE))
     if not user or not user["is_admin"]:
-        return RedirectResponse("/dashboard")
+        return RedirectResponse("/")
     conn = _db()
     row = conn.execute("SELECT otp_secret, backup_codes FROM users WHERE id=?", (uid,)).fetchone()
     conn.close()
     if not row or not pyotp.TOTP(row["otp_secret"]).verify(code):
-        return RedirectResponse(f"/admin?toter=1", status_code=303)
+        return RedirectResponse(f"/benutzer?toter=1", status_code=303)
     conn = _db()
     conn.execute("UPDATE users SET otp_confirmed=1 WHERE id=?", (uid,))
     conn.commit()
     conn.close()
-    return RedirectResponse(f"/admin?tot_ok=1&codes={row['backup_codes']}", status_code=303)
+    return RedirectResponse(f"/benutzer?tot_ok=1&codes={row['backup_codes']}", status_code=303)
 
 
 def _gen_backup_codes(n=10) -> str:
@@ -2271,12 +2301,12 @@ async def admin_oauth_start(request: Request, inst_id: int):
     """Startet OAuth-Login auf der Anlage (Authorization Code Flow mit PKCE)."""
     user = verify_session(request.cookies.get(SESSION_COOKIE))
     if not user or not user["is_admin"]:
-        return RedirectResponse("/dashboard")
+        return RedirectResponse("/")
     conn = _db()
     inst = conn.execute("SELECT * FROM installations WHERE id=?", (inst_id,)).fetchone()
     if not inst:
         conn.close()
-        return RedirectResponse("/admin", status_code=303)
+        return RedirectResponse("/", status_code=303)
     import secrets
     import base64
     url = _ensure_url(inst["url"])
@@ -2319,15 +2349,15 @@ async def oauth_callback(request: Request, code: str = None, state: str = None,
                          error: str = None):
     """Callback von Keycloak: code empfangen, Token tauschen, speichern."""
     if error:
-        return RedirectResponse("/admin?oauth_err=1")
+        return RedirectResponse("/?oauth_err=1")
     if not code or not state:
-        return RedirectResponse("/admin?oauth_err=1")
+        return RedirectResponse("/?oauth_err=1")
     # State in DB nachschlagen (verifier + inst_id + redirect_uri), dann löschen
     conn = _db()
     row = conn.execute("SELECT * FROM oauth_auths WHERE state=?", (state,)).fetchone()
     if not row:
         conn.close()
-        return RedirectResponse("/admin?oauth_err=1")
+        return RedirectResponse("/?oauth_err=1")
     verifier = row["verifier"] or ""
     inst_id = int(row["installation_id"])
     redirect_uri = row["redirect_uri"] or (_base_url(request) + "/oauth/callback")
@@ -2336,7 +2366,7 @@ async def oauth_callback(request: Request, code: str = None, state: str = None,
     inst = conn.execute("SELECT * FROM installations WHERE id=?", (inst_id,)).fetchone()
     if not inst:
         conn.close()
-        return RedirectResponse("/admin?oauth_err=1")
+        return RedirectResponse("/?oauth_err=1")
     url = _ensure_url(inst["url"])
     try:
         oidc = _get_oidc_config(url)
@@ -2358,15 +2388,15 @@ async def oauth_callback(request: Request, code: str = None, state: str = None,
         )
     except Exception:
         conn.close()
-        return RedirectResponse("/admin?oauth_err=1")
+        return RedirectResponse("/?oauth_err=1")
     if r.status_code != 200:
         conn.close()
-        return RedirectResponse("/admin?oauth_err=1")
+        return RedirectResponse("/?oauth_err=1")
     j = r.json()
     access = j.get("access_token", "")
     if not access:
         conn.close()
-        return RedirectResponse("/admin?oauth_err=1")
+        return RedirectResponse("/?oauth_err=1")
     refresh = j.get("refresh_token", "")
     expires = int(time.time()) + int(j.get("expires_in", 300))
     conn.execute(
@@ -2374,7 +2404,7 @@ async def oauth_callback(request: Request, code: str = None, state: str = None,
         (_encrypt(access), _encrypt(refresh), expires, inst_id))
     conn.commit()
     conn.close()
-    return RedirectResponse("/admin?oauth_ok=1")
+    return RedirectResponse("/?oauth_ok=1")
 
 
 # ─────────────────────────────────────────────────────────────
@@ -2388,13 +2418,13 @@ async def blocklist_page(request: Request, inst_id: int):
         return RedirectResponse("/")
     acc = get_access(user["user_id"], inst_id)
     if not acc["can_read"]:
-        return RedirectResponse("/dashboard")
+        return RedirectResponse("/")
 
     conn = _db()
     inst = conn.execute("SELECT * FROM installations WHERE id=?", (inst_id,)).fetchone()
     conn.close()
     if not inst:
-        return RedirectResponse("/dashboard")
+        return RedirectResponse("/")
 
     numbers = []
     error = ""
@@ -2420,13 +2450,13 @@ async def blocklist_add(request: Request, inst_id: int, numbers: str = Form(""))
         return RedirectResponse("/")
     acc = get_access(user["user_id"], inst_id)
     if not acc["can_write"]:
-        return RedirectResponse("/dashboard")
+        return RedirectResponse("/")
 
     conn = _db()
     inst = conn.execute("SELECT * FROM installations WHERE id=?", (inst_id,)).fetchone()
     conn.close()
     if not inst:
-        return RedirectResponse("/dashboard")
+        return RedirectResponse("/")
 
     cleaned = [n.strip() for n in numbers.replace("\r", "").split("\n") if n.strip()]
     if not cleaned:
@@ -2459,13 +2489,13 @@ async def blocklist_update(request: Request, inst_id: int, old_number: str = For
         return RedirectResponse("/")
     acc = get_access(user["user_id"], inst_id)
     if not acc["can_write"]:
-        return RedirectResponse("/dashboard")
+        return RedirectResponse("/")
 
     conn = _db()
     inst = conn.execute("SELECT * FROM installations WHERE id=?", (inst_id,)).fetchone()
     conn.close()
     if not inst:
-        return RedirectResponse("/dashboard")
+        return RedirectResponse("/")
 
     old_number = old_number.strip()
     new_number = new_number.strip()
@@ -2505,13 +2535,13 @@ async def blocklist_remove(request: Request, inst_id: int, number: str = Form(..
         return RedirectResponse("/")
     acc = get_access(user["user_id"], inst_id)
     if not acc["can_write"]:
-        return RedirectResponse("/dashboard")
+        return RedirectResponse("/")
 
     conn = _db()
     inst = conn.execute("SELECT * FROM installations WHERE id=?", (inst_id,)).fetchone()
     conn.close()
     if not inst:
-        return RedirectResponse("/dashboard")
+        return RedirectResponse("/")
 
     try:
         token = _get_token(inst)
@@ -2534,7 +2564,7 @@ async def installation_test(request: Request, inst_id: int):
         return RedirectResponse("/")
     acc = get_access(user["user_id"], inst_id)
     if not acc["can_read"]:
-        return RedirectResponse("/dashboard")
+        return RedirectResponse("/")
 
     conn = _db()
     inst = conn.execute("SELECT * FROM installations WHERE id=?", (inst_id,)).fetchone()
@@ -2576,7 +2606,7 @@ async def wiki_index(request: Request):
     """Wiki-Übersicht: automatischer Index aller Seiten in app/wiki/."""
     user = verify_session(request.cookies.get(SESSION_COOKIE))
     if not user or not user["is_admin"]:
-        return RedirectResponse("/dashboard")
+        return RedirectResponse("/")
     return TEMPLATES.TemplateResponse("wiki.html",
         {"request": request, "user": user, "active": "wiki",
          "version": os.environ.get("APP_VERSION", "dev"),
@@ -2588,7 +2618,7 @@ async def wiki_page(request: Request, wiki_page: str):
     """Einzelne Wiki-Seite (gerendert inkl. TOC + Wikilinks)."""
     user = verify_session(request.cookies.get(SESSION_COOKIE))
     if not user or not user["is_admin"]:
-        return RedirectResponse("/dashboard")
+        return RedirectResponse("/")
     page = render_page(wiki_page)
     if page is None:
         return RedirectResponse("/wiki")
@@ -2726,7 +2756,7 @@ async def admin_monitoring_page(request: Request):
     Grafana bleibt parallel erreichbar (Button auf der Seite)."""
     user = verify_session(request.cookies.get(SESSION_COOKIE))
     if not user or not user["is_admin"]:
-        return RedirectResponse("/dashboard")
+        return RedirectResponse("/")
 
     conn = _db()
     inst_rows = conn.execute("SELECT id, name FROM installations ORDER BY name").fetchall()

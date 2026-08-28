@@ -48,24 +48,24 @@ def check(name, cond, detail=""):
         FAIL.append(name)
 
 # 1) Admin-Seite rendert neues Feld
-r = c.get("/admin")
+r = c.get("/grundeinstellungen")
 html = r.text
-check("GET /admin -> 200", r.status_code == 200, str(r.status_code))
+check("GET /grundeinstellungen -> 200", r.status_code == 200, str(r.status_code))
 has_g = 'name="grafana_base_url"' in html
 has_u = 'name="module_update_base_url"' in html
 ph = html.count('placeholder="https://www.sub.example.de"')
-check("admin.html: beide URL-Felder mit neutralen Platzhaltern",
+check("grundeinstellungen.html: beide URL-Felder mit neutralen Platzhaltern",
       has_g and has_u and ph == 2,
       f"grafana={has_g}, update={has_u}, neutrale Placeholder={ph}")
 btn_count = html.count('class="btn-primary">Speichern')
-check("admin.html: jedes Feld mit eigenem Speichern-Button", btn_count == 2,
+check("grundeinstellungen.html: jedes Feld mit eigenem Speichern-Button", btn_count == 2,
       str(btn_count) + " Button(s) gefunden")
 
 # 2) POST speichert die Einstellung
 # Starlette >=0.27 folgt Redirects automatisch (hartkodiert) → 303-POST endet
-# bei GET /admin (200); der eigentliche Nachweis ist der gespeicherte Wert.
+# bei GET /grundeinstellungen (200); der eigentliche Nachweis ist der gespeicherte Wert.
 r = c.post("/admin/settings", data={"grafana_base_url": "", "module_update_base_url": "https://modulupdates.meiser.family"})
-check("POST /admin/settings gespeichert (Redirect gefolgt)", r.status_code in (200, 303) and "/admin" in r.url.path, f"{r.status_code} {r.url}")
+check("POST /admin/settings gespeichert (Redirect gefolgt)", r.status_code in (200, 303) and "/grundeinstellungen" in r.url.path, f"{r.status_code} {r.url}")
 got = app_main._get_setting("module_update_base_url")
 check("Einstellung gespeichert", got == "https://modulupdates.meiser.family", str(got))
 

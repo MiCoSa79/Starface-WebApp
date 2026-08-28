@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}STARFACE WebApp — Rechteverwaltung{% endblock %}
+{% block styles %}
+<link rel="stylesheet" href="/static/admin.css">
+{% endblock %}
+{% block content %}
+<div class="container">
+        {% if request.query_params.get('err') == 'missing' %}
+        <div class="error" style="max-width:400px;margin:0 auto 16px;text-align:center;">Bitte Benutzer und Anlage für das Recht auswählen.</div>
+        {% endif %}
+
+        <h2 class="tbl-head">
+            <button type="button" class="collapse-btn" data-collapse="access" aria-expanded="true" aria-label="Rechte-Tabelle ein- oder ausklappen">
+                <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            Rechte (User → Anlage) <span class="tbl-count" data-count="access">{{ access|length }} von {{ access|length }}</span>
+        </h2>
+        <div class="card">
+            <form method="POST" action="/admin/access">
+                <div class="form-row">
+                    <label class="sr-only" for="access_user_id">Benutzer</label>
+                    <div class="cb" data-cb="access_user_id">
+                        <button type="button" class="cb-trigger" role="combobox" aria-expanded="false" aria-haspopup="listbox" aria-controls="cb-pop-user" aria-label="Benutzer wählen">
+                            <span class="cb-value">— Benutzer wählen —</span>
+                            <svg class="cb-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+                        </button>
+                        <div class="cb-pop" id="cb-pop-user" hidden>
+                            <input type="text" class="cb-search" placeholder="Benutzer suchen (ab 3 Zeichen)" style="font-size:16px;" autocomplete="off">
+                            <ul class="cb-list" role="listbox"></ul>
+                        </div>
+                    </div>
+                    <select name="user_id" id="access_user_id" class="cb-native" autocomplete="off" tabindex="-1" aria-hidden="true">
+                        <option value="" selected>— Benutzer wählen —</option>
+                        {% for u in users %}{% if not u.is_admin %}
+                        <option value="{{ u.id }}">{{ u.username }}</option>
+                        {% endif %}{% endfor %}
+                    </select>
+                    <label class="sr-only" for="access_installation_id">Anlage</label>
+                    <div class="cb" data-cb="access_installation_id">
+                        <button type="button" class="cb-trigger" role="combobox" aria-expanded="false" aria-haspopup="listbox" aria-controls="cb-pop-inst" aria-label="Anlage wählen">
+                            <span class="cb-value">— Anlage wählen —</span>
+                            <svg class="cb-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+                        </button>
+                        <div class="cb-pop" id="cb-pop-inst" hidden>
+                            <input type="text" class="cb-search" placeholder="Anlage suchen (ab 3 Zeichen)" style="font-size:16px;" autocomplete="off">
+                            <ul class="cb-list" role="listbox"></ul>
+                        </div>
+                    </div>
+                    <select name="installation_id" id="access_installation_id" class="cb-native" autocomplete="off" tabindex="-1" aria-hidden="true">
+                        <option value="" selected>— Anlage wählen —</option>
+                        {% for inst in installations %}
+                        <option value="{{ inst.id }}">{{ inst.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <label style="color:#aaa; font-size:13px;"><input type="checkbox" name="can_read" value="1"> lesen</label>
+                    <label style="color:#aaa; font-size:13px;"><input type="checkbox" name="can_write" value="1"> bearbeiten</label>
+                    <button type="submit" class="btn-primary">Recht setzen</button>
+                </div>
+                <div class="hint">User: keine Sicht / nur lesen / lesen + bearbeiten. Admins sehen und bearbeiten alles.</div>
+            </form>
+        </div>
+
+        <div class="tbl-wrap" data-wrap="access">
+        <div class="tbl-filters">
+            <label class="sr-only" for="f-access-user">Rechte nach Benutzer filtern</label>
+            <input type="text" id="f-access-user" data-filter="tbl-access" data-col="0" data-minlen="3" placeholder="Benutzer filtern (ab 3 Zeichen)" style="font-size:16px;">
+            <label class="sr-only" for="f-access-inst">Rechte nach Anlage filtern</label>
+            <div class="cb" data-cb="f-access-inst">
+                <button type="button" class="cb-trigger" role="combobox" aria-expanded="false" aria-haspopup="listbox" aria-controls="cb-pop-finst" aria-label="Nach Anlage filtern">
+                    <span class="cb-value">Alle Anlagen</span>
+                    <svg class="cb-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <div class="cb-pop" id="cb-pop-finst" hidden>
+                    <input type="text" class="cb-search" placeholder="Anlage suchen (ab 3 Zeichen)" style="font-size:16px;" autocomplete="off">
+                    <ul class="cb-list" role="listbox"></ul>
+                </div>
+            </div>
+            <select id="f-access-inst" data-filter="tbl-access" data-col="1" class="cb-native" tabindex="-1" aria-hidden="true">
+                <option value="">Alle Anlagen</option>
+            </select>
+        </div>
+        <table id="tbl-access">
+            <tr><th>User</th><th>Anlage</th><th>Lesen</th><th>Bearbeiten</th></tr>
+            {% for a in access %}
+            <tr>
+                <td>{% for u in users %}{% if u.id == a.user_id %}{{ u.username }}{% endif %}{% endfor %}</td>
+                <td>{% for i in installations %}{% if i.id == a.installation_id %}{{ i.name }}{% endif %}{% endfor %}</td>
+                <td>{{ '✅' if a.can_read else '—' }}</td>
+                <td>{{ '✅' if a.can_write else '—' }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+        </div>
+    </div>
+{% endblock %}
+{% block scripts %}
+    <script src="/static/admin.js" defer></script>
+{% endblock %}

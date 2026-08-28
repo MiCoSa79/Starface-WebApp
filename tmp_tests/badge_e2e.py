@@ -56,22 +56,22 @@ with TestClient(main.app) as c:
     check("DB: v10-Anlage hat is_starface10=1", flags.get("Testanlage v10") == 1, str(flags))
     check("DB: v9-Anlage hat is_starface10=0", flags.get("Altanlage v9") == 0, str(flags))
 
-    # 3) Dashboard: Badges prüfen
-    r = c.get("/dashboard")
+    # 3) Startseite (Anlagen-Tabelle): Version-Spalte prüfen
+    r = c.get("/")
     html = r.text
-    check("Dashboard 200", r.status_code == 200, str(r.status_code))
-    v10_badge = re.search(r'Testanlage v10.*?badge">v10\+<', html, re.S)
-    v9_badge = re.search(r'Altanlage v9.*?badge">v9<', html, re.S)
-    check("v10-Anlage zeigt v10+", v10_badge is not None,
-          "(Badge im HTML suchen)")
-    check("v9-Anlage zeigt v9", v9_badge is not None,
-          "(Badge im HTML suchen)")
+    check("Startseite 200", r.status_code == 200, str(r.status_code))
+    v10_cell = re.search(r'Testanlage v10.*?<td>10\.x</td>', html, re.S)
+    v9_cell = re.search(r'Altanlage v9.*?<td>≤9\.x</td>', html, re.S)
+    check("v10-Anlage zeigt 10.x", v10_cell is not None,
+          "(Version-Spalte im HTML suchen)")
+    check("v9-Anlage zeigt ≤9.x", v9_cell is not None,
+          "(Version-Spalte im HTML suchen)")
 
-    # Ausgabe aller Karten fürs Protokoll
-    print("\nDashboard-Karten:")
-    for name, info in re.findall(r'<div class="card">.*?<h3>(.*?)</h3>.*?<div class="info">(.*?)</div>', html, re.S):
-        b = re.search(r'class="badge">([^<]+)<', info)
-        print(f"  {name}: {info.split('<')[0].strip()} → Badge {b.group(1) if b else '?'}")
+    # Ausgabe aller Zeilen fürs Protokoll
+    print("\nStartseite Anlagen-Zeilen:")
+    for name, url, vers in re.findall(r'<td>([^<]*)</td><td>([^<]*)</td><td>([^<]*)</td>', html, re.S):
+        if name.strip():
+            print(f"  {name} | {url} | {vers}")
 
 print(f"\n{ok} Checks grün")
 sys.exit(0)

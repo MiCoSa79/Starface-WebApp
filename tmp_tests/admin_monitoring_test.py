@@ -127,15 +127,15 @@ def login(username):
 
 # 1) Nicht eingeloggt -> Redirect auf /dashboard (Konvention Admin-Routen)
 r = c.get("/admin/monitoring")
-check("ohne Login -> Redirect /dashboard",
-      r.status_code in (302, 307) and r.headers.get("location", "").endswith("/dashboard"),
+check("ohne Login -> Redirect /",
+      r.status_code in (302, 307) and (r.headers.get("location", "").rstrip("/") == "" or r.headers.get("location", "").endswith("/")),
       f"{r.status_code} {r.headers.get('location')}")
 
 # 2) User (nicht Admin) -> Redirect /dashboard
 login("bob")
 r = c.get("/admin/monitoring")
-check("User -> Redirect /dashboard",
-      r.status_code in (302, 307) and r.headers.get("location", "").endswith("/dashboard"),
+check("User -> Redirect /",
+      r.status_code in (302, 307) and (r.headers.get("location", "").rstrip("/") == "" or r.headers.get("location", "").endswith("/")),
       f"{r.status_code} {r.headers.get('location')}")
 
 # 3) Admin -> 200 + Kennzahlen + Fehlerliste + Refresh-Marker + Grafana
@@ -256,10 +256,10 @@ check("Auto-Hide-Timer 2500ms", "2500" in body and "setTimeout" in body)
 check("Auto-Hide via Mausbewegung", "addEventListener('mousemove', fsWake)" in body)
 check("Auto-Hide via Touch", "addEventListener('touchstart', fsWake)" in body)
 
-# 7) Admin-Seite verlinkt auf die neue Seite (Einstieg)
-r = c.get("/admin")
-check("/admin 200 (Admin)", r.status_code == 200, str(r.status_code))
-check("/admin verlinkt Admin-Monitoring", 'href="/admin/monitoring"' in r.text)
+# 7) Grundeinstellungen-Seite verlinkt auf die neue Seite (Einstieg)
+r = c.get("/grundeinstellungen")
+check("/grundeinstellungen 200 (Admin)", r.status_code == 200, str(r.status_code))
+check("/grundeinstellungen verlinkt Admin-Monitoring", 'href="/admin/monitoring"' in r.text)
 
 print(f"\n{checks - fails}/{checks} Checks OK")
 sys.exit(1 if fails else 0)

@@ -54,8 +54,8 @@ def check(name, cond, detail=""):
 
 
 # Seiten, die auf 1400px breit sein muessen (Kandidaten: nur 200er wurden geprueft)
-WIDE = ["/admin/updates", "/admin/modules", "/admin", "/monitoring",
-        "/dashboard", "/wiki", "/"]
+WIDE = ["/admin/updates", "/admin/modules", "/benutzer", "/monitoring",
+        "/grundeinstellungen", "/wiki", "/"]
 for route in WIDE:
     r = c.get(route)
     if r.status_code != 200 or "text/html" not in r.headers.get("content-type", ""):
