@@ -12,9 +12,6 @@ label{display:block;margin-bottom:6px;font-size:14px;color:#aaa}
 input[type="text"],input[type="password"],select{width:100%;padding:10px 12px;border:1px solid #0f3460;border-radius:6px;background:#1a1a2e;color:#e0e0e0;font-size:16px;outline:none}
 input:focus{border-color:#e94560}
 input[type="checkbox"]{margin-right:6px;transform:scale(1.2)}
-.btn-primary{padding:10px 20px;border:none;border-radius:6px;background:#e94560;color:#fff;font-size:16px;cursor:pointer}
-.btn-secondary{padding:10px 20px;border:1px solid #0f3460;border-radius:6px;background:none;color:#e0e0e0;font-size:16px;cursor:pointer;text-decoration:none;display:inline-block}
-.btn-secondary:hover{background:#0f3460}
 .hint{margin-top:8px;font-size:13px;color:#888}
 .footer{margin-top:20px;padding-top:16px;border-top:1px solid #0f3460;font-size:13px;color:#666}
 
@@ -33,14 +30,13 @@ input[type="checkbox"]{margin-right:6px;transform:scale(1.2)}
     .token-gen-msg.err { color: #c62828; }
     .btn-working { opacity: .55; }
     .btn-working::after { content: " …"; }
-    .btn-mini { padding: 2px 10px; font-size: .85em; }
     .token-gen-msg code { display: inline-block; background: #f5f5f5; border: 1px solid #ccc; border-radius: 4px; padding: 3px 8px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; word-break: break-all; margin: 6px 0; max-width: 100%; }
     .tok-out { line-height: 1.55; }
 </style>
 {% endblock %}
 {% block content %}
 <div class="card">
-    <a href="/anlagen" class="btn-secondary btn-back" style="display:inline-block;">← Zurück zur Anlagen-Übersicht</a>
+    <a href="/anlagen" class="btn-secondary btn-back">← Zurück zur Anlagen-Übersicht</a>
     <h1>Installation bearbeiten: {{ inst.name }}</h1>
     <form method="POST" action="/admin/installations/{{ inst.id }}">
         <div class="form-row">

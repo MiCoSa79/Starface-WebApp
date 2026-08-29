@@ -28,7 +28,7 @@ Modul-Updates (Deployment-Modul). Repo `MiCoSa79/Starface-WebApp`, Image
 - **Tests:** `tmp_tests/<name>.py` mit eigenem `check()`-Muster (kein pytest);
   Fakes/Zweige für Container-Importe; E2E via TestClient.
 
-## Routen (Stand v1.0.65)
+## Routen (Stand v1.0.66)
 
 | Bereich | Routen |
 |---|---|
@@ -118,6 +118,7 @@ Quelle: `git for-each-ref refs/tags/v0.0.*` — Stichworte = Commit-Subject.
 
 | Version | Commit | Änderung |
 |---|---|---|
+| v1.0.66 | (29.08.) | fix(F71-Folge): **EIN Button-Design app-weit — farbiger Hintergrund + abgerundete Ecken** (Axel: „Zurück-Button der Startseite = Referenz für alle Buttons; Farben ok wie sie sind“). Neues zentrales Basis-Rule-Set in admin.css (inline-flex+gap, padding 8×14, radius 6, font 13/600) für .btn-primary/-secondary/-danger + Hover (secondary-Hover = Startseiten-Dunkelblau #0f3460/weiß) + .btn-mini (kompakte Variante). Löschen-Button bleibt dunkelrot, primary bleibt rot. ALLE lokalen Button-Überschreibungen entfernt: edit_installation (Outline-Button `background:none` → war die „Katastrophe“), modules (Rotbraun-Ton), blocklist/passkeys-Duplikate, admin-/installation_monitoring-Duplikate inkl. Media-Query; Inline-Styles raus (benutzer 2FA/Passkeys/Passwort + OK→btn-mini; edit/otp Zurück). Nachweis: CDP-Mobile (390px) alle Seiten — btn-back überall bg #333, radius 6, gleiche Maße; Hover-Beweis #0f3460/weiß; Suite 30 grün. |
 | v1.0.65 | (29.08.) | fix(F71-Folge): **Auge-Icon exakt mittig in der Hover-Umrandung** (Anlagen- + Monitoring-Tabelle). Kaskaden-Bug: `.actions-inline a` (0,1,1) überschrieb `display/padding` der `.detail-dl`-Regel (0,1,0) → Icon saß ~1–2 px versetzt (20-px-SVG in 34-px-Box, 6×12-Padding, Baseline). Fix: Regel auf `.actions-inline a.detail-dl` angehoben (siegt) + `padding:0; box-sizing:border-box`; monitoring.html identisch. Nachweis: CDP-Geometrie dx/dy = 0, Hover-Screenshot f72_auge_hover.png; Suite 30 grün. |
 | v1.0.64 | (29.08.) | feat(F71): **Stammdaten neu** (Anlagen-Version via GetStats, Deployment-Modul installiert+aktiv, Update-Token — CallBlocker-/TelefonieMonitoring-Instanz-Zeilen raus) **+ app-weite Design-Konsistenz**: `admin.css` global in `base.html` (war zuvor nur auf 4 Seiten → `.btn-secondary`-Links waren auf Detail/Edit/Monitoring nackte blaue Links); `a.btn-secondary/a.btn-danger` = volle Button-Optik (Padding, inline-block); neue Klasse `.btn-back` für ALLE Zurück-Links (6 Seiten; `.back`-Altregeln entfernt); Einstellungen-Spalte der Modul-Tabelle rechtsbündig + nowrap (wie Aktions-Spalte `/anlagen`); Suite 30 Dateien grün + CDP-computedStyle-Beweis |
 | v1.0.63 | (29.08.) | feat(F70): **„Blocklist bearbeiten“ als eigene Spalte „Einstellungen“ in der Modul-Status-Tabelle** der Anlagen-Detail-Seite — nur bei installiertem + aktivem Modul (serverseitig `settings`-Attribut in der Route); separate Karte „Modul-Einstellungen“ entfernt; Suite 30 Dateien grün (installation_detail_test +2 Checks inkl. „ohne aktive Instanz → kein Button“) |

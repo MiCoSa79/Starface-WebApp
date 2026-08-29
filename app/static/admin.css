@@ -22,15 +22,22 @@ input, select { padding: 8px; border: 1px solid #333; border-radius: 6px;
                 background: #0f3460; color: #fff; font-size: 14px; }
 button { padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer;
          font-size: 13px; font-weight: 600; }
+/* ── Buttons (F72): EIN Design app-weit — farbiger Hintergrund + abgerundete Ecken.
+   Referenz: Zurueck-Button auf der Startseite (graue Flaeche, Ruhe) +
+   blauer Hover. Farben kontextuell: primary rot, secondary grau, danger dunkelrot. ── */
+.btn-primary, .btn-secondary, .btn-danger {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 8px 14px; border: none; border-radius: 6px;
+    font-size: 13px; font-weight: 600; line-height: 1.4; cursor: pointer; text-decoration: none;
+}
 .btn-primary { background: #e94560; color: #fff; }
-.btn-secondary { background: #333; color: #ccc; border-radius: 6px; }
+.btn-primary:hover { background: #d63851; }
+.btn-secondary { background: #333; color: #ccc; }
+.btn-secondary:hover { background: #0f3460; color: #fff; }
 .btn-danger { background: #8b0000; color: #fff; }
-/* Link-Buttons (<a>) bekommen dieselbe Optik wie echte Buttons (F71):
-   Padding + inline-block, sonst wirken sie als nackte Textstuecke. */
-a.btn-secondary, a.btn-danger { display: inline-block; padding: 8px 16px; text-decoration: none; }
-/* Einheitlicher Zurueck-Button ueber alle Seiten (F71): Basis = btn-secondary,
-   ergaenzt um inline-block + Abstand darunter. */
-.btn-back { display: inline-block; margin-bottom: 16px; }
+.btn-danger:hover { background: #a30000; }
+.btn-mini { padding: 4px 10px; font-size: 12px; }
+.btn-back { margin-bottom: 16px; }
 .form-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
 /* URL-Eingabefelder: Desktop min. 380px breit; Mobile darf flex-basis NICHT
    als Hoehe greifen (column-Flexbox) → wird in der Media-Query ueberschrieben */
