@@ -402,6 +402,14 @@ with TestClient(main.app) as c:
     _db3.commit()
     _db3.close()
 
+    # ── F84: Blocklist-Zurück führt zur Detailseite, nicht zur Übersicht ──
+    r = c.get("/installation/1/blocklist")
+    check("F84: Blocklist-Zurück -> Detailseite (/installation/1)",
+         r.status_code == 200
+         and '<a href="/installation/1" class="btn-secondary btn-back">' in r.text,
+         "Zurück-Link zeigt noch auf die Übersicht? " + r.text[r.text.find("btn-back")-80:r.text.find("btn-back")+120])
+
+
     _FAKE_INSTALLED = INSTALLED_OK
 
     r = c.post("/installation/1/instance", json={"module": "CallBlocker", "name": "FehlerFall"})

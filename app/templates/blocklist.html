@@ -94,7 +94,7 @@
 {% endblock %}
 {% block content %}
 <div class="container">
-            <a href="/anlagen" class="btn-secondary btn-back">← Zurück</a>
+            <a href="/installation/{{ inst.id }}" class="btn-secondary btn-back">← Zurück zur Anlage</a>
         <h2>Blocklist</h2>
 
         {% if request.query_params.get('ok') %}

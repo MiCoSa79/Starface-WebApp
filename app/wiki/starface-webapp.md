@@ -28,7 +28,7 @@ Modul-Updates (Deployment-Modul). Repo `MiCoSa79/Starface-WebApp`, Image
 - **Tests:** `tmp_tests/<name>.py` mit eigenem `check()`-Muster (kein pytest);
   Fakes/Zweige für Container-Importe; E2E via TestClient.
 
-## Routen (Stand v1.0.80)
+## Routen (Stand v1.0.81)
 
 | Bereich | Routen |
 |---|---|
@@ -43,6 +43,8 @@ Modul-Updates (Deployment-Modul). Repo `MiCoSa79/Starface-WebApp`, Image
 | Benutzerkonto (Self-Service) | `/konto` (Profil, Sicherheit: Passwort/2FA/Passkeys) |
 | Wiki/API-Doku | `/wiki`, `/wiki/search`, `/wiki/{wiki_page}`, `/admin/api-doku`, `/sw.js` |
 | CallBlocker | `/installation/{id}/blocklist` (+ add/remove/update), `/installation/{id}/test` |
+
+**Stand 29.08. (F84, v1.0.81):** **Blocklist-„Zurück“ führt wieder zur Detailseite** — Axel: „In der Detailansicht einer Anlage auf Blocklist bearbeiten gehen und dort den zurück-Button klicken → ich komme nicht in die Detail-Ansicht zurück, sondern in die Anlagenübersicht.“ Ursache (vorher im Code bewiesen, nicht geraten): `blocklist.html` hatte den harten Link `<a href="/anlagen" class="btn-secondary btn-back">← Zurück</a>` — Relikt aus der Zeit vor der Detailseite. Da die Blocklist seit F67 (v1.0.60) **nur noch über die Detailseite** erreichbar ist (der Tabellen-Button wurde damals entfernt), ist die Detailansicht der korrekte Rücksprung: jetzt `<a href="/installation/{{ inst.id }}" class="btn-secondary btn-back">← Zurück zur Anlage</a>`. TDD: 1 neuer Check (exakter Anker `href="/installation/1" … btn-back` im blocklist-Render) → RED (1 FAIL, keine Regression) → GRÜN; installation_detail_test 50, Suite + wiki_e2e 51 grün.
 
 **Stand 29.08. (F83, v1.0.80):** **Modul-Aktualisierung direkt von der Detailseite** — Zeigt die Modul-Tabelle von `/installation/{id}` ein Modul als `outdated` (Badge „Update verfügbar“), liegt in der **Einstellungen-Spalte** ein Button **„⬆ Aktualisieren“** (`btn-secondary btn-mini`, daneben weiterhin „📞 Blocklist bearbeiten“ wenn vorhanden; `display:inline-flex`-Wrapper). Klick → `updateModuleInst` (JS) → `POST /installation/{id}/module/update` (Admin-only; JSON `{module}`; Dateiname/Version **ausschließlich serverseitig** aus `_module_expectations` → bestehendes `_push_module` → Deployment-Modul-RPC `[Instanz].UpdateFromUrl` mit signierter URL) → Reload mit Banner-Meldung (inst_msg jetzt auch JSON `{t, e}`: `updateModuleInst`+`showInstMsg` färben `msg ok`/`msg err` — alte Plain-Strings bleiben kompatibel). Fehlerpfade: kein Login→403, leer/„zu strippen“→400, Modul nicht in expectations→400, Anlage unbekannt→404, Netz-/OAuth-Fehler→200 `{ok:false}` mit Meldung. 6 neue Checks (installation_detail_test 49), TDD RED 5 FAIL → GRÜN.
 
@@ -128,6 +130,7 @@ Quelle: `git for-each-ref refs/tags/v0.0.*` — Stichworte = Commit-Subject.
 
 | Version | Commit | Änderung |
 |---|---|---|
+| v1.0.81 | (29.08.) | fix(F84): **Blocklist-„Zurück“ → Detailseite** — `blocklist.html` verwies hart auf `/anlagen` (`<a href="/anlagen" class="btn-secondary btn-back">← Zurück</a>`); da die Blocklist seit F67 (v1.0.60) nur noch über die **Detailseite** (Einstellungen-Spalte) erreichbar ist, führt „← Zurück zur Anlage“ jetzt zur Detailansicht `/installation/{inst.id}`. 1 neuer Check (installation_detail_test 50). |
 | v1.0.80 | (29.08.) | feat(F83): **Modul-Aktualisierung direkt von der Detailseite** — ist ein Modul `outdated` („Update verfügbar“), sitzt in der Einstellungen-Spalte ein `⬆ Aktualisieren`-Button (btn-secondary btn-mini); `POST /installation/{id}/module/update` (Admin, JSON {module}, Dateiname/Version serverseitig aus `_module_expectations`, nutzt bestehendes `_push_module` → UpdateFromUrl-RPC mit signierter URL); Feedback über das inst_msg-Banner (`updateModuleInst` + `showInstMsg` lesen JSON {t, e} und färben `msg ok`/`msg err`); Fehlerpfade: kein Login→403, leer→400, unbekanntes Modul→400, Anlage nicht erreichbar→ok:false mit Meldung. 6 neue Checks (installation_detail_test 49). |
 | v1.0.79 | (29.08.) | feat(F82): **Detailseite: Auge/⚡ Test/✎ Edit im Kopf + DM-v8-Schutz** — Kopf-Aktionen im anlagen.html-Muster (`detail-dl`-Auge → `/monitoring/installations/{id}`, ⚡ `testConn` (Admin→test-conn, User→Test-JS), ✎ Edit nur Admin); „Instanz anlegen“-Button erst ab Deployment-Modul **v9** (`dep_can_create` aus `version_ist`), sonst Hinweis „— DM v9 nötig“ (verhindert live beobachteten Fehler „No processor found … CreateInstance“ auf Anlagen mit DM v8); 5 neue Checks (installation_detail_test 43) | – |
 | v1.0.78 | (29.08.) | fix(F81): **„Instanz anlegen“-Dialog mittig statt links oben** — `dialog.dlg` bekam explizit `position: fixed; inset: 0; margin: auto;`: der CSS-Reset (`margin: 0` auf `*`) schlägt sonst die UA-Zentrierung des nativen `<dialog>` (`margin: auto` + `inset-block`) → Dialog landete bei (0,0). CDP-Beweis: vorher rect x=0/y=0 → nachher x=430/y=271 bei 1280×800 (420×258 Dialog) = exakt zentriert | – |
