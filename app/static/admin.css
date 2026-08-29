@@ -158,6 +158,9 @@ dialog.dlg {
     background: #1e2340; color: #e8ecf8; border: 1px solid #3a3f5c;
     border-radius: 8px; padding: 18px 20px; max-width: 420px; width: 100%;
     box-sizing: border-box;
+    /* F81: explizit mittig — der CSS-Reset (margin: 0) schlägt sonst die
+       UA-Zentrierung des nativen <dialog> (margin:auto + inset-block) → links oben */
+    position: fixed; inset: 0; margin: auto;
 }
 dialog.dlg::backdrop { background: rgba(0, 0, 0, .55); }
 .dlg h3 { margin: 0 0 6px; font-size: 16px; }
