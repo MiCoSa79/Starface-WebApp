@@ -3,10 +3,13 @@
 gemockt) → /monitoring-Seite + /api/monitoring/status über TestClient (Volllogin).
 
 Szenarien:
-  PBX-GUT    → GetStats ok + GetModuleStatus ok   → Karte: CallBlocker Aktuell
-  PBX-TEIL   → GetStats ok + GetModuleStatus ok   → CallBlocker outdated, TM missing
-  PBX-FAULT  → GetStats Fault                     → Hinweis „Monitoring-Modul
-             nicht installiert oder eingerichtet“
+  PBX-GUT    → GetStats ok + GetModuleStatus ok   → API modules ok (Karte geparkt)
+  PBX-TEIL   → GetStats ok + GetModuleStatus ok   → API outdated+missing
+  PBX-FAULT  → GetStats Fault                     → API modules.error Kategorie module
+
+Seit v1.0.58 (F65): Die Modul-Status-Karte ist von /monitoring GEPARKT (kommt später
+woanders hin) — die Seite darf sie nicht mehr zeigen, die API muss die Daten aber
+weiterhin liefern (Datenfluss unverändert).
 """
 import os, sys, sqlite3, tempfile, json, time
 
@@ -79,16 +82,9 @@ assert r.status_code == 200, f"/monitoring {r.status_code}"
 h = r.text
 
 checks = {
-    "Karte vorhanden": "Modul-Status" in h and "Drittanbieter" not in h,
-    "CallBlocker Aktuell (PBX-GUT)": 'title="Installierte Version entspricht der ausgelieferten."' in h,
-    "CallBlocker outdated (PBX-TEIL)": 'title="Auf der Anlage ist eine ältere Version installiert."' in h,
-    "TelefonieMonitoring missing (PBX-TEIL)": "Nicht installiert" in h,
-    "PBX-FAULT-Hinweis in Karte": "Monitoring-Modul nicht installiert oder eingerichtet" in h,
-    "PBX-ALT zu alt -> Update auf v5 (NICHT v28!)": ("Update auf v5 erforderlich" in h
-                                                     and "v28 erforderlich" not in h),
-    "Version 27 → 28": "v27 → v28" in h,
-    "keine Emojis": "✓" not in h and "⚠" not in h,
-    "Instanz aktiv": "CallBlocker (aktiv)" in h,
+    "Überschrift Monitoring-Übersicht": "Monitoring-Übersicht" in h,
+    "Modul-Status-Karte GEPARKT (nicht mehr auf /monitoring)": "card-modules" not in h
+        and "Modul-Status" not in h and "mod-rows" not in h,
 }
 failed = [k for k, v in checks.items() if not v]
 for k, v in checks.items():

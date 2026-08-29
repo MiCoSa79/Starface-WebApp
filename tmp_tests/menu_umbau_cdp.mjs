@@ -98,6 +98,7 @@ async function main() {
       dashLink: has('a[href="/dashboard"]'),
       wikiLink: has('a[href="/wiki"]'),
       startLink: (() => { const a = document.querySelector('.nav a[href="/"]'); return !!(a && a.textContent.trim() === 'Startseite') })(),
+      flatAnlagen: has('.nav > a[href="/anlagen"]'),
       bodyOk: !document.body.innerHTML.includes('Traceback')
     };
   })()`);
@@ -107,6 +108,7 @@ async function main() {
   check('Admin: KEIN Dashboard-Link mehr', !adminNav.dashLink);
   check('Admin: Wiki-Link vorhanden (im Dropdown)', adminNav.wikiLink);
   check('Admin: Nav-Link „Startseite" (→ /) vorhanden', adminNav.startLink);
+  check('Admin: keine flache Anlagen in der Nav (Anlagen nur im Administration-Dropdown)', !adminNav.flatAnlagen);
   check('Admin: Startseite ohne Traceback', adminNav.bodyOk);
 
   // Topbar-Dropdown aufklappen → Benutzereinstellungen + Abmelden
@@ -178,11 +180,13 @@ async function main() {
     const sl = document.querySelector('.nav a[href="/"]');
     return { hasAdmin: sums.some(s => s.includes('Administration')), sums,
              topbarDrop: tb ? tb.textContent.trim() : null,
-             startLink: !!sl && sl.textContent.trim() === 'Startseite' };
+             startLink: !!sl && sl.textContent.trim() === 'Startseite',
+             flatAnlagen: !!document.querySelector('.nav > a[href="/anlagen"]') };
   })()`);
   check('Normaluser: KEIN Administration-Dropdown', !userNav.hasAdmin, JSON.stringify(userNav));
   check('Normaluser: Benutzer-Dropdown oben rechts (Topbar)', !!userNav.topbarDrop && userNav.topbarDrop.includes('axel'), JSON.stringify(userNav));
   check('Normaluser: Nav-Link „Startseite" vorhanden (→ /, führt auf seine Startseite)', userNav.startLink, JSON.stringify(userNav));
+  check('Normaluser: keine flache Anlagen in der Nav (Startseite = seine Anlagen)', !userNav.flatAnlagen, JSON.stringify(userNav));
   await open('/konto');
   const userKonto = await evalJs(`(() => document.body.innerText.includes('Benutzer') && !document.body.innerHTML.includes('Traceback'))()`);
   check('Normaluser: /konto 200 (Rolle Benutzer), kein Traceback', userKonto);
@@ -208,13 +212,15 @@ async function main() {
     const sl = nav.querySelector('a[href="/"]');
     return { disp: getComputedStyle(nav).display, hasKontoInNav: sums.some(s => s.includes('👤')),
              hasAdmin: sums.some(s => s.includes('Administration')), topbarDropVisible: !!tb && getComputedStyle(tb).display !== 'none',
-             hasStart: !!sl && sl.textContent.trim() === 'Startseite' };
+             hasStart: !!sl && sl.textContent.trim() === 'Startseite',
+             flatAnlagen: !!nav.querySelector(':scope > a[href="/anlagen"]') };
   })()`);
   check('Mobile: Hamburger öffnet Nav mit Gruppen', navOpen.disp === 'flex' && navOpen.hasAdmin,
         JSON.stringify(navOpen));
   check('Mobile: KEIN Benutzer-Dropdown mehr in der Nav (Topbar stattdessen)',
         !navOpen.hasKontoInNav && navOpen.topbarDropVisible, JSON.stringify(navOpen));
   check('Mobile: Startseite-Link im Hamburger-Menü sichtbar', navOpen.hasStart, JSON.stringify(navOpen));
+  check('Mobile: KEIN flacher Anlagen-Link im Hamburger (nur im Admin-Dropdown)', !navOpen.flatAnlagen, JSON.stringify(navOpen));
   check('Mobile: Admin sieht Administration-Gruppe', navOpen.hasAdmin);
 
   // Admin-Mobile: Administration aufklappen → Unterlinks sichtbar (in Page flow)

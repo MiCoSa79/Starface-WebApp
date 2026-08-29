@@ -65,8 +65,8 @@ with TestClient(main.app) as c:
     check("Startseite (Admin): KEIN Anlagen-Formular/Tabelle",
           "Anlage hinzufügen" not in body and 'id="tbl-inst"' not in body)
     check("Nav: KEIN Dashboard-Link", 'href="/dashboard"' not in body)
-    check("Nav: Anlagen-Link auf /anlagen, KEIN Logo in Nav",
-          'href="/anlagen"' in body and 'class="logo-link"' not in body)
+    check("Nav: Anlagen NUR im Administration-Dropdown (kein flacher Link), KEIN Logo",
+          'title="Anlagenübersicht"' not in body and 'href="/anlagen"' in body and 'class="logo-link"' not in body)
     check("Nav: Administration-Dropdown", "<summary>Administration" in body)
     # Anlagen-Übersicht ist seit F64 eine eigene Seite
     r = c.get("/anlagen")

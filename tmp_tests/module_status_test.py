@@ -6,7 +6,10 @@ Geprüft werden:
 3. _classify_error: Fehlerkategorien (unreachable / module / error)
 4. _collect_module_status: GetModuleStatus-Poll inkl. „Modul zu alt“-Fall
 5. collect_installations komplett (echte DB, gemockter XML-RPC): modules-State je Anlage + last_error.category
-6. Render-Test monitoring.html: Modul-Karte, Badges, Hinweise, errbox-warn
+6. Render-Test monitoring.html: Überschrift „Monitoring-Übersicht“, Sammler-Karte,
+   Installationen-Tabelle; Modul-Status-Karte seit v1.0.58 GEPARKT (nicht mehr da,
+   kommt später woanders hin — Aufbau dokumentiert in der Skill-Referenz
+   modul-status-karte-geparkt-v158.md)
 """
 import json
 import os
@@ -295,20 +298,24 @@ base = {
 html = TEMPLATES.env.get_template("monitoring.html").render(
     user={"username": "admin", "is_admin": True}, active="monitoring", status=base,
     id_by_name={n: i for i, n in enumerate(base["installations"])})
-for marker in ["Modul-Status", 'id="mod-rows"',
-               'title="Installierte Version entspricht der ausgelieferten."',
-               'title="Auf der Anlage ist eine ältere Version installiert."',
-               "Nicht installiert",
-               "Monitoring-Modul nicht installiert oder eingerichtet", "— → v28"]:
-    check(f"render: Marker '{marker}'", marker in html)
-check("render: keine Emoji-Symbole in Modul-Badges",
+# Seit v1.0.58 (F65): Modul-Status-Karte GEPARKT (kommt später woanders hin) —
+# die /monitoring-Seite darf sie nicht mehr zeigen; Sammler-Karte + Installationen
+# bleiben. Der Backend-Datenfluss (oben, Teil 1–5) ist unverändert.
+check("render: Überschrift 'Monitoring-Übersicht'", "Monitoring-Übersicht" in html)
+check("render: Modul-Status-Karte weg (card-modules/tbl-mod/mod-rows)",
+      'id="card-modules"' not in html and 'id="tbl-mod"' not in html
+      and 'id="mod-rows"' not in html and "Modul-Status" not in html)
+check("render: keine Modul-Badge-Marker mehr",
+      'title="Installierte Version entspricht der ausgelieferten."' not in html
+      and "Nicht installiert" not in html and "— → v28" not in html)
+check("render: Modul-JS entfernt (moduleBadge/renderModuleRows/Refresh-Aufruf)",
+      "function moduleBadge" not in html and "function renderModuleRows" not in html
+      and "renderModuleRows(" not in html)
+check("render: Sammler-Karte + Installationen-Tabelle + Auto-Refresh bleiben",
+      'id="kv-running"' in html and 'id="tbl-inst"' in html
+      and "setInterval(refreshMonitoring, 15000)" in html)
+check("render: keine Emoji-Symbole in Badges",
       "✓" not in html and "✗" not in html and "⚠" not in html)
-check("render: Instanz-Status in Zelle", "CallBlocker (aktiv)" in html)
-check("render: Modul-Hinweis (mod-hint) + keine globale Fehlerbox ohne last_error",
-      'class="mod-hint"' in html and 'class="errbox"' not in html)
-for js in ["renderModuleRows(document.getElementById('mod-rows'), st.installations)",
-           "function moduleBadge(it)", "function renderModuleRows(tbody, insts)"]:
-    check(f"render: JS {js[:42]}...", js in html)
 
 # Fehlerbox-Kategorie testen (letzter Fehler Kategorie module -> warn)
 st_mod = dict(base, last_error={"msg": "PBX-FAULT: STARFACE-Fehler: xy", "ts": 1787664390,
@@ -319,7 +326,7 @@ html2 = TEMPLATES.env.get_template("monitoring.html").render(
 check("render: Fehlerbox warn bei category module",
       'class="errbox errbox-warn"' in html2, "warn-Klasse fehlt in Fehlerbox")
 
-# kein Modul-Datum -> Karte ohne Tabelle (No-JS-Fall)
+# kein Modul-Datum -> Seite rendert weiterhin ohne Karte (Karte ist geparkt)
 base_leer = dict(base, installations={
     "PBX-X": {"systemName": "x", "ts": 1, "points": 0,
               "modules": {"ts": 1, "error": None, "list": []}},
@@ -327,10 +334,9 @@ base_leer = dict(base, installations={
 html3 = TEMPLATES.env.get_template("monitoring.html").render(
     user={"username": "admin", "is_admin": True}, active="monitoring", status=base_leer,
     id_by_name={n: i for i, n in enumerate(base["installations"])})
-check("render: ohne Modul-Daten Hinweistext statt Tabelle (kein Modul-Badge)",
-      "Für keine Anlage liegen Modul-Status-Daten vor." in html3
-      and 'id="tbl-mod"' not in html3
-      and 'title="Installierte Version entspricht der ausgelieferten."' not in html3)
+check("render (leer): Monitoring-Übersicht + Sammler-Karte, KEINE Modul-Karte",
+      "Monitoring-Übersicht" in html3 and 'id="kv-running"' in html3
+      and 'id="card-modules"' not in html3 and 'id="tbl-mod"' not in html3)
 
 print()
 if FAIL:

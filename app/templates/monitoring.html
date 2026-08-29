@@ -41,7 +41,6 @@
                   padding: 10px 14px; border-radius: 8px; font-size: 13px; white-space: pre-wrap; }
         .errbox-warn { background: #3a3118; border: 1px solid #8a6d1a; color: #ffd97a; }
         .badge-warn { background: #8a6d1a; }
-        .mod-hint { color: #ffd97a; font-size: 13px; }
         .tbl-wrap { overflow-x: auto; }
 
         /* Navigation */
@@ -57,7 +56,7 @@
 {% endblock %}
 {% block content %}
 <div class="container">
-        <h2>Telefonie-Monitoring</h2>
+        <h2>Monitoring-Übersicht</h2>
         <div style="margin-bottom:12px;">
             <a href="/" class="btn-secondary" style="padding:8px 14px;border-radius:6px;text-decoration:none;background:#333;color:#ccc;font-size:13px;">← Zurück zur Startseite</a>
             <span style="color:#666;font-size:12px;margin-left:10px;">Seite aktualisiert sich alle 15 s</span>
@@ -143,65 +142,6 @@
 
         <script type="application/json" id="inst-idmap">{{ id_by_name|default({})|tojson }}</script>
 
-        <div class="card" id="card-modules">
-            <h2 style="margin-top:0;">Modul-Status</h2>
-            {% set mod_any = namespace(show=false) %}
-            {% for _mv in status.installations.values() %}
-                {% if _mv.modules and (_mv.modules.get('list') or _mv.modules.get('error')) %}
-                    {% set mod_any.show = true %}
-                {% endif %}
-            {% endfor %}
-            {% if mod_any.show %}
-            <div class="tbl-wrap">
-            <table id="tbl-mod">
-                <tr>
-                    <th>Anlage</th>
-                    <th>Modul</th>
-                    <th>Status</th>
-                    <th>Version (IST → SOLL)</th>
-                    <th>Instanzen</th>
-                </tr>
-                <tbody id="mod-rows">
-                {% for name, vals in status.installations.items() %}
-                    {% set m = vals.modules %}
-                    {% if m and (m.list or m.error) %}
-                        {% if m.error %}
-                        <tr>
-                            <td>{{ name }}</td>
-                            <td colspan="4"><span class="mod-hint">{{ m.error.msg }}</span></td>
-                        </tr>
-                        {% else %}
-                        {% for it in m.list %}
-                        <tr>
-                            {% if loop.first %}<td rowspan="{{ m.list|length }}">{{ name }}</td>{% endif %}
-                            <td>{{ it.name }}{% if it.source == 'third_party' %}<span style="display:inline-block;background:#3a3f5c;color:#c7cbe0;border-radius:4px;padding:1px 7px;font-size:11px;margin-left:6px;vertical-align:middle;">Drittanbieter</span>{% endif %}</td>
-                            <td>
-                                {% if it.status == 'ok' %}
-                                    {% if it.instances|selectattr('active')|list|length == 0 %}
-                                    <span class="badge badge-warn" title="Modul installiert, aber keine Instanz aktiv.">Keine aktive Instanz</span>
-                                    {% else %}
-                                    <span class="badge badge-green" title="Installierte Version entspricht der ausgelieferten.">Aktuell</span>
-                                    {% endif %}
-                                {% elif it.status == 'outdated' %}
-                                    <span class="badge badge-warn" title="Auf der Anlage ist eine ältere Version installiert.">Update verfügbar</span>
-                                {% else %}
-                                    <span class="badge badge-red" title="Modul ist auf der Anlage nicht installiert.">Nicht installiert</span>
-                                {% endif %}
-                            </td>
-                            <td>{% if it.status == 'missing' %}— → v{{ it.version_soll }}{% elif it.status == 'outdated' %}v{{ it.version_ist }} → v{{ it.version_soll }}{% else %}v{{ it.version_ist }}{% endif %}</td>
-                            <td>{% if it.instances %}{% for i in it.instances %}{{ i.name }} ({{ 'aktiv' if i.active else 'deaktiviert' }}){% if not loop.last %}, {% endif %}{% endfor %}{% else %}—{% endif %}</td>
-                        </tr>
-                        {% endfor %}
-                        {% endif %}
-                    {% endif %}
-                {% endfor %}
-                </tbody>
-            </table>
-            </div>
-            {% else %}
-            <p style="color:#888;font-size:14px;margin:0;">Für keine Anlage liegen Modul-Status-Daten vor.</p>
-            {% endif %}
-        </div>
     </div>
 
     <script>
@@ -306,85 +246,6 @@
             box.textContent = 'Letzter Fehler' + (ts > 0 ? ' (' + fmtTs(ts) + '): ' : ': ') + msg;
             slot.appendChild(box);
         }
-        // --- Modul-Status: Badges + Zeilen je Anlage (installiert/aktuell/fehlt) ---
-        function moduleBadge(it) {
-            var b = document.createElement('span');
-            var active = (it.instances || []).filter(function (i) { return i.active; }).length;
-            if (it.status === 'ok') {
-                if (active === 0) {
-                    b.className = 'badge badge-warn';
-                    b.textContent = 'Keine aktive Instanz';
-                    b.title = 'Modul installiert, aber keine Instanz aktiv.';
-                } else {
-                    b.className = 'badge badge-green';
-                    b.textContent = 'Aktuell';
-                    b.title = 'Installierte Version entspricht der ausgelieferten.';
-                }
-            } else if (it.status === 'outdated') {
-                b.className = 'badge badge-warn';
-                b.textContent = 'Update verfügbar';
-                b.title = 'Auf der Anlage ist eine ältere Version installiert.';
-            } else {
-                b.className = 'badge badge-red';
-                b.textContent = 'Nicht installiert';
-                b.title = 'Modul ist auf der Anlage nicht installiert.';
-            }
-            return b;
-        }
-        function renderModuleRows(tbody, insts) {
-            if (!tbody) return;
-            tbody.textContent = '';
-            var names = Object.keys(insts || {});
-            var any = false;
-            names.forEach(function (name) {
-                var m = (insts[name] || {}).modules;
-                if (!m) return;
-                if (m.error) {
-                    any = true;
-                    var tr = document.createElement('tr');
-                    var td1 = document.createElement('td');
-                    td1.textContent = name;
-                    var td2 = document.createElement('td');
-                    td2.colSpan = 4;
-                    var span = document.createElement('span');
-                    span.className = 'mod-hint';
-                    span.textContent = m.error.msg || 'Modul-Status unbekannt';
-                    td2.appendChild(span);
-                    tr.appendChild(td1); tr.appendChild(td2);
-                    tbody.appendChild(tr);
-                    return;
-                }
-                if (!m.list || m.list.length === 0) return;
-                any = true;
-                m.list.forEach(function (it, idx) {
-                    var tr = document.createElement('tr');
-                    if (idx === 0) {
-                        var tdName = document.createElement('td');
-                        tdName.rowSpan = m.list.length;
-                        tdName.textContent = name;
-                        tr.appendChild(tdName);
-                    }
-                    var tdMod = document.createElement('td'); tdMod.textContent = it.name;
-                    var tdBadge = document.createElement('td'); tdBadge.appendChild(moduleBadge(it));
-                    var tdVer = document.createElement('td');
-                    if (it.status === 'missing') {
-                        tdVer.textContent = '— → v' + it.version_soll;
-                    } else if (it.status === 'outdated') {
-                        tdVer.textContent = 'v' + it.version_ist + ' → v' + it.version_soll;
-                    } else {
-                        tdVer.textContent = 'v' + it.version_ist;
-                    }
-                    var tdInst = document.createElement('td');
-                    tdInst.textContent = (it.instances || []).map(function (i) {
-                        return i.name + (i.active ? ' (aktiv)' : ' (deaktiviert)');
-                    }).join(', ') || '—';
-                    tr.appendChild(tdMod); tr.appendChild(tdBadge); tr.appendChild(tdVer); tr.appendChild(tdInst);
-                    tbody.appendChild(tr);
-                });
-            });
-            var card = document.getElementById('card-modules');
-            if (card) card.style.display = any ? '' : 'none';
-        }
         function refreshMonitoring() {
             fetch('/api/monitoring/status', { cache: 'no-store' })
                 .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
@@ -398,7 +259,6 @@
                     setVal(document.getElementById('kv-bucket'), st.influx_bucket);
                     renderError(document.getElementById('err-slot'), st.last_error);
                     renderRows(document.getElementById('inst-rows'), st.installations);
-                    renderModuleRows(document.getElementById('mod-rows'), st.installations);
                 })
                 .catch(function (e) { console.warn('Monitoring-Refresh fehlgeschlagen:', e); });
         }

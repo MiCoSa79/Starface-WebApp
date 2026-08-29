@@ -259,7 +259,8 @@ check("Auto-Hide via Touch", "addEventListener('touchstart', fsWake)" in body)
 # 7) Grundeinstellungen-Seite verlinkt auf die neue Seite (Einstieg)
 r = c.get("/grundeinstellungen")
 check("/grundeinstellungen 200 (Admin)", r.status_code == 200, str(r.status_code))
-check("/grundeinstellungen verlinkt Admin-Monitoring", 'href="/admin/monitoring"' in r.text)
+check("/grundeinstellungen verlinkt Admin-Monitoring NICHT mehr (ist Startseite)",
+      'href="/admin/monitoring"' not in r.text)
 
 print(f"\n{checks - fails}/{checks} Checks OK")
 sys.exit(1 if fails else 0)

@@ -74,6 +74,13 @@ letzte Werte pro Installation.
 
 ## 6. Modul-Status-Abgleich (Monitoring-Seite, ab v0.0.138 / Modul v5)
 
+> **Seit v1.0.58 (F65): Die Karte ist von `/monitoring` GEPARKT** (kommt später woanders
+> hin, z. B. eigene Seite/Admin-Bereich). Der Datenfluss ist unverändert: Der Sammler pollt
+> `GetModuleStatus` weiter im 60-s-Takt in den Cache, `/api/monitoring/status` liefert
+> `modules` weiter und die Detail-Seiten nutzen es weiter. Der komplette Karten-Aufbau
+> (HTML + JS + CSS + Refresh-Anbindung) ist dokumentiert in der Skill-Referenz
+> `modul-status-karte-geparkt-v158.md` — Wiedereinbau = kopieren + Test-Marker reaktivieren.
+
 Die Monitoring-Seite zeigt pro Anlage den Status **der in der WebApp ausgelieferten „eigenen" Module**:
 
 1. **SOLL-Module** liest die WebApp automatisch aus `app/modules/*.sfm` (jede gelieferte `.sfm` = ein erwartetes Modul; SOLL-Version = `module-descriptor.xml` → `version`). Aktuell: `CallBlocker` v30 + `TelefonieMonitoring` **v9** (F41: Passwortschutz writeHash=sha1(id+PW); davor F34: Vendor „Axel Meiser - Kraemer IT“, Monitoring ohne Modul-Log).

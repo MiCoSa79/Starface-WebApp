@@ -2856,7 +2856,8 @@ def _installed_modules(inst) -> list | None:
     """Installierte Module einer Anlage aus dem Sammler-Cache (letzter Poll).
 
     KEIN eigener Anlagen-Abruf: Der Sammler holt GetModuleStatus in seinem
-    60-s-Takt (dieselben Daten zeigt die Modul-Status-Karte auf /monitoring).
+    60-s-Takt (die Daten zeigte früher die Modul-Status-Karte auf /monitoring —
+    Karte seit v1.0.58 geparkt, Datenfluss im Cache unverändert).
     Liefert NUR installierte Module (Axel: „Nicht installierte Module nicht
     anzeigen“). None = keine Daten/Fehler im Poll (Template zeigt Hinweis) —
     die Detail-Seite darf nie deswegen brechen.

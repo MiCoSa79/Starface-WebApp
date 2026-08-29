@@ -225,15 +225,17 @@ assert "starface-admin-uebersicht" not in r.text, "Bob: kein Admin-Übersicht-Li
 ok += 1
 print("13. Kein Grafana-Admin-Übersicht-Link mehr  OK")
 
-# 14) Grundeinstellungen: nur noch Update-Server-Feld + Admin-Monitoring-Button
+# 14) Grundeinstellungen: nur noch Update-Server-Feld, KEIN Admin-Monitoring-Button
+#     mehr (Admin-Monitoring ist seit F64 die Startseite — v1.0.58: Button entfernt)
 login("admin")
 r = c.get("/grundeinstellungen")
 body = r.text
 assert 'name="module_update_base_url"' in body, "Update-Server-Feld fehlt"
-assert "Admin-Monitoring öffnen" in body and "starface-admin-uebersicht" not in body, \
-    "Grundeinstellungen: Monitoring-Button?/Grafana-Rest?"
+assert "Admin-Monitoring öffnen" not in body and 'href="/admin/monitoring"' not in body, \
+    "Grundeinstellungen: Admin-Monitoring-Button muss weg sein (ist Startseite)"
+assert "starface-admin-uebersicht" not in body, "Grafana-Rest?"
 ok += 1
-print("14. Grundeinstellungen: Update-URL-Feld + Admin-Monitoring-Button, grafana-frei  OK")
+print("14. Grundeinstellungen: nur Update-URL-Feld, kein Admin-Monitoring-Button (Startseite), grafana-frei  OK")
 
 # 15) Monitoring-Auto-Refresh: JS-Marker + tbody auf der Monitoring-Seite (Admin)
 login("admin")
