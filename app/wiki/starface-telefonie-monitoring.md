@@ -6,8 +6,10 @@ updated: 2026-08-26
 
 # STARFACE Telefonie-Monitoring
 
-Der Stack (WebApp + Grafana + InfluxDB) sammelt System- und SIP-Provider-Daten
-der STARFACE-Anlage und zeigt sie in Grafana. Das STARFACE-Modul **TelefonieMonitoring**
+Der Stack (WebApp + InfluxDB) sammelt System- und SIP-Provider-Daten
+der STARFACE-Anlage. **Seit v1.0.55 (28.08.) ohne Grafana** — die WebApp visualisiert die
+InfluxDB-Daten nativ (Anlagen-Detail- und Admin-Monitoring-Seite); die Grafana-Abschnitte
+dieser Anleitung sind historisch (Stand 2026-08-26/28). Das STARFACE-Modul **TelefonieMonitoring**
 liefert die Daten per XML-RPC, die WebApp pollt sie und schreibt sie nach InfluxDB.
 
 ## 1. Modul installieren

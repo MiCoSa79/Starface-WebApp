@@ -40,14 +40,10 @@ common = dict(
     request=request,
 )
 pages = [
-    ("anlagen", dict(active="anlagen", installations=inst,
-                     grafana_base="https://www.sub.example.de", grafana_uid="starface-anlage-detail")),
+    ("anlagen", dict(active="anlagen", installations=inst)),
     ("benutzer", dict(active="benutzer", users=users)),
     ("rechte", dict(active="rechte", users=users, installations=inst, access=access)),
     ("grundeinstellungen", dict(active="grundeinstellungen",
-                                grafana_base="https://www.sub.example.de",
-                                grafana_admin_uid="starface-admin-uebersicht",
-                                grafana_base_url_value="", grafana_base_fallback="http://10.0.25.60:8894",
                                 module_update_base_url_value="", module_update_base_fallback="")),
 ]
 for name, extra in pages:

@@ -11,18 +11,7 @@
 
         <h2>Grundeinstellungen</h2>
         <div class="card">
-            <form method="POST" action="/admin/settings">
-                <div class="form-row">
-                    <label class="sr-only" for="grafana_base_url">Grafana-Basis-URL (extern)</label>
-                    <input type="url" id="grafana_base_url" name="grafana_base_url"
-                           placeholder="https://www.sub.example.de"
-                           value="{{ grafana_base_url_value }}"
-                           autocomplete="url" class="url-field">
-                    <button type="submit" class="btn-primary">Speichern</button>
-                </div>
-                <div class="hint">Grafana-Basis-URL für die Dashboard-Links (Startseite + Monitoring), z. B. die per NPM durchgeleitete Domäne <span class="codes">https://www.sub.example.de</span>. Leer lassen = interne Standard-URL (<span class="codes">{{ grafana_base_fallback }}</span>). Änderungen wirken sofort.</div>
-            </form>
-            <form method="POST" action="/admin/settings" style="margin-top:12px;">
+            <form method="POST" action="/admin/settings" style="margin-top:0;">
                 <div class="form-row">
                     <label class="sr-only" for="module_update_base_url">Update-Server-Basis-URL (extern)</label>
                     <input type="url" id="module_update_base_url" name="module_update_base_url"
@@ -40,13 +29,7 @@
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 18v3"/></svg>
                     Admin-Monitoring öffnen
                 </a>
-                <a href="{{ grafana_base }}/d/{{ grafana_admin_uid }}/?from=now-6h&to=now&kiosk=1&hideLogo" target="_blank" rel="noopener" class="btn-secondary"
-                   style="padding:8px 14px;border-radius:6px;text-decoration:none;background:#0f3460;color:#ccc;font-size:13px;display:inline-flex;align-items:center;gap:6px;"
-                   title="Grafana-Admin-Übersicht (Ausfälle aller Anlagen) öffnen">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>
-                    Grafana Admin-Übersicht öffnen
-                </a>
-                <span class="hint" style="margin-top:0;">SIP-Trunk-/Provider-Status (15-s-Refresh) und Grafana-Admin-Übersicht (läuft vorerst parallel).</span>
+                <span class="hint" style="margin-top:0;">SIP-Trunk-/Provider-Status aller Anlagen, aktualisiert alle 15 s — Monitoring nativ in der WebApp.</span>
             </div>
         </div>
     </div>

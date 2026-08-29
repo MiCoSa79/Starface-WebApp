@@ -64,7 +64,8 @@ with TestClient(main.app) as c:
     check("Nav: KEIN Dashboard-Link", 'href="/dashboard"' not in body)
     check("Nav: Logo-Link (Anlagen) aktiv/verlinkt", 'class="logo-link"' in body and 'href="/"' in body)
     check("Nav: Administration-Dropdown", "<summary>Administration" in body)
-    for route, marker in (("/benutzer", "tbl-users"), ("/rechte", "tbl-access"), ("/grundeinstellungen", "name=\"grafana_base_url\"")):
+    for route, marker in (("/benutzer", "tbl-users"), ("/rechte", "tbl-access"),
+                          ("/grundeinstellungen", 'name="module_update_base_url"')):
         r = c.get(route)
         check(f"GET {route} -> 200 (Admin)", r.status_code == 200, str(r.status_code))
         check(f"{route} rendert Bereich", marker in r.text, "(Marker fehlt)")
@@ -93,7 +94,7 @@ with TestClient(main.app) as c:
     body = r.text
     check("Bob: Startseite zeigt nur eigene Anlage", "Testanlage A" in body, "")
     check("Bob: KEIN Anlegen-Formular", "Anlage hinzufügen" not in body)
-    check("Bob: Grafana-Link + Blocklist in Zeile", 'class="grafana-dl"' in body and "/blocklist" in body)
+    check("Bob: Detail-Link (eigenes Monitoring) + Blocklist in Zeile", 'class="detail-dl"' in body and "/blocklist" in body)
     check("Bob: KEIN Administration-Dropdown", "<summary>Administration" not in body)
 
 print()

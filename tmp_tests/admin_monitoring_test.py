@@ -7,7 +7,7 @@
 - Auto-Refresh: Countdown „aktualisiert sich automatisch in X s“ (5-s-Takt über
   1-s-Tick, Overlap-Schutz refreshBusy) + /api/monitoring/admin
 - Rechte: Seite + API nur für Admins; User -> /dashboard; Gäste -> /
-- Grafana-Link bleibt (paralleler Betrieb); Admin-Seite verlinkt auf die neue Seite
+- Grafana entfernt (v1.0.55) — kein Link/Button/Name mehr; Admin-Seite rein nativ
 """
 import os, sys, sqlite3, tempfile
 
@@ -178,8 +178,8 @@ check("Kiosk-Überschrift rot zentriert: 'Gesamtübersicht aller Anlagen' (Axel)
       all(x in body for x in ('Gesamtübersicht aller Anlagen', 'body.kiosk .kiosk-title { display: block; }',
                               'color: #e94560; line-height: 1.25;')))
 check("Refresh-API /api/monitoring/admin", "/api/monitoring/admin" in body)
-check("Grafana-Admin-Link (parallel)", "Grafana Admin-Übersicht" in body)
-check("Grafana-Detail-Link Anlage B", f"/d/starface-anlage-detail/?var-installation=Anlage%20B" in body)
+check("Grafana komplett raus (v1.0.55): kein Link/Feld/Name auf der Seite",
+      "grafana" not in body.lower() and "Grafana Admin-Übersicht" not in body)
 
 # 3b) Nicht aktuelle Module (Sammler-Cache, kein Poll — Axel): Sektion + Gruppierung
 check("Sektion 'Module, die nicht aktuell sind' NACH Fehlerliste",

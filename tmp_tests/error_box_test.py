@@ -80,7 +80,7 @@ print("OK  ohne Fehler: leerer err-slot, keine Fehlerbox")
 
 # --- 3) E2E-Marker (Timer/Auto-Refresh bleibt intakt) ---
 for marker in ["setInterval(refreshMonitoring, 15000)", "/api/monitoring/status",
-               'id="inst-rows"', 'id="kv-running"', "hideLogo"]:
+               'id="inst-rows"', 'id="kv-running"', "detail-dl"]:
     assert marker in html, f"Marker fehlt: {marker}"
 print("OK  Auto-Refresh-Marker unveraendert vorhanden")
 

@@ -276,7 +276,7 @@ check("KEIN Detail-Link Anlage B (bob)", f'href="/monitoring/installations/{b_id
 import json as _json, html as _html, re as _re
 check("renderRows baut Detail-Zelle (tdDetail)", "var tdDetail" in r.text
       and "ad.href = '/monitoring/installations/'" in r.text)
-check("renderRows No-Data-colSpan 8", "td0.colSpan = 8" in r.text)
+check("renderRows No-Data-colSpan 7 (seit v1.0.55 ohne Grafana-Spalte: 8→7)", "td0.colSpan = 7" in r.text)
 check("idmap als script-Tag (kein data-idmap-Attribut)", 'data-idmap=' not in r.text
       and '<script type="application/json" id="inst-idmap">' in r.text)
 check("renderRows liest idmap per getElementById",

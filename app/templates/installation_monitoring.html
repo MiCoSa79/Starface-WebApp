@@ -462,7 +462,7 @@
             setKpiValue('kpi-cpu-sub', 'keine Systemdaten (noch kein Poll)', null);
             setKpiCard('kpi-cpu-card', null);
         }
-        // Speicher-Kachel (Auslastung wie Grafana: (total - available) / total)
+        // Speicher-Kachel (Auslastung: (total - available) / total)
         if (sys.mem_total && sys.mem_available !== undefined) {
             var totalB = kbToBytes(sys.mem_total);
             var usedB = kbToBytes(sys.mem_total - sys.mem_available);

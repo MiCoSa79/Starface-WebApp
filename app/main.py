@@ -114,11 +114,6 @@ def _set_setting(key: str, value: str) -> None:
         conn.close()
 
 
-def _grafana_base() -> str:
-    """Basis-URL für Grafana-Links: Admin-Einstellung > Env > Default (interne IP)."""
-    return _get_setting("grafana_base_url").strip() or os.environ.get("GRAFANA_BASE_URL", "http://10.0.25.60:8894")
-
-
 def _module_update_base() -> str:
     """Basis-URL des Update-Servers: Admin-Einstellung > Env > leer (nur intern).
 
@@ -994,10 +989,7 @@ async def index(request: Request):
                                       {"request": request, "user": user,
                                        "installations": installations,
                                        "active": "anlagen",
-                                       "version": os.environ.get("APP_VERSION", "dev"),
-                                       "grafana_base": _grafana_base(),
-                                       "grafana_uid": "starface-anlage-detail",
-                                       "grafana_admin_uid": "starface-admin-uebersicht"})
+                                       "version": os.environ.get("APP_VERSION", "dev")})
 
 
 @app.post("/api/login")
@@ -1452,7 +1444,7 @@ async def rechte_page(request: Request):
 
 @app.get("/grundeinstellungen", response_class=HTMLResponse)
 async def grundeinstellungen_page(request: Request):
-    """Grundeinstellungen (Admin): Basis-Domains (Grafana, Update-Server)."""
+    """Grundeinstellungen (Admin): Basis-Domains (Update-Server)."""
     user = verify_session(request.cookies.get(SESSION_COOKIE))
     if not user or not user["is_admin"]:
         return RedirectResponse("/")
@@ -1460,10 +1452,6 @@ async def grundeinstellungen_page(request: Request):
                                       {"request": request, "user": user,
                                        "active": "grundeinstellungen",
                                        "version": os.environ.get("APP_VERSION", "dev"),
-                                       "grafana_base": _grafana_base(),
-                                       "grafana_admin_uid": "starface-admin-uebersicht",
-                                       "grafana_base_url_value": _get_setting("grafana_base_url"),
-                                       "grafana_base_fallback": os.environ.get("GRAFANA_BASE_URL", "http://10.0.25.60:8894"),
                                        "module_update_base_url_value": _get_setting("module_update_base_url"),
                                        "module_update_base_fallback": os.environ.get("MODULE_UPDATE_BASE_URL", "")})
 
@@ -1478,8 +1466,6 @@ async def admin_settings(request: Request):
     # request.form()-Keys ist robust (str|None = Form(None) kollabiert
     # explizit leere Werte zu None — dann wäre „leeren" unmöglich).
     form = await request.form()
-    if "grafana_base_url" in form:
-        _set_setting("grafana_base_url", (form["grafana_base_url"] or "").strip())
     if "module_update_base_url" in form:
         _set_setting("module_update_base_url", (form["module_update_base_url"] or "").strip())
     return RedirectResponse("/grundeinstellungen?set_ok=1", status_code=303)
@@ -2649,7 +2635,8 @@ async def version():
 @app.get("/monitoring", response_class=HTMLResponse)
 async def monitoring_page(request: Request):
     """Telefonie-Monitoring-Status — für alle eingeloggten User, gefiltert nach Leserecht
-    (Admin sieht alle Anlagen; Benutzer nur Anlagen mit can_read). Inkl. Grafana-Detail-Link."""
+    (Admin sieht alle Anlagen; Benutzer nur Anlagen mit can_read). Inkl. Detail-Link
+    auf das selbst entwickelte Anlagen-Monitoring."""
     user = verify_session(request.cookies.get(SESSION_COOKIE))
     if not user:
         return RedirectResponse("/")
@@ -2681,10 +2668,7 @@ async def monitoring_page(request: Request):
     return TEMPLATES.TemplateResponse("monitoring.html",
         {"request": request, "user": user, "active": "monitoring",
          "status": mstatus_copy,
-         "id_by_name": visible_id_by_name,
-         "grafana_base": _grafana_base(),
-         "grafana_uid": "starface-anlage-detail",
-         "grafana_admin_uid": "starface-admin-uebersicht"})
+         "id_by_name": visible_id_by_name})
 
 
 def _admin_monitoring_summary(mstatus: dict, id_by_name: dict) -> dict:
@@ -2753,7 +2737,7 @@ async def admin_monitoring_page(request: Request):
     Provider-Fehlern, fehlerhafte SIP-Trunks/Provider) + Fehlerliste; Auto-Refresh 15 s.
 
     Seit v1.0.18 eigenständige Admin-Seite (vorher Redirect auf /monitoring, v0.0.120).
-    Grafana bleibt parallel erreichbar (Button auf der Seite)."""
+    Monitoring nativ in der WebApp (Grafana seit v1.0.55 entfernt)."""
     user = verify_session(request.cookies.get(SESSION_COOKIE))
     if not user or not user["is_admin"]:
         return RedirectResponse("/")
@@ -2766,9 +2750,6 @@ async def admin_monitoring_page(request: Request):
     return TEMPLATES.TemplateResponse("admin_monitoring.html",
         {"request": request, "user": user, "active": "admin",
          "summary": _admin_monitoring_summary(monitoring.status(), id_by_name),
-         "grafana_base": _grafana_base(),
-         "grafana_uid": "starface-anlage-detail",
-         "grafana_admin_uid": "starface-admin-uebersicht",
          "version": os.environ.get("APP_VERSION", "dev")})
 
 

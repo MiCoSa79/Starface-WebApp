@@ -124,6 +124,7 @@ Modul-Historie v4–v30 vollständig (inkl. UUIDs und Commit-Hashes) im Repo
 
 ### Web-App
 
+| v1.0.55 | **Grafana komplett raus (F63):** Monitoring nativ in der WebApp (Anlagen-Detail + Admin-Monitoring; InfluxDB bleibt Datenquelle); Einstellung `grafana_base_url` + `.grafana-dl`-Links/Buttons entfernt (Non-Admin-Startseite: `.detail-dl` aufs eigene Monitoring); compose ohne `grafana`-Service/Port 8894 + `grafana/`-Provisioning gelöscht; Axel nimmt den Container beim nächsten Stack-Neustart raus. |
 | Version | Inhalt |
 |---|---|
 | v0.0.142 | **Root Cause „No item with that key“ (Modul v6):** getInstances4Module nur im Interface → ersetzt durch getInstalledInstances + getModuleId-Filter; verify_api_refs.py blockt API-Fallen dauerhaft. **Zwischenstand:** Fault persistierte weiter (Diagnose v0.0.143 + Modul v7). Details [[starface-telefonie-monitoring]]. |

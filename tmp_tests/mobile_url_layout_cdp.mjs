@@ -59,12 +59,11 @@ async function measure(ws, width, height, dpr, label, shotFile = SHOT) {
     return r.status === 200;
   })()`);
   if (!login) throw new Error('Login fehlgeschlagen');
-  await send('Page.navigate', { url: BASE + '/admin' });
+  await send('Page.navigate', { url: BASE + '/grundeinstellungen' });
   await sleep(WAIT);
   const m = await evalJs(`(() => {
     const rect = (el) => el ? (() => { const r = el.getBoundingClientRect(); return { h: Math.round(r.height), w: Math.round(r.width), fb: getComputedStyle(el).flexBasis, fs: getComputedStyle(el).fontSize }; })() : null;
-    return { grafana: rect(document.getElementById('grafana_base_url')),
-             update: rect(document.getElementById('module_update_base_url')),
+    return { update: rect(document.getElementById('module_update_base_url')),
              vw: window.innerWidth, trace: document.body.innerHTML.includes('Traceback') };
   })()`);
   console.log(`MESSUNG (${label}):`, JSON.stringify(m));
@@ -86,8 +85,8 @@ async function main() {
 
   // ── Mobile: Höhenproblem (Regression) ──
   const mob = await measure(ws, 390, 844, 2, 'Mobile 390x844', SHOT.replace('.png', '_mobile.png'));
-  check('Kein Traceback auf /admin', !mob.trace);
-  for (const [k, v] of [['grafana', mob.grafana], ['update', mob.update]]) {
+  check('Kein Traceback auf /grundeinstellungen', !mob.trace);
+  for (const [k, v] of [['update', mob.update]]) {
     check(`${k}: Feld nicht mehr 380px hoch`, v.h <= 60, `h=${v.h}px`);
     check(`${k}: Touch-Hoehe >= 44px`, v.h >= 44, `h=${v.h}px`);
     check(`${k}: flex-basis auto (kein 380px-Hoehe-Bug)`, v.fb === 'auto', `flex-basis=${v.fb}`);
@@ -96,9 +95,8 @@ async function main() {
 
   // ── Desktop: Breiten-Verhalten bleibt ──
   const desk = await measure(ws, 1280, 900, 1, 'Desktop 1280x900', SHOT.replace('.png', '_desktop.png'));
-  check('grafana: Desktop-Breite >= 380px', desk.grafana && desk.grafana.w >= 380, `w=${desk.grafana && desk.grafana.w}px`);
   check('update: Desktop-Breite >= 380px', desk.update && desk.update.w >= 380, `w=${desk.update && desk.update.w}px`);
-  for (const [k, v] of [['grafana', desk.grafana], ['update', desk.update]]) {
+  for (const [k, v] of [['update', desk.update]]) {
     check(`${k}: Desktop-Höhe normal (< 60px)`, v && v.h <= 60, `h=${v && v.h}px`);
   }
 

@@ -47,37 +47,31 @@ def check(name, cond, detail=""):
     if not cond:
         FAIL.append(name)
 
-# 1) Admin-Seite rendert neues Feld
+# 1) Admin-Seite rendert URL-Feld (v1.0.55: kein Grafana-Feld mehr)
 r = c.get("/grundeinstellungen")
 html = r.text
 check("GET /grundeinstellungen -> 200", r.status_code == 200, str(r.status_code))
-has_g = 'name="grafana_base_url"' in html
 has_u = 'name="module_update_base_url"' in html
 ph = html.count('placeholder="https://www.sub.example.de"')
-check("grundeinstellungen.html: beide URL-Felder mit neutralen Platzhaltern",
-      has_g and has_u and ph == 2,
-      f"grafana={has_g}, update={has_u}, neutrale Placeholder={ph}")
+check("grundeinstellungen.html: Update-URL-Feld mit neutralem Platzhalter; kein Grafana-Feld mehr",
+      has_u and ph == 1 and 'name="grafana_base_url"' not in html,
+      f"update={has_u}, neutrale Placeholder={ph}")
 btn_count = html.count('class="btn-primary">Speichern')
-check("grundeinstellungen.html: jedes Feld mit eigenem Speichern-Button", btn_count == 2,
+check("grundeinstellungen.html: ein Speichern-Button (ein Feld)", btn_count == 1,
       str(btn_count) + " Button(s) gefunden")
 
 # 2) POST speichert die Einstellung
 # Starlette >=0.27 folgt Redirects automatisch (hartkodiert) → 303-POST endet
 # bei GET /grundeinstellungen (200); der eigentliche Nachweis ist der gespeicherte Wert.
-r = c.post("/admin/settings", data={"grafana_base_url": "", "module_update_base_url": "https://modulupdates.meiser.family"})
+r = c.post("/admin/settings", data={"module_update_base_url": "https://modulupdates.meiser.family"})
 check("POST /admin/settings gespeichert (Redirect gefolgt)", r.status_code in (200, 303) and "/grundeinstellungen" in r.url.path, f"{r.status_code} {r.url}")
 got = app_main._get_setting("module_update_base_url")
 check("Einstellung gespeichert", got == "https://modulupdates.meiser.family", str(got))
 
-# 2b) Teil-POSTs (je Feld ein eigenes Formular/Button) dürfen das jeweils
-#     andere Feld NICHT überschreiben (None = nicht gepostet = unangetastet)
-app_main._set_setting("grafana_base_url", "https://grafana.example")
-r = c.post("/admin/settings", data={"module_update_base_url": "https://modulupdates.meiser.family"})
-check("Teil-POST (nur Update-URL) lässt Grafana-URL unangetastet",
-      app_main._get_setting("grafana_base_url") == "https://grafana.example",
-      str(app_main._get_setting("grafana_base_url")))
-r = c.post("/admin/settings", data={"grafana_base_url": "https://grafana.example"})
-check("Teil-POST (nur Grafana-URL) lässt Update-URL unangetastet",
+# 2b) POST ohne Update-URL-Feld darf den gespeicherten Wert NICHT überschreiben
+app_main._set_setting("module_update_base_url", "https://modulupdates.meiser.family")
+r = c.post("/admin/settings", data={"unbekanntes_feld": "x"})
+check("POST ohne Update-URL lässt gespeicherten Wert unangetastet",
       app_main._get_setting("module_update_base_url") == "https://modulupdates.meiser.family",
       str(app_main._get_setting("module_update_base_url")))
 

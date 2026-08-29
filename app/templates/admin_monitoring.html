@@ -64,11 +64,6 @@
         .okline { display: flex; align-items: center; gap: 10px; color: #95d5b2;
                   font-size: 14px; margin: 0; }
         .nodata { color: #8b93a7; font-size: 13px; margin: 10px 0 0; }
-        .grafana-dl { display:inline-flex; align-items:center; justify-content:center;
-                      width:34px; height:34px; border:1px solid rgba(255,255,255,.28);
-                      border-radius:7px; color:inherit; text-decoration:none; opacity:.7;
-                      transition: opacity .15s, border-color .15s, color .15s; }
-        .grafana-dl:hover, .grafana-dl:focus { opacity:1; border-color:#4ea1ff; color:#4ea1ff; }
 
         /* ── Nicht aktuelle Module: Gruppenzeile je Anlage wie Detail-Modultabelle (Axel) ── */
         #outdated-title { margin-top: -4px; } /* 16 px Karten-Margin darüber − 4 px = 12 px — so groß wie unter der Überschrift, Kiosk wie Normal (Axel) */
@@ -124,10 +119,6 @@
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
                 Vollbild
             </button>
-        <a href="{{ grafana_base }}/d/{{ grafana_admin_uid }}/?from=now-6h&to=now&kiosk=1&hideLogo" target="_blank" rel="noopener" class="btn-secondary" title="Grafana-Admin-Übersicht (Ausfälle aller Anlagen) öffnen — läuft vorerst parallel weiter">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>
-            Grafana Admin-Übersicht
-        </a>
         <span style="color:#666;font-size:12px;margin-left:10px;">Seite aktualisiert sich automatisch in <b id="refresh-countdown" style="color:#bbb;">10</b> s</span>
         </div>
     </div>
@@ -188,7 +179,6 @@
                 <th>Fehlerhafte SIP-Trunks/Provider</th>
                 <th>Verbunden</th>
                 <th>Letzter Poll</th>
-                <th style="width:1%;"></th>
             </tr>
             <tbody id="fail-rows">
             {% for it in summary["items"] if it.disconnected_count > 0 %}
@@ -201,16 +191,10 @@
                 </td>
                 <td><span class="badge badge-red">{{ it.provider_summary.connected }} von {{ it.provider_summary.count }} verbunden</span></td>
                 <td data-ts="{{ it.ts or 0 }}">—</td>
-                <td style="white-space:nowrap;">
-                    <a class="grafana-dl" target="_blank" rel="noopener" title="Grafana-Dashboard {{ it.name }} öffnen"
-                       href="{{ grafana_base }}/d/{{ grafana_uid }}/?var-installation={{ it.name|urlencode }}&from=now-6h&to=now&kiosk=1&hideLogo">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 15.5l2.8-3.2 2.4 2.2L15.6 9"/><path d="M16.5 14.5h1.2"/></svg>
-                    </a>
-                </td>
             </tr>
             {% else %}
             <tr>
-                <td colspan="5" style="border:0;padding:0;">
+                <td colspan="4" style="border:0;padding:0;">
                     <p class="okline">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
                         Alle Provider aller Anlagen verbunden — keine Fehler bei SIP-Trunks/Providern.
@@ -361,16 +345,8 @@
             tdC.appendChild(b);
             var tdTs = document.createElement('td');
             tdTs.textContent = fmtTs(it.ts || 0);
-            var tdAct = document.createElement('td');
-            tdAct.style.whiteSpace = 'nowrap';
-            var dl = document.createElement('a');
-            dl.className = 'grafana-dl'; dl.target = '_blank'; dl.rel = 'noopener';
-            dl.title = 'Grafana-Dashboard ' + it.name + ' öffnen';
-            dl.href = '{{ grafana_base }}/d/{{ grafana_uid }}/?var-installation=' + encodeURIComponent(it.name) + '&from=now-6h&to=now&kiosk=1&hideLogo';
-            dl.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 15.5l2.8-3.2 2.4 2.2L15.6 9"/><path d="M16.5 14.5h1.2"/></svg>';
-            tdAct.appendChild(dl);
             tr.appendChild(tdName); tr.appendChild(tdDis); tr.appendChild(tdC);
-            tr.appendChild(tdTs); tr.appendChild(tdAct);
+            tr.appendChild(tdTs);
             tbody.appendChild(tr);
         });
     }
