@@ -131,7 +131,7 @@ async function main() {
     const links = menu ? Array.from(menu.querySelectorAll('a')).map(a => a.textContent.trim()) : [];
     return { h: rect ? Math.round(rect.height) : 0, links };
   })()`);
-  check('Admin: Dropdown-Klick öffnet Menü', dd.h > 0 && dd.links.includes('Modul-Updates') && dd.links.includes('Wiki'),
+  check('Admin: Dropdown-Klick öffnet Menü', dd.h > 0 && dd.links.includes('Updates nach Anlage') && dd.links.includes('Updates nach Modul') && dd.links.includes('Wiki'),
         JSON.stringify(dd));
   check('Admin: Dropdown enthält Anlagen/Benutzer/Rechteverwaltung/Grundeinstellungen',
         dd.links.includes('Anlagen') && dd.links.includes('Benutzer') && dd.links.includes('Rechteverwaltung') && dd.links.includes('Grundeinstellungen'),
@@ -236,7 +236,7 @@ async function main() {
     return { links, h: rect ? Math.round(rect.height) : 0, w: rect ? Math.round(rect.width) : 0 };
   })()`);
   check('Mobile: Administration aufgeklappt zeigt Module/Updates/Wiki',
-        mobileAdminLinks.links.includes('Modul-Updates') && mobileAdminLinks.links.includes('Wiki') && mobileAdminLinks.h > 0,
+        mobileAdminLinks.links.includes('Updates nach Anlage') && mobileAdminLinks.links.includes('Updates nach Modul') && mobileAdminLinks.links.includes('Wiki') && mobileAdminLinks.h > 0,
         JSON.stringify(mobileAdminLinks));
 
   await snap(SHOT);

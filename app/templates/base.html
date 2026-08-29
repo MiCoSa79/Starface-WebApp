@@ -27,9 +27,11 @@
         .topbar { background: #16213e; padding: calc(16px + env(safe-area-inset-top, 0px)) 24px 16px;
                   display: flex; justify-content: space-between; align-items: center;
                   border-bottom: 1px solid #333; position: relative; z-index: 2; }
-        .topbar h1 { font-size: 20px; display: flex; align-items: center; gap: 8px; }
-        .topbar h1 img { height: 24px; width: auto; }
-        .topbar h1 span { color: #e94560; }
+        .topbar h1 { font-size: 20px; display: flex; align-items: center; gap: 8px;
+                     flex: 1; min-width: 0; }
+        .topbar h1 img { height: 24px; width: auto; flex: none; }
+        .topbar h1 span { color: #e94560; overflow: hidden; text-overflow: ellipsis;
+                          white-space: nowrap; }
         .topbar a { color: #e94560; text-decoration: none; margin-left: 16px; }
         .badge-admin { background: #2d6a4f; color: #95d5b2; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
 
@@ -51,6 +53,10 @@
                  white-space: nowrap; }
         .topbar details.user-drop .drop-menu a:hover { background: #0f3460; color: #fff; }
         .topbar details.user-drop .drop-menu a.active { background: #e94560; color: #fff; }
+        /* F90: Benutzer-Icon (Kreis + Person) ersetzt auf Mobil den Benutzernamen */
+        .topbar details.user-drop > summary .user-avatar { display: none; }
+        .topbar details.user-drop > summary .user-avatar circle,
+        .topbar details.user-drop > summary .user-avatar path { color: inherit; }
 
         .nav { background: #16213e; border-bottom: 1px solid #333;
                display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
@@ -120,6 +126,10 @@
             #nav-open:checked ~ .nav { display: flex; }
             .topbar { padding: calc(12px + env(safe-area-inset-top, 0px)) 16px 12px; }
             .topbar h1 { font-size: 17px; }
+            .topbar details.user-drop > summary { max-width: none; padding: 4px; }
+            .topbar details.user-drop > summary .user-avatar { display: block; }
+            .topbar details.user-drop > summary .user-name,
+            .topbar details.user-drop > summary .user-caret { display: none; }
             .container { padding: 16px 14px 60px; }
         }
 
@@ -143,7 +153,9 @@
                 {% if user and user.is_admin %}<span class="badge-admin">Admin</span>{% endif %}
                 {% if user %}
                 <details class="user-drop{% if active=='konto' %} active{% endif %}" {% if active=='konto' %}open{% endif %}>
-                    <summary title="Benutzereinstellungen und Abmelden">{{ user.username }} ▾</summary>
+                    <summary title="Benutzereinstellungen und Abmelden">
+                        <svg class="user-avatar" viewBox="0 0 24 24" width="26" height="26" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="11" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="9" r="3.1" fill="currentColor"/><path d="M5.6 18.8c1.15-2.9 3.6-4.4 6.4-4.4s5.25 1.5 6.4 4.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><span class="user-name">{{ user.username }}</span><span class="user-caret">▾</span>
+                    </summary>
                     <div class="drop-menu">
                         <a href="/konto" class="{% if active=='konto' %}active{% endif %}">Mein Konto</a>
                         <a href="/logout">Abmelden</a>

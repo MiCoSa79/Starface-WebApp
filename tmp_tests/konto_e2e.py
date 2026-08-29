@@ -76,6 +76,15 @@ check("GET / (Startseite=Admin-Monitoring) -> 200", r.status_code == 200, str(r.
 nav_admin = r.text
 check("Admin-Nav zeigt Administration-Dropdown", "<summary>Administration" in nav_admin)
 check("Admin-Topbar zeigt Benutzer-Dropdown (Mein Konto)", "Mein Konto" in nav_admin and 'class="user-drop"' in nav_admin)
+check("F90: Topbar-Summary enthaelt User-Icon-SVG + Name/Caret-Spans",
+      'class="user-avatar"' in nav_admin and 'class="user-name"' in nav_admin
+      and 'class="user-caret"' in nav_admin and 'viewBox="0 0 24 24"' in nav_admin
+      and "admin" in nav_admin and "▾" in nav_admin)
+check("F90: Desktop-CSS blendet Avatar aus; Mobile-Query zeigt Icon statt Name/Caret",
+      ".user-avatar { display: none; }" in nav_admin
+      and ".user-avatar { display: block; }" in nav_admin
+      and ".user-caret { display: none; }" in nav_admin
+      and "max-width: none" in nav_admin)
 check("Admin-Nav hat keinen flachen Passwort-Link mehr",
       'href="/password"' not in nav_admin)
 
