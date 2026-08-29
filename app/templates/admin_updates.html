@@ -107,7 +107,7 @@
 
     <div class="tbl-wrap" data-wrap="upd-{{ inst.id }}">
     <table>
-        <tr><th>Modul</th><th>Version (SOLL)</th><th>Version (IST)</th><th>Aktion</th></tr>
+        <tr><th>Modul</th><th>Version (SOLL)</th><th>Version (IST)</th><th style="width:1%; text-align:right">Aktion</th></tr>
         {% for name, info in modules.items() %}
         {% set ist = (st.by_name.get(name)) if st and st.by_name else none %}
         <tr>
@@ -126,8 +126,8 @@
                 <span style="color:#ffb74d">v{{ ist.version_ist }} <span class="muted">(Update verfügbar)</span></span>
                 {% endif %}
             </td>
-            <td>
-                <form method="post" action="/admin/updates/push" style="margin:0">
+            <td style="text-align:right; white-space:nowrap;">
+                <form method="post" action="/admin/updates/push" style="margin:0; display:inline-flex; gap:6px">
                     <input type="hidden" name="installation_id" value="{{ inst.id }}">
                     <input type="hidden" name="module_name" value="{{ name }}">
                     <input type="hidden" name="filename" value="{{ info.file }}">

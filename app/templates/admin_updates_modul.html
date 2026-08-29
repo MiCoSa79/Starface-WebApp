@@ -61,7 +61,7 @@
 
     <div class="tbl-wrap" data-wrap="upd-modul">
     <table>
-        <tr><th style="width:44px">Auswahl</th><th>Anlage</th><th>Version (IST)</th><th>Aktuellste Version</th><th>Aktion</th></tr>
+        <tr><th style="width:44px">Auswahl</th><th>Anlage</th><th>Version (IST)</th><th>Aktuellste Version</th><th style="width:1%; text-align:right">Aktion</th></tr>
         {% for r in rows %}
         <tr>
             <td>
@@ -74,7 +74,7 @@
                 {% else %}<span class="muted">unbekannt</span>{% endif %}
             </td>
             <td>v{{ r.soll }}</td>
-            <td>
+            <td style="text-align:right; white-space:nowrap;">
                 {% if r.has_deployer %}
                 <form method="post" action="/admin/updates/push" style="margin:0">
                     <input type="hidden" name="installation_id" value="{{ r.inst.id }}">
