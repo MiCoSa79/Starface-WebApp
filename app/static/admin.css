@@ -23,7 +23,7 @@ input, select { padding: 8px; border: 1px solid #333; border-radius: 6px;
 button { padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer;
          font-size: 13px; font-weight: 600; }
 .btn-primary { background: #e94560; color: #fff; }
-.btn-secondary { background: #333; color: #ccc; }
+.btn-secondary { background: #333; color: #ccc; border-radius: 6px; }
 .btn-danger { background: #8b0000; color: #fff; }
 .form-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
 /* URL-Eingabefelder: Desktop min. 380px breit; Mobile darf flex-basis NICHT

@@ -189,6 +189,20 @@ with TestClient(main.app) as c:
           d.get("ok") is True and "Deployment-Modul" in d.get("message", ""),
           json.dumps(d, ensure_ascii=False))
 
+    # F68: Edit-Seite — Zurück-Button oben + Auge-Button zur Monitoring-Detailseite
+    r = c.get("/admin/installations/1/edit")
+    body = r.text
+    check("Edit-Seite: 200 + Zurück-Button oben",
+          r.status_code == 200 and "Zurück zur Anlagen-Übersicht" in body
+          and 'href="/anlagen"' in body)
+    check("Edit-Seite: Auge-Button zur Monitoring-Detailseite",
+          f"/monitoring/installations/1" in body and "Detail-Monitoring der Anlage" in body)
+    # F68: einheitliche Button-Optik in der Tabellen-Zeile (keine Inline-Style-Reste)
+    r = c.get("/anlagen")
+    body = r.text
+    check("Tabelle: einheitliche Buttons ohne Inline-Styles",
+          'class="btn-secondary"' in body and "style=\"font-size:13px" not in body)
+
 monitoring._xmlrpc = real_xmlrpc
 
 print()

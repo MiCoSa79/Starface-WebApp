@@ -4,6 +4,11 @@
 <link rel="stylesheet" href="/static/admin.css">
 <style>
     .actions-inline { display:inline-flex; gap:6px; align-items:center; }
+    .actions-inline a, .actions-inline button {
+        font-size: 13px; padding: 6px 12px; border-radius: 6px;
+        text-decoration: none; display: inline-block; cursor: pointer;
+        border: 1px solid transparent; line-height: 1.4; margin: 0;
+    }
     .detail-dl { display:inline-flex; align-items:center; justify-content:center; width:34px; height:34px;
                  border:1px solid rgba(255,255,255,.28); border-radius:7px; color:#8ab4f8; text-decoration:none;
                  opacity:.9; transition:opacity .15s, border-color .15s, color .15s; flex-shrink:0; vertical-align:middle; }
@@ -80,18 +85,14 @@
                     {% if user.is_admin %}
                     <div class="actions-inline">
                     <a href="/installation/{{ inst.id }}" class="btn-secondary"
-                       style="font-size:13px; padding:6px 12px; text-decoration:none; display:inline-block;"
                        title="Alle Informationen zur Anlage anzeigen">Zur Anlage</a>
                     <button onclick="testConn({{ inst.id }}, '{{ inst.name }}', true)"
-                            class="btn-secondary" style="font-size:13px; padding:6px 12px;
-                            border:1px solid var(--color-border); border-radius:6px;
-                            background:none; color:var(--color-text); cursor:pointer;"
+                            class="btn-secondary"
                             title="Verbindung testen (STARFACE-WebApp → Anlage)">
                         ⚡ Test
                     </button>
                     <a href="/admin/installations/{{ inst.id }}/edit"
-                       class="btn-secondary" style="font-size:13px; padding:6px 12px;
-                       margin-left:4px; text-decoration:none; display:inline-block;"
+                       class="btn-secondary"
                        title="Anlage bearbeiten">✎ Edit</a>
                     <form method="POST" action="/admin/installations/{{ inst.id }}/delete"
                           style="display:inline; margin-left:4px;"
@@ -102,16 +103,13 @@
                     {% else %}
                     <div class="actions-inline">
                     <a href="/installation/{{ inst.id }}" class="btn-secondary"
-                       style="font-size:13px; padding:6px 12px; text-decoration:none; display:inline-block;"
                        title="Alle Informationen zur Anlage anzeigen">Zur Anlage</a>
                     <a class="detail-dl" title="Detail-Monitoring der Anlage {{ inst.name }} öffnen"
                        href="/monitoring/installations/{{ inst.id }}">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.8"/></svg>
                     </a>
                     <button onclick="testConn({{ inst.id }}, '{{ inst.name }}', false)"
-                            class="btn-secondary" style="font-size:13px; padding:6px 12px;
-                            border:1px solid var(--color-border); border-radius:6px;
-                            background:none; color:var(--color-text); cursor:pointer;"
+                            class="btn-secondary"
                             title="Verbindung testen (STARFACE-WebApp → Anlage)">
                         ⚡ Test
                     </button>

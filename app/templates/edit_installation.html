@@ -40,6 +40,15 @@ input[type="checkbox"]{margin-right:6px;transform:scale(1.2)}
 {% endblock %}
 {% block content %}
 <div class="card">
+    <div style="display:flex; gap:8px; align-items:center; margin-bottom:16px; flex-wrap:wrap;">
+        <a href="/anlagen" class="btn-secondary">← Zurück zur Anlagen-Übersicht</a>
+        <a href="/monitoring/installations/{{ inst.id }}" class="btn-secondary"
+           style="padding:10px 12px; line-height:1;"
+           title="Detail-Monitoring der Anlage {{ inst.name }} öffnen"
+           aria-label="Detail-Monitoring der Anlage öffnen">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:middle"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.8"/></svg>
+        </a>
+    </div>
     <h1>Installation bearbeiten: {{ inst.name }}</h1>
     <form method="POST" action="/admin/installations/{{ inst.id }}">
         <div class="form-row">
