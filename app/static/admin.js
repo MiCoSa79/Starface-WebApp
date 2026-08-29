@@ -158,6 +158,18 @@ function testConn(instId, name, adminRoute) {
             });
         });
     }
+    // F86 (v1.0.83): Navigations-Dropdowns (Administration / Benutzerkonto /
+    // Modul-Updates) schließen bei Klick außerhalb — native <details> togglen
+    // sonst nur über das Summary selbst.
+    function initNavDrops() {
+        document.addEventListener('click', function (e) {
+            document.querySelectorAll('details.drop[open], details.user-drop[open], details.sub[open]')
+                .forEach(function (d) {
+                    if (!d.contains(e.target)) { d.open = false; }
+                });
+        });
+    }
     initCollapse();
     initTableFilters();
     initComboboxes();
+    initNavDrops();

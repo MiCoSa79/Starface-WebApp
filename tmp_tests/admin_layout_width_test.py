@@ -94,6 +94,14 @@ for route in ("/admin/updates", "/admin/modules"):
           'href="/static/admin.css?v=' in r.text,
           "admin.css-Link fehlt")
 
+# F86 (v1.0.83): Navigations-Dropdowns schließen bei Klick außerhalb (admin.js)
+r = c.get("/static/admin.js")
+_js = r.text
+check("F86: Außenklick schließt Nav-Dropdowns (initNavDrops in admin.js)",
+      r.status_code == 200 and "initNavDrops" in _js
+      and "details.drop[open]" in _js and "d.open = false" in _js,
+      "Außenklick-Handler fehlt in admin.js")
+
 if failed:
     print(f"FEHLGESCHLAGEN ({len(failed)}):")
     for name, detail in failed:
