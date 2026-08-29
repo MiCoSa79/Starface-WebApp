@@ -3189,7 +3189,7 @@ async def installation_module_update(request: Request, inst_id: int):
     if version is None:
         return JSONResponse({"ok": False, "msg": "Modul nicht im Update-Server bekannt."},
                             status_code=400)
-    filename = exp.get("filename") or f"{module.lower()}.sfm"
+    filename = exp.get("file") or exp.get("filename") or f"{module.lower()}.sfm"
     try:
         status, msg = _push_module(inst, module, filename, str(version))
     except Exception as e:  # OAuth/Verbindung defekt o. ä.

@@ -380,6 +380,14 @@ with TestClient(main.app) as c:
          json.dumps({"st": r.status_code, "j": _j,
                      "calls": [x.get("method") for x in _CALLS[-3:]]},
                     ensure_ascii=False))
+    check("F83/F89: signedUrl nutzt den ORIGINAL-Dateinamen aus _module_expectations"
+          " (file-Key), nicht den lowercase-Fallback",
+          any(x.get("method") == "UpdateFromUrl"
+              and "/modules/CallBlocker.sfm" in str(x.get("params"))
+              and "callblocker.sfm" not in str(x.get("params"))
+              for x in _CALLS),
+          json.dumps([c.get("params") for c in _CALLS if c.get("method") == "UpdateFromUrl"],
+                     ensure_ascii=False))
     r = c.post("/installation/1/module/update", json={"module": "   "})
     check("F83: leerer Modulname -> 400", r.status_code == 400)
     _FAKE_INSTALLED = INSTALLED_OK
