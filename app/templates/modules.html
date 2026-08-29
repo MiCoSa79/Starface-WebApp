@@ -117,10 +117,11 @@
         {% if modules %}
         <table>
             <tr>
-                <th style="width:22%">Modul</th>
-                <th style="width:48%">Details</th>
-                <th style="width:15%">Dokumentation</th>
-                <th style="width:15%">Aktion</th>
+                <th style="width:20%">Modul</th>
+                <th style="width:44%">Details</th>
+                <th style="width:12%">Dokumentation</th>
+                <th style="width:12%">Aktion</th>
+                <th style="width:12%; text-align:center;">Standard</th>
             </tr>
             {% for m in modules %}
             <tr>
@@ -158,6 +159,11 @@
                             <path d="M12 3v12"/><path d="m6 11 6 6 6-6"/><path d="M4 21h16"/>
                         </svg></a>
                 </td>
+                <td style="text-align:center; white-space:nowrap;">
+                    <input type="checkbox" class="standard-cb" data-name="{{ m.name }}"
+                           title="Standard: Modul muss auf jeder Anlage installiert sein"
+                           onchange="toggleModuleStandard(this)"{% if m.is_standard %} checked{% endif %}>
+                </td>
             </tr>
             {% endfor %}
         </table>
@@ -178,10 +184,11 @@
         {% if third_party %}
         <table>
             <tr>
-                <th style="width:22%">Modul</th>
-                <th style="width:48%">Details</th>
-                <th style="width:15%">Version</th>
-                <th style="width:15%">Aktion</th>
+                <th style="width:20%">Modul</th>
+                <th style="width:44%">Details</th>
+                <th style="width:12%">Version</th>
+                <th style="width:12%">Aktion</th>
+                <th style="width:12%; text-align:center;">Standard</th>
             </tr>
             {% for m in third_party %}
             <tr>
@@ -212,6 +219,11 @@
                         <button type="submit" class="btn-danger" title="Modul löschen (Datei + Eintrag)">Löschen</button>
                     </form>
                 </td>
+                <td style="text-align:center; white-space:nowrap;">
+                    <input type="checkbox" class="standard-cb" data-name="{{ m.name }}"
+                           title="Standard: Modul muss auf jeder Anlage installiert sein"
+                           onchange="toggleModuleStandard(this)"{% if m.is_standard %} checked{% endif %}>
+                </td>
             </tr>
             {% endfor %}
         </table>
@@ -225,5 +237,20 @@
             über das Deployment-Modul einspielen und aktualisieren.
         </p>
     </div>
+    <script>
+        async function toggleModuleStandard(cb) {
+            const prev = cb.checked;
+            try {
+                const r = await fetch('/admin/modules/standard', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                    body: new URLSearchParams({name: cb.dataset.name, active: cb.checked ? '1' : '0'})
+                });
+                if (!r.ok) { cb.checked = prev; return; }
+                const j = await r.json();
+                if (!j.ok) cb.checked = prev;
+            } catch (e) { cb.checked = prev; }
+        }
+    </script>
     </div>
 {% endblock %}

@@ -215,7 +215,8 @@ def init_db():
                      ("app_version", "TEXT DEFAULT ''"),
                      ("build_date", "TEXT DEFAULT ''"),
                      ("vendor", "TEXT DEFAULT ''"),
-                     ("source", "TEXT DEFAULT 'own'")):
+                     ("source", "TEXT DEFAULT 'own'"),
+                     ("is_standard", "INTEGER DEFAULT 0")):
         if col not in cols:
             conn.execute(f"ALTER TABLE modules ADD COLUMN {col} {ddl}")
     # Migration (v0.0.42): OAuth-Token-Spalten an installations
@@ -1555,6 +1556,40 @@ async def admin_modules_page(request: Request):
                                        "mirror_count": len(mirror_manifest.get("modules", [])) if mirror_manifest else 0,
                                        "mirror_base": _module_update_base(),
                                        "msg": request.query_params.get("msg", "")})
+
+
+def _set_module_standard(name: str, active: bool) -> bool:
+    """Standard-Flag (Pflicht-Modul auf jeder Anlage) setzen/entfernen.
+
+    True nur, wenn das Modul in der modules-Tabelle existiert (eigene wie
+    Drittanbieter) — unbekannte Namen werden still verweigert.
+    """
+    conn = _db()
+    try:
+        cur = conn.execute("UPDATE modules SET is_standard = ? WHERE name = ?",
+                           (1 if active else 0, name))
+        conn.commit()
+        return cur.rowcount > 0
+    finally:
+        conn.close()
+
+
+@app.post("/admin/modules/standard")
+async def admin_module_standard(request: Request):
+    """Standard-Flag je Modul togglen (Checkbox auf der Modul-Seite).
+
+    POST {name, active}; JSON-Antwort {ok: bool} — der Client macht bei
+    Fehlern einen Rollback der Checkbox.
+    """
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user or not user["is_admin"]:
+        return RedirectResponse("/", status_code=303)
+    form = await request.form()
+    name = str(form.get("name", "")).strip()
+    if not name:
+        return JSONResponse({"ok": False}, status_code=400)
+    active = str(form.get("active", "0")) in ("1", "true", "on")
+    return JSONResponse({"ok": _set_module_standard(name, active)})
 
 
 def _data_modules_dir() -> Path:
