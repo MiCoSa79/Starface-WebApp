@@ -81,8 +81,8 @@ check("Token verschlüsselt in DB", stored[1] != "geheim123", stored[1])
 check("Token-Roundtrip", app_main._decrypt(stored[1]) == "geheim123",
       str(app_main._decrypt(stored[1]) if stored[1] else ""))
 
-# --- 3. GET /admin/updates ---------------------------------------------------
-r = c.get("/admin/updates")
+# --- 3. GET /admin/updates (Variante 1: ?inst_id= zeigt die Einzelansicht) ---
+r = c.get(f"/admin/updates?inst_id={inst_id}")
 check("GET /admin/updates -> 200", r.status_code == 200, str(r.status_code))
 html = r.text
 check("Anlagenname sichtbar", "Testanlage" in html)
@@ -110,7 +110,7 @@ def fake_st(inst, token, name):
     ]}
 _mon._collect_module_status = fake_st
 app_main._get_token = lambda inst: "oauthtok"  # OAuth-Flow ist hier nicht Gegenstand
-r = c.get("/admin/updates")
+r = c.get(f"/admin/updates?inst_id={inst_id}")
 check("GET /admin/updates nach Mock -> 200", r.status_code == 200, str(r.status_code))
 idx = r.text.find("<td>CallBlocker</td>")
 check("Installation anstoßen bei fehlendem Modul", "Installation anstoßen" in r.text,
@@ -368,7 +368,7 @@ check("F51: IST-Abruf-Fehler -> Fallback Update-Pfad (Push läuft weiter)",
 app_main._get_token = lambda inst: "oauthtok"
 
 # --- 11. F52: Tooltips der Sammel-Buttons (hover) -------------------------------
-r = c.get("/admin/updates")
+r = c.get(f"/admin/updates?inst_id={inst_id}")
 check("F52: Tooltip 'Fehlende Module installieren' vorhanden",
       'data-tip="Es werden alle unten aufgeführten Module installiert, die noch nicht installiert sind"' in r.text)
 check("F52: Tooltip 'Module aktualisieren' vorhanden",

@@ -230,7 +230,7 @@ check("Upload-Formular + Löschen sichtbar",
 check("Drittanbieter in Tabelle", "Drittanbieter Test" in r.text)
 check("Eigene Module in Tabelle", "CallBlocker" in r.text)
 
-r = c.get("/admin/updates")
+r = c.get("/admin/updates?inst_id=1")
 exp_keys = list(monitoring._module_expectations().keys())
 check("Update-Seite -> 200", r.status_code == 200, f"{r.status_code}")
 check("Update-Seite: SOLL enthält Drittanbieter", "Drittanbieter Test" in exp_keys, str(exp_keys))

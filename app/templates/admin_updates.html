@@ -2,42 +2,6 @@
 {% block title %}STARFACE WebApp — Modul-Updates{% endblock %}
 {% block styles %}
 <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-               background: #1a1a2e; color: #e0e0e0; }
-        .topbar { background: #16213e; padding: calc(16px + env(safe-area-inset-top, 0px)) 16px 16px;
-                  display: flex; justify-content: space-between; align-items: center;
-                  border-bottom: 1px solid #333; position: relative; z-index: 2; }
-        .topbar h1 { font-size: 20px; display: flex; align-items: center; gap: 8px; }
-        .topbar h1 span { color: #e94560; }
-        .topbar a { color: #e94560; text-decoration: none; margin-left: 16px; }
-        .container { max-width: 1400px; margin: 0 auto; padding: 24px;
-                     padding-bottom: 60px; }
-        h2 { font-size: 18px; margin: 24px 0 12px; color: #e94560; }
-        h2:first-child { margin-top: 0; }
-        .msg { padding: 12px 16px; border-radius: 6px; margin: 16px 0; font-size: 14px;
-               border: 1px solid #333; }
-        .msg.ok { background: #1d3a2a; color: #95d5b2; border-color: #2d6a4f; }
-        .msg.err { background: #3a1d1d; color: #d59595; border-color: #6a2d2d; }
-        table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
-        th { text-align: left; padding: 10px 14px; background: #0f3460;
-             color: #aaa; font-size: 13px; font-weight: 500; border-bottom: 1px solid #333; }
-        td { padding: 12px 14px; border-bottom: 1px solid #222; vertical-align: top; font-size: 14px; }
-        tr:last-child td { border-bottom: none; }
-        .btn-primary { display: inline-block; padding: 6px 14px; border-radius: 6px;
-                       background: #e94560; color: #fff; font-size: 13px;
-                       border: none; cursor: pointer; }
-        .btn-primary:hover { background: #d63851; }
-        .btn-secondary { display: inline-block; padding: 6px 14px; border-radius: 6px;
-                         text-decoration: none; background: #333; color: #ccc;
-                         font-size: 13px; border: none; cursor: pointer; }
-        .btn-secondary:hover { background: #444; }
-        /* Aktion-Zellen: Buttons auf Desktop immer nebeneinander (nie untereinander) */
-        td form { display: flex; gap: 8px; flex-wrap: nowrap; white-space: nowrap; }
-        @media (max-width: 640px) { td form { flex-wrap: wrap; } }
-        .empty { color: #666; text-align: center; padding: 24px; }
-        .muted { color: #888; font-size: 12px; }
-        .hint { color: #888; font-size: 12px; margin-top: 4px; }
         /* F52: Tooltip-Blase passend zum dunklen Design (Hover + Tastatur-Fokus) */
         .tooltip-btn { position: relative; }
         .tooltip-btn::after {
@@ -69,33 +33,49 @@
 </style>
 {% endblock %}
 {% block content %}
-<div class="topbar">
-    <h1>STARFACE WebApp <span>/ Modul-Updates</span></h1>
-    <div><a href="/anlagen">← Anlagen</a></div>
-</div>
 <div class="container">
     {% if msg %}
-    <div class="msg {{ 'ok' if 'FEHLER' not in msg and 'Unbekannte' not in msg else 'err' }}">
-        <button type="button" onclick="this.closest('.msg').style.display='none'"
-                style="float:right;padding:2px 10px;font-size:12px;cursor:pointer;"
-                class="btn-secondary">OK</button>{{ msg }}</div>
+    <div class="msg {{ 'ok' if 'FEHLER' not in msg and 'Unbekannte' not in msg and 'nicht verfügbar' not in msg and 'Keine ' not in msg else 'err' }}">
+        <button type="button" class="btn-mini" onclick="this.closest('.msg').style.display='none'">OK</button>{{ msg }}</div>
     {% endif %}
 
-    {% if not modules %}
-    <p class="empty">Keine Module im ausgelieferten Sortiment (app/modules/).<br>
-       Erst Module spiegeln/<code>versions.json</code> erzeugen (Admin → Modul-Verwaltung).</p>
-    {% endif %}
+    <h2 class="tbl-head">
+        Updates nach Anlage
+        <span class="muted">Modul-Updates über das Deployment-Modul</span>
+    </h2>
+
+    <div class="card">
+        <div class="form-row">
+            <label class="sr-only" for="update-anlage">Anlage wählen</label>
+            <div class="cb" data-cb="update-anlage">
+                <button type="button" class="cb-trigger" role="combobox" aria-expanded="false" aria-haspopup="listbox" aria-controls="cb-pop-anlage" aria-label="Anlage wählen">
+                    <span class="cb-value">— Anlage wählen —</span>
+                    <svg class="cb-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <div class="cb-pop" id="cb-pop-anlage" hidden>
+                    <input type="text" class="cb-search" placeholder="Anlage suchen (ab 3 Zeichen)" autocomplete="off">
+                    <ul class="cb-list" role="listbox"></ul>
+                </div>
+            </div>
+            <select id="update-anlage" class="cb-native" autocomplete="off" tabindex="-1" aria-hidden="true">
+                <option value="" selected>— Anlage wählen —</option>
+                {% for inst in all_installations %}
+                <option value="{{ inst.id }}" {% if selected_id == inst.id %}selected{% endif %}>{{ inst.name }} ({{ inst.url }})</option>
+                {% endfor %}
+            </select>
+            <span class="muted">{{ all_installations|length }} Anlage(n) konfiguriert</span>
+        </div>
+    </div>
 
     {% if not installations %}
-    <p class="empty">Keine Anlagen konfiguriert — bitte zuerst auf der <a href="/anlagen" class="btn-secondary">Anlagen-Seite</a> eine Anlage anlegen.</p>
-    {% endif %}
-
+    <p class="empty">Bitte oben eine Anlage auswählen — danach erscheinen hier ihre Module mit IST- und aktuellster Version.</p>
+    {% else %}
     {% for inst in installations %}
-    <h2>{{ inst.name }} <span class="muted">({{ inst.url }})</span></h2>
+    <h2 class="tbl-head">{{ inst.name }} <span class="muted">({{ inst.url }})</span></h2>
     {% if not inst.deployer_instance_name %}
     <p class="hint" style="margin-bottom:16px">
         ⚠ Keine Deployment-Modul-Instanz gesetzt — bitte unter
-        <a href="/admin/installations/{{ inst.id }}/edit" style="color:#e94560">Anlage bearbeiten</a>
+        <a href="/admin/installations/{{ inst.id }}/edit">Anlage bearbeiten</a>
         Instanzname (+ optional Token) hinterlegen. Ohne Instanzname schlägt der Update-Aufruf fehl.
     </p>
     {% else %}
@@ -120,18 +100,18 @@
 
     {% set st = module_states.get(inst.id) if module_states else none %}
     {% if st and st.error %}
-    <p class="hint" style="color:#d59595; margin-bottom:16px">
-        ⚠ Version (IST) nicht verfügbar: {{ st.error.msg }}</p>
+    <p class="hint" style="color:#d59595; margin-bottom:16px">⚠ Version (IST) nicht verfügbar: {{ st.error.msg }}</p>
     {% elif st and st.list is none %}
     <p class="hint" style="color:#888; margin-bottom:16px">⚠ Version (IST) unbekannt.</p>
     {% endif %}
 
+    <div class="tbl-wrap" data-wrap="upd-{{ inst.id }}">
     <table>
         <tr><th>Modul</th><th>Version (SOLL)</th><th>Version (IST)</th><th>Aktion</th></tr>
         {% for name, info in modules.items() %}
         {% set ist = (st.by_name.get(name)) if st and st.by_name else none %}
         <tr>
-            <td>{{ name }}{% if info.source == 'third_party' %}<span style="display:inline-block;background:#3a3f5c;color:#c7cbe0;border-radius:4px;padding:1px 7px;font-size:11px;margin-left:6px;vertical-align:middle;">Drittanbieter</span>{% endif %}</td>
+            <td>{{ name }}{% if info.source == 'third_party' %}<span class="muted"> (Drittanbieter)</span>{% endif %}</td>
             <td>v{{ info.version }}</td>
             <td>
                 {% if not st or st.error %}
@@ -152,8 +132,8 @@
                     <input type="hidden" name="module_name" value="{{ name }}">
                     <input type="hidden" name="filename" value="{{ info.file }}">
                     <input type="hidden" name="version" value="{{ info.version }}">
-                    <input type="hidden" name="is_install" value="{{ '1' if missing else '0' }}">
                     {% set missing = ist is not none and not ist.installed %}
+                    <input type="hidden" name="is_install" value="{{ '1' if missing else '0' }}">
                     <button type="submit" class="btn-primary">{{ 'Installation anstoßen' if missing else 'Update anstoßen' }}</button>
                     <button type="submit" class="btn-secondary"
                             formaction="/admin/updates/ping"
@@ -164,12 +144,19 @@
         </tr>
         {% endfor %}
     </table>
+    </div>
     {% endfor %}
+    {% endif %}
 
-    <p class="hint">Signierte, zeitbegrenzte Download-URL (5 min) wird serverseitig erzeugt; der
-       Das Deployment-Modul auf der Anlage lädt das Paket direkt vom konfigurierten Update-Server
-       (Basis-URL aus den Admin-Einstellungen) und importiert es via
-       <code>ModuleRegistry.importModule()</code>. Geplante Updates erscheinen im
-       Anlagen-Log (Modul log).</p>
+    <p class="hint">Signierte, zeitbegrenzte Download-URL (5 min) wird serverseitig erzeugt; das
+      Deployment-Modul auf der Anlage lädt das Paket direkt vom konfigurierten Update-Server
+      (Basis-URL aus den Admin-Einstellungen) und importiert es via
+      <code>ModuleRegistry.importModule()</code>. Geplante Updates erscheinen im
+      Anlagen-Log (Modul log).</p>
 </div>
+<script>
+document.getElementById('update-anlage').addEventListener('change', function () {
+    if (this.value) location.href = '/admin/updates?inst_id=' + this.value;
+});
+</script>
 {% endblock %}

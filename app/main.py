@@ -1724,7 +1724,12 @@ async def admin_third_party_delete(request: Request, module_id: int):
 
 @app.get("/admin/updates", response_class=HTMLResponse)
 async def admin_updates_page(request: Request):
-    """Admin-Seite: Modul-Updates über das Deployment-Modul (Phase 2)."""
+    """Admin-Seite: Modul-Updates (Variante 1 „Updates nach Anlage“, F73).
+
+    Oben eine Such-Combobox über alle Anlagen; ohne Auswahl (Leerzustand)
+    nur der Hinweis. Mit ?inst_id= wird NUR diese Anlage gefetcht und deren
+    Modul-Tabelle gezeigt (unveränderte Einzelansicht wie bisher).
+    """
     user = verify_session(request.cookies.get(SESSION_COOKIE))
     if not user or not user["is_admin"]:
         return RedirectResponse("/")
@@ -1735,32 +1740,55 @@ async def admin_updates_page(request: Request):
         from monitoring import _module_expectations, _collect_module_status
     except ImportError:
         from app.monitoring import _module_expectations, _collect_module_status
-    # IST-Versionen je Anlage — beim Seitenaufruf frisch abrufen (GetModuleStatus
-    # auf der Monitoring-Instanz, gleiche Fehlerklassen wie die Monitoring-Karte).
-    # Fehlertolerant: einzelne Anlagen dürfen die Seite nie blockieren.
+    try:
+        selected_id = int(request.query_params.get("inst_id", "0"))
+    except (TypeError, ValueError):
+        selected_id = 0
+    selected = next((i for i in installations if i["id"] == selected_id), None)
+    # IST-Versionen NUR der ausgewählten Anlage — beim Seitenaufruf frisch
+    # (GetModuleStatus auf der Monitoring-Instanz, gleiche Fehlerklassen wie
+    # die Monitoring-Karte). Fehlertolerant: Fehler zeigen Status „—“.
     module_states = {}
-    for inst in installations:
-        if not inst["monitoring_instance_name"]:
-            module_states[inst["id"]] = {"list": None, "by_name": {}, "error": {
+    if selected:
+        if not selected["monitoring_instance_name"]:
+            module_states[selected["id"]] = {"list": None, "by_name": {}, "error": {
                 "category": "config",
                 "msg": "Keine Monitoring-Instanz konfiguriert — unter Anlage bearbeiten "
                       "den Instanznamen des TelefonieMonitoring-Moduls hinterlegen."}}
-            continue
-        try:
-            token = _get_token(inst)
-            st = _collect_module_status(inst, token, inst["name"])
-            st["by_name"] = {it["name"]: it for it in st.get("list") or []}
-            module_states[inst["id"]] = st
-        except Exception as e:  # Token-/Transportfehler: Seite zeigen, Status „—“
-            module_states[inst["id"]] = {"list": None, "by_name": {},
-                                         "error": {"category": "fetch", "msg": str(e)}}
+        else:
+            try:
+                token = _get_token(selected)
+                st = _collect_module_status(selected, token, selected["name"])
+                st["by_name"] = {it["name"]: it for it in st.get("list") or []}
+                module_states[selected["id"]] = st
+            except Exception as e:  # Token-/Transportfehler: Seite zeigen, Status „—“
+                module_states[selected["id"]] = {"list": None, "by_name": {},
+                                                 "error": {"category": "fetch", "msg": str(e)}}
     return TEMPLATES.TemplateResponse(
         "admin_updates.html",
-        {"request": request, "user": user, "installations": installations,
+        {"request": request, "user": user,
+         "installations": [selected] if selected else [],
+         "all_installations": installations,
+         "selected_id": selected_id,
          "modules": _module_expectations(), "active": "updates",
          "version": os.environ.get("APP_VERSION", "dev"),
          "msg": request.query_params.get("msg", ""),
          "module_states": module_states})
+
+
+def _updates_redirect(msg: str, inst_id: int = 0) -> RedirectResponse:
+    """Redirect auf Variante 1 (Updates nach Anlage) — Auswahl bleibt erhalten."""
+    url = "/admin/updates?msg=" + quote(msg)
+    if inst_id:
+        url += f"&inst_id={inst_id}"
+    return RedirectResponse(url, status_code=303)
+
+
+def _modul_redirect(msg: str, module: str) -> RedirectResponse:
+    """Redirect auf Variante 2 (Updates nach Modul) — Auswahl bleibt erhalten."""
+    return RedirectResponse(
+        "/admin/updates/modul?module=" + quote(module) + "&msg=" + quote(msg),
+        status_code=303)
 
 
 @app.post("/admin/updates/push")
@@ -1781,11 +1809,10 @@ async def admin_updates_push(request: Request):
     inst = conn.execute("SELECT * FROM installations WHERE id=?", (inst_id,)).fetchone()
     conn.close()
     if not inst:
-        return RedirectResponse(
-            "/admin/updates?msg=" + quote("Unbekannte Anlage."), status_code=303)
+        return _updates_redirect("Unbekannte Anlage.", inst_id)
     is_install = form.get("is_install", "0") == "1"
     status, msg = _push_module(inst, module_name, filename, version, is_install=is_install)
-    return RedirectResponse("/admin/updates?msg=" + quote(msg), status_code=303)
+    return _updates_redirect(msg, inst_id)
 
 
 def _norm_version(v):
@@ -1855,17 +1882,13 @@ async def admin_updates_push_all(request: Request):
     inst = conn.execute("SELECT * FROM installations WHERE id=?", (inst_id,)).fetchone()
     conn.close()
     if not inst:
-        return RedirectResponse(
-            "/admin/updates?msg=" + quote("Unbekannte Anlage."), status_code=303)
+        return _updates_redirect("Unbekannte Anlage.", inst_id)
     if mode not in ("install", "update"):
-        return RedirectResponse(
-            "/admin/updates?msg=" + quote("Ungültiger Modus."), status_code=303)
+        return _updates_redirect("Ungültiger Modus.", inst_id)
     # IST-Stand frisch auf der Anlage abfragen (gleiche Infrastruktur wie die Seite)
     if not inst["monitoring_instance_name"]:
-        return RedirectResponse(
-            "/admin/updates?msg=" + quote(
-                "Version (IST) nicht verfügbar — Monitoring-Instanz nicht konfiguriert."),
-            status_code=303)
+        return _updates_redirect(
+            "Version (IST) nicht verfügbar — Monitoring-Instanz nicht konfiguriert.", inst_id)
     try:
         from monitoring import _module_expectations, _collect_module_status
     except ImportError:
@@ -1874,9 +1897,7 @@ async def admin_updates_push_all(request: Request):
         token = _get_token(inst)
         st = _collect_module_status(inst, token, inst["name"])
     except Exception as e:  # Token-/Transportfehler: Meldung, kein Crash
-        return RedirectResponse(
-            "/admin/updates?msg=" + quote(f"Version (IST) nicht verfügbar — {e}"),
-            status_code=303)
+        return _updates_redirect(f"Version (IST) nicht verfügbar — {e}", inst_id)
     by_name = {it["name"]: it for it in st.get("list") or []}
     # Betroffene Module auswählen
     rows = []
@@ -1894,14 +1915,14 @@ async def admin_updates_push_all(request: Request):
     if not rows:
         hint = ("Alle Module sind bereits installiert." if mode == "install"
                 else "Alle Module sind bereits aktuell.")
-        return RedirectResponse("/admin/updates?msg=" + quote(hint), status_code=303)
+        return _updates_redirect(hint, inst_id)
     msgs = []
     for name, info in rows:
         _, m = _push_module(inst, name, info.get("file", ""), str(info.get("version", "")),
                             is_install=(mode == "install"))
         msgs.append(m)
     msg = msgs[0] if len(msgs) == 1 else " · ".join(msgs)
-    return RedirectResponse("/admin/updates?msg=" + quote(msg), status_code=303)
+    return _updates_redirect(msg, inst_id)
 
 
 @app.post("/admin/updates/ping")
@@ -1925,8 +1946,7 @@ async def admin_updates_ping(request: Request):
     inst = conn.execute("SELECT * FROM installations WHERE id=?", (inst_id,)).fetchone()
     conn.close()
     if not inst:
-        return RedirectResponse(
-            "/admin/updates?msg=" + quote("Unbekannte Anlage."), status_code=303)
+        return _updates_redirect("Unbekannte Anlage.", inst_id)
     try:
         token = _get_token(inst)
         res = module_updates.ping_channel(inst, token, filename=filename,
@@ -1938,7 +1958,97 @@ async def admin_updates_ping(request: Request):
             msg = f"{module_name}: FEHLER — {res['message']}"
     except Exception as e:  # OAuth/Verbindung defekt o. ä. → als Meldung, kein Crash
         msg = f"{module_name}: FEHLER — {e}"
-    return RedirectResponse("/admin/updates?msg=" + quote(msg), status_code=303)
+    return _updates_redirect(msg, inst_id)
+
+
+@app.get("/admin/updates/modul", response_class=HTMLResponse)
+async def admin_updates_modul_page(request: Request):
+    """Admin-Seite: Modul-Updates — Variante 2 „Updates nach Modul“ (F73).
+
+    Such-Combobox über das Modul-Sortiment; ohne Auswahl (Leerzustand) nur
+    der Hinweis. Mit ?module= werden alle Anlagen gepollt und nur die
+    gezeigt, die das Modul installiert haben UND nicht aktuell sind
+    (IST-Version ≠ SOLL-Version), inkl. Einzel-Update je Zeile und
+    Sammel-Update über die Checkboxen.
+    """
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user or not user["is_admin"]:
+        return RedirectResponse("/")
+    conn = _db()
+    installations = conn.execute("SELECT * FROM installations ORDER BY name").fetchall()
+    conn.close()
+    try:
+        from monitoring import _module_expectations, _collect_module_status
+    except ImportError:
+        from app.monitoring import _module_expectations, _collect_module_status
+    modules = _module_expectations()
+    module_name = request.query_params.get("module", "")
+    rows = []
+    errors = {}
+    if module_name in modules:
+        info = modules[module_name]
+        for inst in installations:
+            if not inst["monitoring_instance_name"]:
+                continue
+            try:
+                token = _get_token(inst)
+                st = _collect_module_status(inst, token, inst["name"])
+                it = next((x for x in (st.get("list") or [])
+                           if x.get("name") == module_name), None)
+                if it is not None and bool(it.get("installed")) \
+                        and it.get("status") != "ok":
+                    rows.append({"inst": inst, "ist": it.get("version_ist"),
+                                 "soll": info.get("version"),
+                                 "has_deployer": bool(inst["deployer_instance_name"])})
+            except Exception as e:  # Anlage nicht erreichbar → nicht in der Liste
+                errors[inst["name"]] = str(e)
+    return TEMPLATES.TemplateResponse(
+        "admin_updates_modul.html",
+        {"request": request, "user": user, "modules": modules,
+         "module_name": module_name,
+         "module_info": modules.get(module_name) if module_name in modules else None,
+         "rows": rows, "errors": errors, "active": "updates-modul",
+         "version": os.environ.get("APP_VERSION", "dev"),
+         "msg": request.query_params.get("msg", "")})
+
+
+@app.post("/admin/updates/push-module")
+async def admin_updates_push_module(request: Request):
+    """F73: Ein Modul auf mehreren ausgewählten Anlagen aktualisieren (Bulk).
+
+    Formular der Variante 2: module_name/filename/version + beliebig viele
+    installation_ids (Checkboxen). Ergebnis als Sammel-Meldung auf der
+    Modul-Seite; die Modul-Auswahl bleibt erhalten.
+    """
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user or not user["is_admin"]:
+        return RedirectResponse("/")
+    form = await request.form()
+    module_name = str(form.get("module_name", ""))
+    filename = str(form.get("filename", ""))
+    version = str(form.get("version", ""))
+    ids = [int(v) for v in form.getlist("installation_ids") if str(v).isdigit()]
+    if not ids:
+        return _modul_redirect("Keine Anlage ausgewählt.", module_name)
+    conn = _db()
+    insts = {r["id"]: r for r in conn.execute("SELECT * FROM installations").fetchall()}
+    conn.close()
+    ok_count = 0
+    errs = []
+    for iid in ids:
+        inst = insts.get(iid)
+        if not inst:
+            continue
+        status, m = _push_module(inst, module_name, filename, version, is_install=False)
+        if status == "ok":
+            ok_count += 1
+        else:
+            errs.append(f"{inst['name']}: {m}")
+    parts = [f"{ok_count}× Update für '{module_name}' angestoßen."] if ok_count else []
+    if errs:
+        parts.append("Fehler: " + "; ".join(errs))
+    msg = " ".join(parts) if parts else "Kein Update angestoßen."
+    return _modul_redirect(msg, module_name)
 
 
 @app.get("/admin/modules/{module_id}/download")

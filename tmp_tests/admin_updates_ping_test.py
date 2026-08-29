@@ -59,7 +59,7 @@ id_ohne = add_anlage("OhneDeployer", with_deployer=False)
 id_mit = add_anlage("MitDeployer", with_deployer=True)
 
 # --- 1b. Ping-Button auf der Seite (Tabelle erscheint pro Anlage) -----------
-r = c.get("/admin/updates")
+r = c.get(f"/admin/updates?inst_id={id_mit}")
 check("GET /admin/updates -> 200", r.status_code == 200, str(r.status_code))
 check("Ping-Button vorhanden", r.text.count("Download-Test") >= 1,
       "Download-Test" not in r.text and "fehlt" or "")
@@ -134,7 +134,7 @@ import sys as _sys
 _orig_mod = _sys.modules.get("monitoring")
 _sys.modules["monitoring"] = None           # erzwingt ImportError auf Weg 1
 _sys.path.insert(0, os.getcwd())            # repo-root, damit 'from app import ...' greift
-r = c.get("/admin/updates")
+r = c.get(f"/admin/updates?inst_id={id_mit}")
 _sys.path.pop(0)
 if _orig_mod is not None:
     _sys.modules["monitoring"] = _orig_mod

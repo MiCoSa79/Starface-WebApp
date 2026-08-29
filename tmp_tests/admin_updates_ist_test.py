@@ -76,8 +76,8 @@ def fake_outdated(inst, token, name):
     return {"list": items, "error": None}
 
 monitoring._collect_module_status = fake_outdated
-r = c.get("/admin/updates")
-check("GET /admin/updates -> 200", r.status_code == 200, str(r.status_code))
+r = c.get(f"/admin/updates?inst_id={id_mit}")
+check("GET /admin/updates?inst_id= -> 200", r.status_code == 200, str(r.status_code))
 check("Spalte 'Version (IST)' im Header", "Version (IST)" in r.text,
       "Version (IST)" not in r.text and "Header fehlt" or "")
 check("outdated -> v{soll-1} sichtbar", f"v{first_soll - 1}" in r.text,
@@ -103,7 +103,7 @@ def fake_missing(inst, token, name):
 
 if len(expect) > 1:
     monitoring._collect_module_status = fake_missing
-    r = c.get("/admin/updates")
+    r = c.get(f"/admin/updates?inst_id={id_mit}")
     check("fehlendes Modul -> 'nicht installiert'", "nicht installiert" in r.text,
           "nicht installiert fehlt")
     check("aktuelles Modul -> grüne v-Nummer", f"v{first_soll}" in r.text,
@@ -116,7 +116,7 @@ def fake_err(inst, token, name):
         "msg": "STARFACE-Fehler: Modul nicht installiert oder eingerichtet"}}
 
 monitoring._collect_module_status = fake_err
-r = c.get("/admin/updates")
+r = c.get(f"/admin/updates?inst_id={id_mit}")
 check("Fehler -> Hinweiszeile 'Version (IST) nicht verfügbar'",
       "Version (IST) nicht verfügbar" in r.text, "Hinweis fehlt")
 check("Fehler -> Meldungstext der Anlage", "Modul nicht installiert oder eingerichtet" in r.text,
@@ -131,7 +131,7 @@ def fake_err_nur_mit(inst, token, name):
     calls["rpc"] += 1
     return fake_err(inst, token, name)
 monitoring._collect_module_status = fake_err_nur_mit
-r = c.get("/admin/updates")
+r = c.get(f"/admin/updates?inst_id={id_ohne}")
 check("ohne Monitoring-Instanz -> Config-Hinweis",
       "Keine Monitoring-Instanz konfiguriert" in r.text, "Hinweis fehlt")
 monitoring._collect_module_status = _orig

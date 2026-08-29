@@ -79,6 +79,19 @@
         .nav details.drop .drop-menu a:hover { background: #0f3460; color: #fff; }
         .nav details.drop .drop-menu a.active { background: #e94560; color: #fff; }
         .nav details.drop .drop-sep { height: 1px; background: #333; margin: 5px 8px; }
+        /* F73: Untermenü „Modul-Updates ▸" (Updates nach Anlage / nach Modul) */
+        .nav details.drop .drop-menu details.sub { position: relative; }
+        .nav details.drop .drop-menu details.sub > summary { padding: 8px 12px; border-radius: 6px;
+                 color: #ddd; cursor: pointer; list-style: none; white-space: nowrap; }
+        .nav details.drop .drop-menu details.sub > summary::-webkit-details-marker { display: none; }
+        .nav details.drop .drop-menu details.sub > summary:hover,
+        .nav details.drop .drop-menu details.sub[open] > summary { background: #0f3460; color: #fff; }
+        .nav details.drop .drop-menu details.sub[open] > summary { border-radius: 6px 6px 0 0; }
+        .nav details.drop .drop-menu details.sub.active > summary { background: #e94560; color: #fff; font-weight: 600; }
+        .nav details.drop .drop-menu details.sub .sub-menu { margin: 2px 0 4px; padding-left: 12px;
+                 display: flex; flex-direction: column; }
+        .nav details.drop .drop-menu details.sub .sub-menu a { border-left: 2px solid #333;
+                 border-radius: 0 6px 6px 0; }
 
         .container { max-width: 1400px; margin: 0 auto; padding: 24px;
                      padding-bottom: 60px; }
@@ -149,7 +162,7 @@
             <a href="/">STARFACE WebApp</a>
             {% endif %}
             {% if user and user.is_admin %}
-            <details class="drop {% if active in ['anlagen','benutzer','rechte','grundeinstellungen','modules','updates','api-doku','wiki'] %}active{% endif %}">
+            <details class="drop {% if active in ['anlagen','benutzer','rechte','grundeinstellungen','modules','updates','updates-modul','api-doku','wiki'] %}active{% endif %}">
                 <summary>Administration ▾</summary>
                 <div class="drop-menu">
                     <a href="/anlagen" class="{% if active=='anlagen' %}active{% endif %}">Anlagen</a>
@@ -158,7 +171,13 @@
                     <a href="/grundeinstellungen" class="{% if active=='grundeinstellungen' %}active{% endif %}">Grundeinstellungen</a>
                     <div class="drop-sep"></div>
                     <a href="/admin/modules" class="{% if active=='modules' %}active{% endif %}">Module</a>
-                    <a href="/admin/updates" class="{% if active=='updates' %}active{% endif %}">Modul-Updates</a>
+                    <details class="sub {% if active in ['updates','updates-modul'] %}active{% endif %}" {% if active in ['updates','updates-modul'] %}open{% endif %}>
+                        <summary>Modul-Updates ▸</summary>
+                        <div class="sub-menu">
+                            <a href="/admin/updates" class="{% if active=='updates' %}active{% endif %}">Updates nach Anlage</a>
+                            <a href="/admin/updates/modul" class="{% if active=='updates-modul' %}active{% endif %}">Updates nach Modul</a>
+                        </div>
+                    </details>
                     <a href="/admin/api-doku" class="{% if active=='api-doku' %}active{% endif %}">API-Doku</a>
                     <a href="/wiki" class="{% if active=='wiki' %}active{% endif %}">Wiki</a>
                 </div>

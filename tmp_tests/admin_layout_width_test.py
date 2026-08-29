@@ -86,15 +86,13 @@ check("Mein-Konto /konto Container 1400px",
       r.status_code == 200 and "max-width: 1400px" in r.text,
       f"status={r.status_code}")
 
-# Aktion-Buttons: Desktop nowrap, Mobil wrap (nur Modul-Tabellen)
+# Aktion-Buttons: zentrale Regeln in admin.css (Modul-Tabellen nowrap/Desktop,
+# wrap/Mobil) — beide Seiten binden die globalisierte CSS mit Cache-Busting ein
 for route in ("/admin/updates", "/admin/modules"):
     r = c.get(route)
-    check(f"GET {route} Buttons nowrap (Desktop)",
-          "flex-wrap: nowrap" in r.text and "td form" in r.text,
-          "td form / flex-wrap: nowrap fehlt")
-    check(f"GET {route} Buttons wrap (<=640px)",
-          "@media (max-width: 640px)" in r.text and "flex-wrap: wrap" in r.text,
-          "Media-Query wrap fehlt")
+    check(f"GET {route} bindet zentrale admin.css ein",
+          'href="/static/admin.css?v=' in r.text,
+          "admin.css-Link fehlt")
 
 if failed:
     print(f"FEHLGESCHLAGEN ({len(failed)}):")

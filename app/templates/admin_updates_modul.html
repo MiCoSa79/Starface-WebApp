@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}STARFACE WebApp — Modul-Updates nach Modul{% endblock %}
+{% block styles %}{% endblock %}
+{% block content %}
+<div class="container">
+    {% if msg %}
+    <div class="msg {{ 'ok' if 'FEHLER' not in msg and 'Unbekannte' not in msg and 'Keine ' not in msg else 'err' }}">
+        <button type="button" class="btn-mini" onclick="this.closest('.msg').style.display='none'">OK</button>{{ msg }}</div>
+    {% endif %}
+
+    <h2 class="tbl-head">
+        Updates nach Modul
+        <span class="muted">Alle Anlagen, die das Modul installiert haben und nicht aktuell sind</span>
+    </h2>
+
+    <div class="card">
+        <div class="form-row">
+            <label class="sr-only" for="update-modul">Modul wählen</label>
+            <div class="cb" data-cb="update-modul">
+                <button type="button" class="cb-trigger" role="combobox" aria-expanded="false" aria-haspopup="listbox" aria-controls="cb-pop-modul" aria-label="Modul wählen">
+                    <span class="cb-value">— Modul wählen —</span>
+                    <svg class="cb-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <div class="cb-pop" id="cb-pop-modul" hidden>
+                    <input type="text" class="cb-search" placeholder="Modul suchen (ab 3 Zeichen)" autocomplete="off">
+                    <ul class="cb-list" role="listbox"></ul>
+                </div>
+            </div>
+            <select id="update-modul" class="cb-native" autocomplete="off" tabindex="-1" aria-hidden="true">
+                <option value="" selected>— Modul wählen —</option>
+                {% for name, info in modules.items() %}
+                <option value="{{ name }}" {% if module_name == name %}selected{% endif %}>{{ name }} (v{{ info.version }})</option>
+                {% endfor %}
+            </select>
+            <span class="muted">{{ modules|length }} Modul(e) im Sortiment</span>
+        </div>
+    </div>
+
+    {% if not module_name %}
+    <p class="empty">Bitte oben ein Modul auswählen — danach erscheinen alle Anlagen, die das Modul installiert haben und nicht aktuell sind.</p>
+    {% elif module_info is none %}
+    <p class="empty">Unbekanntes Modul „{{ module_name }}“ — bitte ein Modul aus dem Sortiment wählen.</p>
+    {% elif not rows %}
+    <p class="empty">Keine Anlage mit nicht aktuellem „{{ module_name }}“ — das Modul ist auf allen Anlagen aktuell oder nicht installiert.</p>
+    {% else %}
+    {% if errors %}
+    <p class="hint" style="color:#d59595; margin-bottom:12px">
+        ⚠ {{ errors|length }} Anlage(n) nicht erreichbar — ohne IST-Version nicht bewertbar: {{ errors.keys()|join(', ') }}.</p>
+    {% endif %}
+
+    <div class="form-row">
+        <button type="button" class="btn-secondary" id="sel-all">Alle auswählen</button>
+        <button type="button" class="btn-secondary" id="sel-none">Auswahl aufheben</button>
+        <form id="bulk-update" method="post" action="/admin/updates/push-module">
+            <input type="hidden" name="module_name" value="{{ module_name }}">
+            <input type="hidden" name="filename" value="{{ module_info.file }}">
+            <input type="hidden" name="version" value="{{ module_info.version }}">
+            <button type="submit" class="btn-primary">Update auf allen ausgewählten Anlagen anstoßen ({{ rows|length }})</button>
+        </form>
+    </div>
+
+    <div class="tbl-wrap" data-wrap="upd-modul">
+    <table>
+        <tr><th style="width:44px">Auswahl</th><th>Anlage</th><th>Version (IST)</th><th>Aktuellste Version</th><th>Aktion</th></tr>
+        {% for r in rows %}
+        <tr>
+            <td>
+                <input type="checkbox" data-bulk-cb form="bulk-update" name="installation_ids"
+                       value="{{ r.inst.id }}" aria-label="{{ r.inst.name }} auswählen">
+            </td>
+            <td>{{ r.inst.name }} <span class="muted">({{ r.inst.url }})</span></td>
+            <td>
+                {% if r.ist %}<span style="color:#ffb74d">v{{ r.ist }}</span>
+                {% else %}<span class="muted">unbekannt</span>{% endif %}
+            </td>
+            <td>v{{ r.soll }}</td>
+            <td>
+                {% if r.has_deployer %}
+                <form method="post" action="/admin/updates/push" style="margin:0">
+                    <input type="hidden" name="installation_id" value="{{ r.inst.id }}">
+                    <input type="hidden" name="module_name" value="{{ module_name }}">
+                    <input type="hidden" name="filename" value="{{ module_info.file }}">
+                    <input type="hidden" name="version" value="{{ module_info.version }}">
+                    <input type="hidden" name="is_install" value="0">
+                    <button type="submit" class="btn-primary">Update anstoßen</button>
+                </form>
+                {% else %}
+                <span class="muted" title="Kein Deployment-Modul konfiguriert — unter Anlage bearbeiten hinterlegen.">— kein Deployment-Modul</span>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+    </div>
+    {% endif %}
+</div>
+<script>
+document.getElementById('update-modul').addEventListener('change', function () {
+    if (this.value) location.href = '/admin/updates/modul?module=' + encodeURIComponent(this.value);
+});
+document.getElementById('sel-all').addEventListener('click', function () {
+    document.querySelectorAll('[data-bulk-cb]').forEach(function (c) { c.checked = true; });
+});
+document.getElementById('sel-none').addEventListener('click', function () {
+    document.querySelectorAll('[data-bulk-cb]').forEach(function (c) { c.checked = false; });
+});
+</script>
+{% endblock %}
