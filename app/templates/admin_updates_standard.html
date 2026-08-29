@@ -75,6 +75,9 @@
                 {% else %}
                 <span class="muted" title="Kein Deployment-Modul konfiguriert — unter Anlage bearbeiten hinterlegen.">— kein Deployment-Modul</span>
                 {% endif %}
+                <button type="button" class="btn-mini" data-inst="{{ g.inst.id }}" data-module="{{ r.name }}"
+                        onclick="removeStandard(this)"
+                        title="Standard nur für diese Anlage entfernen — das Modul wird hier nicht mehr als Pflicht gemeldet (der globale Standard bleibt bestehen). Die Ausnahme kann auf der Detailseite der Anlage wieder aufgehoben werden.">Standard entfernen</button>
             </td>
         </tr>
         {% endfor %}
@@ -103,5 +106,17 @@ document.getElementById('sel-none').addEventListener('click', function () {
     document.querySelectorAll('.std-cb').forEach(function (c) { c.checked = false; });
     document.querySelectorAll('.grp-cb').forEach(function (c) { c.checked = false; });
 });
+function removeStandard(btn) {
+    var instId = btn.dataset.inst;
+    var module = btn.dataset.module;
+    fetch('/installation/' + instId + '/module/standard', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ module: module, active: true })
+    }).then(function (r) { return r.json(); }).then(function (j) {
+        if (j && j.ok) { location.reload(); }
+        else { alert('Standard konnte nicht entfernt werden: ' + (j && j.error ? j.error : 'unbekannter Fehler')); }
+    }).catch(function () { alert('Standard konnte nicht entfernt werden (Verbindungsfehler).'); });
+}
 </script>
 {% endblock %}

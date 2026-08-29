@@ -243,6 +243,23 @@ body3 = c.get("/admin/updates/standard").text
 seg_a3 = body3.split(">Alpha<")[1].split(">Beta<")[0]
 check("5d. Nach Aufheben wieder 2 Zeilen", seg_a3.count('class="std-cb"') == 2)
 
+# ── 5e+: „Standard entfernen“-Buttons der Standard-Module-Seite (F77) ──
+check("5e. Jede Modul-Zeile hat genau einen 'Standard entfernen'-Button",
+      body3.count("Standard entfernen") == 5)
+check("5f. CallBlocker/Alpha-Button traegt data-inst + data-module + removeStandard(this)",
+      'data-inst="1" data-module="CallBlocker"' in seg_a3
+      and 'onclick="removeStandard(this)"' in seg_a3)
+sb3 = body3.split(">Beta<")[1].split(">Charlie<")[0]
+check("5g. Zeile ohne Deployment-Konfig zeigt trotzdem 'Standard entfernen'",
+      "— kein Deployment-Modul" in sb3 and "Standard entfernen" in sb3)
+r = c.post("/installation/1/module/standard",
+           json={"module": "CallBlocker", "active": True})
+check("5h. 'Standard entfernen' setzt die Anlagen-Ausnahme (POST ok)",
+      r.status_code == 200 and r.json().get("ok") is True)
+b4 = c.get("/admin/updates/standard").text
+check("5i. Zeile verschwindet sofort aus der Liste (4 Buttons statt 5)",
+      b4.count("Standard entfernen") == 4)
+
 # ── 6. Leerzustände + Guards ──
 conn = sqlite3.connect(DB)
 conn.execute("UPDATE modules SET is_standard = 0")
