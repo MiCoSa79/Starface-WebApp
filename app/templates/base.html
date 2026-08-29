@@ -15,7 +15,7 @@
     <!-- App-weites Stylesheet (F71): zentral für ALLE Seiten —
          Buttons (.btn-secondary/.btn-danger/.btn-back), Tabellen, Formulare.
          Seiten-CSS im styles-Block überschreibt gezielt. -->
-    <link rel="stylesheet" href="/static/admin.css">
+    <link rel="stylesheet" href="/static/admin.css?v={{ version }}">
     <style>
         /* ══ Gemeinsames Gerüst (Header/Nav/Fußzeile) — Seiten-CSS im styles-Block ergänzt/überschreibt ══ */
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -174,7 +174,7 @@
     {% block footer %}
     <div class="footer">STARFACE WebApp {{ version }}</div>
     {% endblock %}
-    <script src="/static/pwa.js" defer></script>
+    <script src="/static/pwa.js?v={{ version }}" defer></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

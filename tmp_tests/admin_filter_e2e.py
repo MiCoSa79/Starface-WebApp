@@ -102,7 +102,7 @@ with TestClient(main.app) as c:
     js_src = open(os.path.join(REPO, "app/static/admin.js"), encoding="utf-8").read()
     check("JS initCollapse in admin.js", "function initCollapse" in js_src and "function initTableFilters" in js_src)
     check("JS initComboboxes in admin.js", "function initComboboxes" in js_src)
-    check("admin.js eingebunden", html_inst.count('src="/static/admin.js"') >= 1)
+    check("admin.js eingebunden", html_inst.count('src="/static/admin.js?v=') >= 1)
     for name, page in (("Startseite", html_inst), ("Benutzer", html_users), ("Rechte", html_access), ("Einstellungen", html_settings)):
         check(f"keine Fehlerbox ({name})", 'class="msg-err' not in page)
 

@@ -689,6 +689,25 @@ app = FastAPI(title="STARFACE WebApp", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=str(Path(__file__).parent / "static")), name="static")
 
 
+@app.middleware("http")
+async def _static_cache_policy(request: Request, call_next):
+    """Statics: KEIN Cache ohne Revalidierung (F72-Folge/v1.0.67).
+
+    Seit v1.0.66 liefen Browsern/Proxies trotz geloeschten Browser-Caches
+    veraltete admin.css-Staende zu (\"Button ohne abgerundete Ecken\", erst
+    Strg+F5 zeigt den neuen Stand) — Ursache: heuristisches Caching + Proxy-
+    Ebenen ohne Cache-Control und ohne Cache-Busting-URL. Templates laden
+    Statics jetzt mit \"?v={{ version }}\" (neue URL je Release); zusaetzlich
+    hier: no-cache = der Browser/Proxy MUSS vor jeder Nutzung revalidieren
+    (ETag/Last-Modified von Starlette StaticFiles bleiben aktiv → 304 bei
+    unveraendert). Gilt NUR fuer /static, keine Auswirkung auf API/HTML.
+    """
+    response = await call_next(request)
+    if request.url.path.startswith("/static/"):
+        response.headers["Cache-Control"] = "no-cache"
+    return response
+
+
 # ─────────────────────────────────────────────────────────────
 # Passwort ändern (selbst + Admin für andere)
 # ─────────────────────────────────────────────────────────────
