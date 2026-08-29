@@ -405,9 +405,16 @@ with TestClient(main.app) as c:
     # ── F84: Blocklist-Zurück führt zur Detailseite, nicht zur Übersicht ──
     r = c.get("/installation/1/blocklist")
     check("F84: Blocklist-Zurück -> Detailseite (/installation/1)",
-         r.status_code == 200
-         and '<a href="/installation/1" class="btn-secondary btn-back">' in r.text,
-         "Zurück-Link zeigt noch auf die Übersicht? " + r.text[r.text.find("btn-back")-80:r.text.find("btn-back")+120])
+          r.status_code == 200
+          and '<a href="/installation/1" class="btn-secondary btn-back">' in r.text,
+          "Zurück-Link zeigt noch auf die Übersicht? " + r.text[r.text.find("btn-back")-80:r.text.find("btn-back")+120])
+
+    # ── F85: Aktualisieren-Button in voller btn-secondary-Größe (kein btn-mini) ──
+    check("F85: Aktualisieren-Button volle Größe (kein btn-mini neben Blocklist-Button)",
+          'class="btn-secondary" data-module="CallBlocker"' in body_u
+          and 'btn-mini" data-module' not in body_u,
+          "Button hat noch die kompakte btn-mini-Größe?")
+
 
 
     _FAKE_INSTALLED = INSTALLED_OK

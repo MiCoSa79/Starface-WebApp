@@ -107,7 +107,7 @@
                     {% if it.status == 'outdated' or it.settings %}
                     <span style="display:inline-flex; gap:6px; align-items:center;">
                         {% if it.status == 'outdated' %}
-                        <button type="button" class="btn-secondary btn-mini" data-module="{{ it.name }}"
+                        <button type="button" class="btn-secondary" data-module="{{ it.name }}"
                                 onclick="updateModuleInst({{ inst.id }}, this)"
                                 title="Modul „{{ it.name }}“ (v{{ it.version_ist }}) auf v{{ it.version_soll }} aktualisieren. Stößt das Update über das Deployment-Modul der Anlage an.">⬆ Aktualisieren</button>
                         {% endif %}
