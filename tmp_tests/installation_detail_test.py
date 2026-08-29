@@ -80,6 +80,16 @@ INSTALLED_OK = json.dumps([
     {"id": "c", "name": "Deployment-Modul", "version": 9, "vendor": "MiCoSa79",
      "instances": [{"name": "Deployer", "disabled": False}]},
 ])
+# F82: Deployment-Modul nur v8 installiert -> CreateInstance-RPC existiert nicht,
+# der „Instanz anlegen“-Button darf dann nicht erscheinen.
+INSTALLED_OK_DM8 = json.dumps([
+    {"id": "a", "name": "CallBlocker", "version": 28, "vendor": "MiCoSa79",
+     "instances": [{"name": "CallBlocker", "disabled": False}]},
+    {"id": "b", "name": "TelefonieMonitoring", "version": 5, "vendor": "MiCoSa79",
+     "instances": [{"name": "TelefonieMonitoring", "disabled": False}]},
+    {"id": "c", "name": "Deployment-Modul", "version": 8, "vendor": "MiCoSa79",
+     "instances": [{"name": "Deployer", "disabled": False}]},
+])
 NO_DEPLOY = json.dumps([
     {"name": "CallBlocker", "version": 28, "vendor": "MiCoSa79", "instances": []},
     {"name": "TelefonieMonitoring", "version": 5, "vendor": "MiCoSa79",
@@ -91,13 +101,16 @@ real_xmlrpc = monitoring._xmlrpc
 _CALLS = []
 
 
+_FAKE_INSTALLED = INSTALLED_OK  # F82: Tests können auf DM-v8-Zustand umschalten
+
+
 def fake_xmlrpc(url, token, method, params=None, instance_name=None):
     if url == "http://net":
         raise ConnectionError("no route to host")
     if method == "GetStats":
         return {"members": {"systemName": "pbx", "systemVersion": "10.0.2.5", "providerStatus": ""}}
     if method == "GetModuleStatus":
-        data = INSTALLED_OK if url == "http://ok" else NO_DEPLOY
+        data = _FAKE_INSTALLED if url == "http://ok" else NO_DEPLOY
         return {"members": {"moduleJson": data}}
     if method == "CreateInstance":
         _CALLS.append({"method": method, "params": dict(params or {}),
@@ -194,10 +207,10 @@ with TestClient(main.app) as c:
           ">Instanz anlegen</button>" not in body)
 
     # CallBlocker-Instanz deaktivieren -> kein Einstellungs-Button (keine aktive Instanz)
-    _saved = INSTALLED_OK
-    _noact = json.loads(INSTALLED_OK)
+    _saved = _FAKE_INSTALLED
+    _noact = json.loads(_FAKE_INSTALLED)
     _noact[0]["instances"][0]["disabled"] = True
-    INSTALLED_OK = json.dumps(_noact)
+    _FAKE_INSTALLED = json.dumps(_noact)
     r = c.get("/installation/1")
     body2 = r.text
     check("Detail: ohne aktive Instanz -> KEIN Blocklist-Button, nur Badge (F70)",
@@ -205,7 +218,7 @@ with TestClient(main.app) as c:
     check("Detail: Instanz-anlegen-Button sichtbar ohne aktive Instanz (F79)",
           ">Instanz anlegen</button>" in body2 and "Instanzname" in body2
           and "id=\"dlg-instance\"" in body2)
-    INSTALLED_OK = _saved
+    _FAKE_INSTALLED = _saved
 
     # F79: POST /installation/{id}/instance — Instanz via Deployment-Modul anlegen
     _CALLS.clear()
@@ -291,6 +304,38 @@ with TestClient(main.app) as c:
     check("F80: RPC-Fehler -> kein Feld-Update",
           d.get("ok") is False and r5 == r4,
           json.dumps({"d": d, "r5": r5}, ensure_ascii=False))
+
+    # ── F82: Aktionen auf der Detailseite (Auge / ⚡ Test / ✎ Edit) + DM-v8-Schutz ──
+    r = c.get("/installation/1")
+    body = r.text
+    check("F82: Detail-Monitoring-Auge (detail-dl + /monitoring/installations/1)",
+          'class="detail-dl"' in body and "/monitoring/installations/1" in body)
+    check("F82: ⚡ Test-Button fürs Deployment-Modul (Admin -> testConn)",
+          "testConn(1, 'Testanlage A', true)" in body and "Verbindung testen" in body,
+          "testConn-Button fehlt")
+    check("F82: ✎ Edit-Button (Admin -> Edit-Seite)",
+          "/admin/installations/1/edit" in body and "Edit" in body,
+          "Edit-Link fehlt")
+
+    # F82: DM v8 (CB-Instanz deaktiviert -> „ohne aktive Instanz“) -> KEIN Button, Hinweis statt dessen
+    _d8 = json.loads(INSTALLED_OK_DM8)
+    _d8[0]["instances"][0]["disabled"] = True
+    _FAKE_INSTALLED = json.dumps(_d8)
+    r = c.get("/installation/1")
+    body8 = r.text
+    check("F82: DM v8 -> KEIN inst-create-Button + Hinweis 'DM v9 nötig'",
+          "inst-create" not in body8 and "DM v9 nötig" in body8,
+          "inst-create im Body: " + str("inst-create" in body8),
+          )
+    # F82: zurück auf DM v9 (CB weiter deaktiviert) -> Button wieder da
+    _d9 = json.loads(INSTALLED_OK)
+    _d9[0]["instances"][0]["disabled"] = True
+    _FAKE_INSTALLED = json.dumps(_d9)
+    r = c.get("/installation/1")
+    check("F82: DM v9 (zurückgeschaltet) -> inst-create-Button wieder da",
+          "inst-create" in r.text and "DM v9 nötig" not in r.text,
+          "Umschalt-Mechanik defekt")
+    _FAKE_INSTALLED = INSTALLED_OK
 
     r = c.post("/installation/1/instance", json={"module": "CallBlocker", "name": "FehlerFall"})
     d = r.json()

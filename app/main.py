@@ -3030,6 +3030,7 @@ async def installation_detail_page(request: Request, inst_id: int):
         except Exception:
             pbx_version = None
     dep_state = None
+    dep_can_create = False
     if mod_state and mod_state.get("list"):
         try:
             from monitoring import _module_expectations
@@ -3043,9 +3044,15 @@ async def installation_detail_page(request: Request, inst_id: int):
             dep_state = "no-active-instance"
         else:
             dep_state = "ok"
+        # F82: „Instanz anlegen“ ist erst ab Deployment-Modul v9 möglich (CreateInstance-RPC).
+        # Bei v8 (oder älter) blendet die Detailseite den Button aus + zeigt „DM v9 nötig“
+        # (sonst „No processor found“-XML-RPC-Fehler wie live auf der Anlage beobachtet).
+        _dep_v = dep_it.get("version_ist") if dep_it is not None else None
+        dep_can_create = dep_it is not None and _dep_v is not None and int(_dep_v) >= 9
     return TEMPLATES.TemplateResponse("installation_detail.html",
         {"request": request, "user": user, "inst": inst, "mod_state": mod_state,
          "pbx_version": pbx_version, "dep_state": dep_state,
+         "dep_can_create": dep_can_create,
          "active": "anlagen",
          "version": os.environ.get("APP_VERSION", "dev")})
 

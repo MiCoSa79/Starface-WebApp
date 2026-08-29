@@ -10,6 +10,12 @@
     dl.dl-grid { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0; font-size: 14px; }
     dl.dl-grid dt { color: #9aa4bd; white-space: nowrap; }
     dl.dl-grid dd { margin: 0; overflow-wrap: anywhere; }
+    /* F82: Aktions-Buttons im Seitenkopf — Spiegel der Regeln aus anlagen.html */
+    .actions-inline a.detail-dl { display:inline-flex; align-items:center; justify-content:center;
+                 width:34px; height:34px; padding:0; box-sizing:border-box;
+                 border:1px solid rgba(255,255,255,.28); border-radius:7px; color:#8ab4f8; text-decoration:none;
+                 opacity:.9; transition:opacity .15s, border-color .15s, color .15s; flex-shrink:0; vertical-align:middle; }
+    .actions-inline a.detail-dl:hover, .actions-inline a.detail-dl:focus { opacity:1; border-color:#8ab4f8; }
 </style>
 {% endblock %}
 {% block content %}
@@ -17,7 +23,28 @@
     <p style="margin:0;">
         <a href="/anlagen" class="btn-secondary btn-back">← Zurück zur Anlagen-Übersicht</a>
     </p>
-    <h2 style="margin:0 0 14px;">Anlage: {{ inst.name }}</h2>
+    <h2 style="margin:0 0 14px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+        <span style="margin-right:auto;">Anlage: {{ inst.name }}</span>
+        {% if user.is_admin %}
+        <a class="detail-dl" title="Detail-Monitoring der Anlage {{ inst.name }} öffnen"
+           href="/monitoring/installations/{{ inst.id }}">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.8"/></svg>
+        </a>
+        <button onclick="testConn({{ inst.id }}, '{{ inst.name }}', true)"
+                class="btn-secondary"
+                title="Verbindung testen (STARFACE-WebApp → Anlage)">⚡ Test</button>
+        <a href="/admin/installations/{{ inst.id }}/edit" class="btn-secondary"
+           title="Anlage bearbeiten">✎ Edit</a>
+        {% else %}
+        <a class="detail-dl" title="Detail-Monitoring der Anlage {{ inst.name }} öffnen"
+           href="/monitoring/installations/{{ inst.id }}">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.8"/></svg>
+        </a>
+        <button onclick="testConn({{ inst.id }}, '{{ inst.name }}', false)"
+                class="btn-secondary"
+                title="Verbindung testen (STARFACE-WebApp → Anlage)">⚡ Test</button>
+        {% endif %}
+    </h2>
     <div class="msg ok" id="inst-feedback" role="status" style="display:none;"></div>
 
     <div class="card">
@@ -75,7 +102,7 @@
                     {% endif %}
                 </td>
                 <td>{% if it.status == 'missing' %}— → v{{ it.version_soll }}{% elif it.status == 'outdated' %}v{{ it.version_ist }} → v{{ it.version_soll }}{% else %}v{{ it.version_ist }}{% endif %}</td>
-                <td>{% if it.instances %}{% for i in it.instances %}{{ i.name }} ({{ 'aktiv' if i.active else 'deaktiviert' }}){% if not loop.last %}, {% endif %}{% endfor %}{% else %}—{% endif %}{% if it.status == 'ok' and it.instances|selectattr('active')|list|length == 0 %}<button type="button" class="btn-secondary btn-mini inst-create" data-module="{{ it.name }}" data-field="{{ it.instance_field }}" onclick="openInstDialog({{ inst.id }}, this)" title="Neue Instanz des Moduls „{{ it.name }}“ auf dieser Anlage anlegen.">Instanz anlegen</button>{% endif %}</td>
+                <td>{% if it.instances %}{% for i in it.instances %}{{ i.name }} ({{ 'aktiv' if i.active else 'deaktiviert' }}){% if not loop.last %}, {% endif %}{% endfor %}{% else %}—{% endif %}{% if it.status == 'ok' and it.instances|selectattr('active')|list|length == 0 and dep_can_create %}<button type="button" class="btn-secondary btn-mini inst-create" data-module="{{ it.name }}" data-field="{{ it.instance_field }}" onclick="openInstDialog({{ inst.id }}, this)" title="Neue Instanz des Moduls „{{ it.name }}“ auf dieser Anlage anlegen.">Instanz anlegen</button>{% elif it.status == 'ok' and it.instances|selectattr('active')|list|length == 0 %}<span class="mod-hint" title="Das Deployment-Modul der Anlage ist älter als v9 — der RPC CreateInstance (Instanz anlegen) ist erst ab v9 verfügbar. Bitte zuerst das Deployment-Modul aktualisieren.">— DM v9 nötig</span>{% endif %}</td>
                 <td style="text-align:right; white-space:nowrap;">
                     {% if it.settings %}
                     <a href="{{ it.settings.url }}" class="btn-secondary" title="{{ it.settings.title }}">📞 {{ it.settings.label }}</a>
