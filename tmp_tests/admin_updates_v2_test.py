@@ -102,6 +102,8 @@ check("V1 leer: Hinweis 'Bitte oben eine Anlage auswählen'",
 check("V1 leer: KEINE Modul-Tabelle (noch keine Auswahl)",
       "Version (SOLL)" not in r.text)
 check("V1 leer: KEIN Aktions-Button", "Update anstoßen" not in r.text)
+check("V1: admin.js eingebunden (initComboboxes - Regressionsschutz F74)",
+      'src="/static/admin.js?v=' in r.text)
 
 # --- 3. Variante 1: Auswahl zeigt NUR die gewählte Anlage -------------------------
 r = c.get(f"/admin/updates?inst_id={id_mit}")
@@ -121,6 +123,8 @@ check("V2 leer: Combobox Modul vorhanden",
 check("V2 leer: Hinweis 'Bitte oben ein Modul auswählen'",
       "Bitte oben ein Modul auswählen" in r.text)
 check("V2 leer: KEINE Tabelle", "Aktuellste Version" not in r.text)
+check("V2: admin.js eingebunden (initComboboxes - Regressionsschutz F74)",
+      'src="/static/admin.js?v=' in r.text)
 
 r = c.get("/admin/updates/modul?module=GibtEsNicht")
 check("V2: unbekanntes Modul -> Hinweis", "Unbekanntes Modul" in r.text)
