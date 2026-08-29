@@ -60,8 +60,8 @@ with TestClient(main.app) as c:
     r = c.get("/")
     check("GET / -> 200 (Startseite)", r.status_code == 200, str(r.status_code))
     body = r.text
-    check("Startseite (Admin) = Admin-Monitoring: Kennzahlen + Fehlerliste",
-          "Admin-Monitoring" in body and "Anlagen mit Provider-Fehlern" in body)
+    check("Startseite (Admin) = Gesamt-Monitoring: Kennzahlen + Fehlerliste",
+          "Gesamt-Monitoring" in body and "Anlagen mit Provider-Fehlern" in body)
     check("Startseite (Admin): KEIN Anlagen-Formular/Tabelle",
           "Anlage hinzufügen" not in body and 'id="tbl-inst"' not in body)
     check("Nav: KEIN Dashboard-Link", 'href="/dashboard"' not in body)
@@ -108,7 +108,8 @@ with TestClient(main.app) as c:
     body = r.text
     check("Bob: Anlagen-Seite zeigt nur eigene Anlage", "Testanlage A" in body, "")
     check("Bob: KEIN Anlegen-Formular", "Anlage hinzufügen" not in body)
-    check("Bob: Detail-Link (eigenes Monitoring) + Blocklist in Zeile", 'class="detail-dl"' in body and "/blocklist" in body)
+    check("Bob: Detail-Link (eigenes Monitoring) + Zur-Anlage-Button, kein Blocklist-Button",
+          'class="detail-dl"' in body and "Zur Anlage" in body and "/blocklist" not in body)
     check("Bob: KEIN Administration-Dropdown", "<summary>Administration" not in body)
 
 print()

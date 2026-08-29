@@ -151,8 +151,8 @@ login("admin")
 r = c.get("/")
 assert r.status_code == 200, r.status_code
 body = r.text
-assert "Admin-Monitoring" in body and "Anlagen mit Provider-Fehlern" in body, \
-    "Startseite (Admin) muss das Admin-Monitoring sein"
+assert "Gesamt-Monitoring" in body and "Anlagen mit Provider-Fehlern" in body, \
+    "Startseite (Admin) muss das Gesamt-Monitoring sein"
 assert 'id="tbl-inst"' not in body, "Anlagen-Tabelle gehört nicht mehr auf die Startseite"
 r = c.get("/anlagen")
 assert r.status_code == 200, r.status_code

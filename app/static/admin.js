@@ -4,7 +4,12 @@ function testConn(instId, name, adminRoute) {
         fetch((adminRoute ? "/admin/installations/" : "/installation/") + instId + (adminRoute ? "/test-conn" : "/test"))
             .then(r => r.json())
             .then(d => {
-                alert((d.ok ? "✅ " : "❌ ") + name + "\n" + (d.message || (d.ok ? ("Verbunden, " + d.entries + " Nummern in der Blocklist") : (d.error || "Fehler"))));
+                let icon;
+                if (d.ok) { icon = "✅"; }
+                else if (d.state === 'unreachable') { icon = "❌"; }
+                else if (d.state === 'config') { icon = "⚠️"; }
+                else { icon = "🟠"; }   // not-installed / no-active-instance
+                alert(icon + " " + name + "\n" + (d.message || d.error || "Fehler"));
             })
             .catch(err => {
                 alert("❌ " + name + "\nNetzwerkfehler: " + err);

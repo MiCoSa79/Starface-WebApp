@@ -2107,7 +2107,7 @@ async def admin_installation_update(request: Request, inst_id: int,
 
 @app.get("/admin/installations/{inst_id}/test-conn")
 async def admin_installation_test_conn(request: Request, inst_id: int):
-    """Testet Verbindung + Token zu einer STARFACE-Anlage (AJAX, JSON)."""
+    """Testet das Deployment-Modul einer STARFACE-Anlage (AJAX, JSON, F67)."""
     user = verify_session(request.cookies.get(SESSION_COOKIE))
     if not user or not user["is_admin"]:
         return JSONResponse({"ok": False, "message": "Nicht autorisiert"}, status_code=403)
@@ -2116,14 +2116,8 @@ async def admin_installation_test_conn(request: Request, inst_id: int):
     conn.close()
     if not inst:
         return JSONResponse({"ok": False, "message": "Installation nicht gefunden"})
-    try:
-        url = inst["url"]
-        token = _get_token(inst)
-        result = _xmlrpc(url, token, "ListGet", instance_name=inst["module_instance_name"])
-        count = len(_split_numbers(result.get("values", [])))
-        return JSONResponse({"ok": True, "message": f"Verbunden, {count} Nummern in der Blocklist"})
-    except Exception as e:
-        return JSONResponse({"ok": False, "message": f"Verbindung fehlgeschlagen: {e}"})
+    res = _deployment_modul_status(inst)
+    return JSONResponse({"ok": res["ok"], "state": res["state"], "message": res["message"]})
 
 
 @app.post("/admin/access")
@@ -2565,6 +2559,87 @@ async def blocklist_remove(request: Request, inst_id: int, number: str = Form(..
     return RedirectResponse(f"/installation/{inst_id}/blocklist?ok=1", status_code=303)
 
 
+def _deployment_modul_status(inst: dict) -> dict:
+    """Prüft das Deployment-Modul auf einer Anlage: installiert + erreichbar (F67).
+
+    Liefert {"ok": bool, "state": str, "message": str} mit
+    state ∈ ok | not-installed | no-active-instance | config | unreachable.
+    """
+    inst = dict(inst)  # sqlite3.Row aus den Routen wie auch dicts handhaben
+    try:
+        from monitoring import _module_expectations, _collect_module_status
+    except ImportError:
+        from app.monitoring import _module_expectations, _collect_module_status
+    if not inst.get("monitoring_instance_name"):
+        return {"ok": False, "state": "config",
+                "message": "Keine Monitoring-Instanz konfiguriert (TelefonieMonitoring-Modul) — "
+                           "bitte unter Anlage bearbeiten hinterlegen."}
+    try:
+        token = _get_token(inst)
+        st = _collect_module_status(inst, token, inst["name"])
+    except Exception as e:
+        return {"ok": False, "state": "unreachable",
+                "message": f"Anlage nicht erreichbar: {e}"}
+    if st.get("error"):
+        return {"ok": False, "state": "unreachable",
+                "message": st["error"].get("msg", "Modul-Status nicht verfügbar.")}
+    deploy = next((k for k in _module_expectations() if "deployment" in k.lower()), None)
+    if deploy is None:
+        return {"ok": False, "state": "config",
+                "message": "Deployment-Modul ist nicht als SOLL-Modul hinterlegt."}
+    it = next((x for x in (st.get("list") or []) if x.get("name") == deploy), None)
+    if it is None or it.get("status") == "missing":
+        return {"ok": False, "state": "not-installed",
+                "message": "Deployment-Modul ist auf der Anlage nicht installiert."}
+    active = [i for i in (it.get("instances") or []) if i.get("active")]
+    if not active:
+        return {"ok": False, "state": "no-active-instance",
+                "message": "Deployment-Modul ist installiert, aber keine Instanz ist aktiv."}
+    inst_names = ", ".join(str(i.get("name", "?")) for i in active)
+    return {"ok": True, "state": "ok",
+            "message": f"Deployment-Modul installiert und erreichbar (Instanz: {inst_names})."}
+
+
+@app.get("/installation/{inst_id}", response_class=HTMLResponse)
+async def installation_detail_page(request: Request, inst_id: int):
+    """Detail-Seite einer Anlage (F67, „Zur Anlage“): Stammdaten + Modul-Status + Modul-Einstellungen."""
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user:
+        return RedirectResponse("/")
+    acc = get_access(user["user_id"], inst_id)
+    if not acc["can_read"]:
+        return RedirectResponse("/")
+    conn = _db()
+    inst = conn.execute("SELECT * FROM installations WHERE id=?", (inst_id,)).fetchone()
+    conn.close()
+    if not inst:
+        return RedirectResponse("/anlagen")
+    inst = dict(inst)  # Jinja braucht dict-artige Zeilen (sqlite3.Row ohne Attribut-Zugriff)
+    mod_state = None
+    try:
+        from monitoring import _collect_module_status
+    except ImportError:
+        from app.monitoring import _collect_module_status
+    if not inst["monitoring_instance_name"]:
+        mod_state = {"list": None, "by_name": {}, "error": {
+            "category": "config",
+            "msg": "Keine Monitoring-Instanz konfiguriert — unter Anlage bearbeiten den "
+                   "Instanznamen des TelefonieMonitoring-Moduls hinterlegen."}}
+    else:
+        try:
+            token = _get_token(inst)
+            st = _collect_module_status(inst, token, inst["name"])
+            st["by_name"] = {it["name"]: it for it in (st.get("list") or [])}
+            mod_state = st
+        except Exception as e:
+            mod_state = {"list": None, "by_name": {},
+                         "error": {"category": "fetch", "msg": str(e)}}
+    return TEMPLATES.TemplateResponse("installation_detail.html",
+        {"request": request, "user": user, "inst": inst, "mod_state": mod_state,
+         "active": "anlagen",
+         "version": os.environ.get("APP_VERSION", "dev")})
+
+
 @app.get("/installation/{inst_id}/test")
 async def installation_test(request: Request, inst_id: int):
     user = verify_session(request.cookies.get(SESSION_COOKIE))
@@ -2580,13 +2655,7 @@ async def installation_test(request: Request, inst_id: int):
     if not inst:
         return JSONResponse({"ok": False, "error": "unbekannt"})
 
-    try:
-        token = _get_token(inst)
-        result = _xmlrpc(inst["url"], token, "ListGet", instance_name=inst["module_instance_name"])
-        n = len(_split_numbers(result["values"]))
-        return JSONResponse({"ok": True, "token_len": len(token), "entries": n})
-    except Exception as e:
-        return JSONResponse({"ok": False, "error": str(e)})
+    return JSONResponse(_deployment_modul_status(inst))
 
 
 # ─────────────────────────────────────────────────────────────

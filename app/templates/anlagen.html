@@ -79,9 +79,9 @@
                 <td style="text-align:right; white-space:nowrap;">
                     {% if user.is_admin %}
                     <div class="actions-inline">
-                    <a href="/installation/{{ inst.id }}/blocklist" class="btn-secondary"
+                    <a href="/installation/{{ inst.id }}" class="btn-secondary"
                        style="font-size:13px; padding:6px 12px; text-decoration:none; display:inline-block;"
-                       title="Blocklist der Anlage bearbeiten">Blocklist</a>
+                       title="Alle Informationen zur Anlage anzeigen">Zur Anlage</a>
                     <button onclick="testConn({{ inst.id }}, '{{ inst.name }}', true)"
                             class="btn-secondary" style="font-size:13px; padding:6px 12px;
                             border:1px solid var(--color-border); border-radius:6px;
@@ -101,13 +101,13 @@
                     </div>
                     {% else %}
                     <div class="actions-inline">
+                    <a href="/installation/{{ inst.id }}" class="btn-secondary"
+                       style="font-size:13px; padding:6px 12px; text-decoration:none; display:inline-block;"
+                       title="Alle Informationen zur Anlage anzeigen">Zur Anlage</a>
                     <a class="detail-dl" title="Detail-Monitoring der Anlage {{ inst.name }} öffnen"
                        href="/monitoring/installations/{{ inst.id }}">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.8"/></svg>
                     </a>
-                    <a href="/installation/{{ inst.id }}/blocklist" class="btn-secondary"
-                       style="font-size:13px; padding:6px 12px; text-decoration:none; display:inline-block;"
-                       title="Blocklist der Anlage bearbeiten">Blocklist</a>
                     <button onclick="testConn({{ inst.id }}, '{{ inst.name }}', false)"
                             class="btn-secondary" style="font-size:13px; padding:6px 12px;
                             border:1px solid var(--color-border); border-radius:6px;

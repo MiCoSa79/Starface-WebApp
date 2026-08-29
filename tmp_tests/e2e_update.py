@@ -64,8 +64,9 @@ with TestClient(main.app) as c:
     }, follow_redirects=False)
     check("Installation angelegt", r.status_code in (200, 303), f"status={r.status_code}")
     dash = c.get("/anlagen").text
-    m = re.search(r"/installation/(\d+)/blocklist", dash)
-    check("Instanz-ID gefunden", bool(m))
+    # F67: Blocklist-Link ist aus der Tabelle raus — die Anlagen-ID kommt aus dem „Zur Anlage“-Link
+    m = re.search(r'/installation/(\d+)"', dash)
+    check("Instanz-ID gefunden (Zur-Anlage-Link)", bool(m))
     inst_id = int(m.group(1))
 
     # 3) Blocklist leer

@@ -152,7 +152,7 @@ async function main() {
   await sleep(600);
   const afterStart = await evalJs(`(() => {
     const a = document.querySelector('.nav a[href="/"]');
-    return { url: location.pathname, hasMonitor: document.body.innerHTML.includes('Admin-Monitoring'),
+    return { url: location.pathname, hasMonitor: document.body.innerHTML.includes('Gesamt-Monitoring'),
              active: a ? a.classList.contains('active') : false };
   })()`);
   check('Admin: Klick „Startseite" → / (Gesamt-Monitoring, Marker aktiv)',

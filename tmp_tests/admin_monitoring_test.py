@@ -143,7 +143,7 @@ login("admin")
 r = c.get("/admin/monitoring")
 check("/admin/monitoring 200", r.status_code == 200, str(r.status_code))
 body = r.text
-check("Titel Admin-Monitoring", "Admin-Monitoring" in body)
+check("Titel Gesamt-Monitoring", "Gesamt-Monitoring" in body)
 check("K1 Anlagen eingerichtet = 4", 'id="kpi-total">4</div>' in body)
 check("K2 Anlagen mit Provider-Fehlern = 2", 'id="kpi-failed-inst">2</div>' in body)
 check("K3 fehlerhafte SIP-Trunks/Provider = 3", 'id="kpi-failed-trunks">3</div>' in body)
