@@ -47,7 +47,7 @@ from starlette.testclient import TestClient
 # Mock-Konfiguration ---------------------------------------------------------
 EXP = {
     "CallBlocker": {"version": "30", "file": "callblocker.sfm"},
-    "Deployment-Modul": {"version": "8", "file": "deployment-modul.sfm"},
+    "Deployment-Modul": {"version": "9", "file": "deployment-modul.sfm"},
     "TelefonieMonitoring": {"version": "9", "file": "telefoniemonitoring.sfm"},
     "Drittanbieter-X": {"version": "9", "file": "x.sfm"},
 }
@@ -55,7 +55,7 @@ EXP = {
 
 STATUS = {
     ("Alpha", "CallBlocker"): {"name": "CallBlocker", "installed": True, "status": "outdated", "version_ist": "29"},
-    ("Alpha", "Deployment-Modul"): {"name": "Deployment-Modul", "installed": True, "status": "ok", "version_ist": "8"},
+    ("Alpha", "Deployment-Modul"): {"name": "Deployment-Modul", "installed": True, "status": "ok", "version_ist": "9"},
     ("Alpha", "TelefonieMonitoring"): {"name": "TelefonieMonitoring", "installed": True, "status": "ok", "version_ist": "9"},
     ("Alpha", "Drittanbieter-X"): {"name": "Drittanbieter-X", "installed": False},
     ("Beta", "CallBlocker"): {"name": "CallBlocker", "installed": True, "status": "ok", "version_ist": "30"},

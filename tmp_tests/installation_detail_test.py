@@ -77,7 +77,7 @@ INSTALLED_OK = json.dumps([
      "instances": [{"name": "CallBlocker", "disabled": False}]},
     {"id": "b", "name": "TelefonieMonitoring", "version": 5, "vendor": "MiCoSa79",
      "instances": [{"name": "TelefonieMonitoring", "disabled": False}]},
-    {"id": "c", "name": "Deployment-Modul", "version": 1, "vendor": "MiCoSa79",
+    {"id": "c", "name": "Deployment-Modul", "version": 9, "vendor": "MiCoSa79",
      "instances": [{"name": "Deployer", "disabled": False}]},
 ])
 NO_DEPLOY = json.dumps([
@@ -88,6 +88,8 @@ NO_DEPLOY = json.dumps([
 
 real_xmlrpc = monitoring._xmlrpc
 
+_CALLS = []
+
 
 def fake_xmlrpc(url, token, method, params=None, instance_name=None):
     if url == "http://net":
@@ -97,12 +99,23 @@ def fake_xmlrpc(url, token, method, params=None, instance_name=None):
     if method == "GetModuleStatus":
         data = INSTALLED_OK if url == "http://ok" else NO_DEPLOY
         return {"members": {"moduleJson": data}}
+    if method == "CreateInstance":
+        _CALLS.append({"method": method, "params": dict(params or {}),
+                       "instance_name": instance_name, "url": url})
+        if (params or {}).get("instanceName") == "FehlerFall":
+            txt = "ERROR: Instanz existiert bereits: FehlerFall"
+        else:
+            txt = "OK: Instanz angelegt und aktiviert"
+        return {"raw": f'<?xml version="1.0"?><methodResponse><params><param><value><struct><member><name>response</name><value><string>{txt}</string></value></member></struct></value></param></params></methodResponse>',
+                "values": [txt], "members": {"response": txt}}
     raise AssertionError(method)
 
 
 monitoring._xmlrpc = fake_xmlrpc
 monitoring.MODULES_DIR = MODDIR
 monitoring._EXPECT_CACHE["sig"], monitoring._EXPECT_CACHE["data"] = None, {}
+import module_updates  # noqa: E402
+module_updates._xmlrpc = fake_xmlrpc  # from-Import-Kopie separat mocken!
 main._get_token = lambda inst: "tok123"  # OAuth-Erwerb im Test überspringen
 
 # ── 1. _deployment_modul_status (Unit) ───────────────────────────────────
@@ -155,6 +168,10 @@ with TestClient(main.app) as c:
     check("ohne Login: /installation/1 -> Redirect /", r.status_code in (303, 307)
           and r.headers.get("location", "").rstrip("/") == "", f"{r.status_code} {r.headers.get('location')}")
 
+    r = c.post("/installation/1/instance", json={"module": "CallBlocker", "name": "CallBlocker"})
+    check("POST instance ohne Login -> Redirect / (F79)", r.status_code in (303, 307)
+          and r.headers.get("location", "").rstrip("/") == "", f"{r.status_code} {r.headers.get('location')}")
+
     check("Login admin", login(c, "admin", "pw123"))
 
     r = c.get("/installation/1")
@@ -173,6 +190,8 @@ with TestClient(main.app) as c:
           and "Blocklist bearbeiten" in body and "Modul-Einstellungen" not in body)
     check("Detail: sein eigener Einstellungs-Button in der CallBlocker-Zeile (installiert+aktiv)",
           body.count("Blocklist bearbeiten") == 1)
+    check("Detail: KEIN Instanz-anlegen-Button bei aktiven Instanzen (F79)",
+          ">Instanz anlegen</button>" not in body)
 
     # CallBlocker-Instanz deaktivieren -> kein Einstellungs-Button (keine aktive Instanz)
     _saved = INSTALLED_OK
@@ -183,7 +202,37 @@ with TestClient(main.app) as c:
     body2 = r.text
     check("Detail: ohne aktive Instanz -> KEIN Blocklist-Button, nur Badge (F70)",
           "Keine aktive Instanz" in body2 and "Blocklist bearbeiten" not in body2)
+    check("Detail: Instanz-anlegen-Button sichtbar ohne aktive Instanz (F79)",
+          ">Instanz anlegen</button>" in body2 and "Instanzname" in body2
+          and "id=\"dlg-instance\"" in body2)
     INSTALLED_OK = _saved
+
+    # F79: POST /installation/{id}/instance — Instanz via Deployment-Modul anlegen
+    _CALLS.clear()
+    r = c.post("/installation/1/instance", json={"module": "CallBlocker", "name": "CallBlocker"})
+    d = r.json()
+    check("POST instance: ok + CreateInstance-RPC mit moduleName/instanceName (F79)",
+          r.status_code == 200 and d.get("ok") is True and "angelegt" in d.get("message", "")
+          and len(_CALLS) == 1
+          and _CALLS[0]["params"] == {"moduleName": "CallBlocker", "instanceName": "CallBlocker"}
+          and _CALLS[0]["instance_name"] == "Deployer"
+          and _CALLS[0]["method"] == "CreateInstance",
+          json.dumps({"status": r.status_code, "d": d, "calls": _CALLS}, ensure_ascii=False))
+
+    r = c.post("/installation/1/instance", json={"module": "CallBlocker", "name": "FehlerFall"})
+    d = r.json()
+    check("POST instance: Modul-Fehler -> ok:false mit Modul-Meldung (F79)",
+          r.status_code == 502 and d.get("ok") is False and "existiert bereits" in d.get("error", ""),
+          json.dumps({"status": r.status_code, "d": d}, ensure_ascii=False))
+
+    r = c.post("/installation/1/instance", json={"module": "", "name": "x"})
+    check("POST instance: module leer -> 400 (F79)", r.status_code == 400)
+
+    r = c.post("/installation/1/instance", json={"module": "CallBlocker", "name": "   "})
+    check("POST instance: Instanzname leer -> 400 (F79)", r.status_code == 400)
+
+    r = c.post("/installation/99/instance", json={"module": "CallBlocker", "name": "x"})
+    check("POST instance: unbekannte Anlage -> 404 (F79)", r.status_code == 404)
 
     r = c.get("/installation/1/test")
     d = r.json()
@@ -224,6 +273,7 @@ with TestClient(main.app) as c:
           'class="btn-secondary"' in body and "style=\"font-size:13px" not in body)
 
 monitoring._xmlrpc = real_xmlrpc
+module_updates._xmlrpc = real_xmlrpc
 
 print()
 if FAIL:

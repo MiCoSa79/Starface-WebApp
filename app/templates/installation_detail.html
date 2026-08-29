@@ -18,6 +18,7 @@
         <a href="/anlagen" class="btn-secondary btn-back">← Zurück zur Anlagen-Übersicht</a>
     </p>
     <h2 style="margin:0 0 14px;">Anlage: {{ inst.name }}</h2>
+    <div class="msg ok" id="inst-feedback" role="status" style="display:none;"></div>
 
     <div class="card">
         <h2 style="margin-top:0;">Stammdaten</h2>
@@ -74,7 +75,7 @@
                     {% endif %}
                 </td>
                 <td>{% if it.status == 'missing' %}— → v{{ it.version_soll }}{% elif it.status == 'outdated' %}v{{ it.version_ist }} → v{{ it.version_soll }}{% else %}v{{ it.version_ist }}{% endif %}</td>
-                <td>{% if it.instances %}{% for i in it.instances %}{{ i.name }} ({{ 'aktiv' if i.active else 'deaktiviert' }}){% if not loop.last %}, {% endif %}{% endfor %}{% else %}—{% endif %}</td>
+                <td>{% if it.instances %}{% for i in it.instances %}{{ i.name }} ({{ 'aktiv' if i.active else 'deaktiviert' }}){% if not loop.last %}, {% endif %}{% endfor %}{% else %}—{% endif %}{% if it.status == 'ok' and it.instances|selectattr('active')|list|length == 0 %}<button type="button" class="btn-secondary btn-mini inst-create" data-module="{{ it.name }}" onclick="openInstDialog({{ inst.id }}, this)" title="Neue Instanz des Moduls „{{ it.name }}“ auf dieser Anlage anlegen.">Instanz anlegen</button>{% endif %}</td>
                 <td style="text-align:right; white-space:nowrap;">
                     {% if it.settings %}
                     <a href="{{ it.settings.url }}" class="btn-secondary" title="{{ it.settings.title }}">📞 {{ it.settings.label }}</a>
@@ -94,7 +95,62 @@
         {% endif %}
     </div>
 </div>
+<dialog id="dlg-instance" class="dlg">
+    <h3>Instanz anlegen</h3>
+    <p class="dlg-hint" id="dlg-instance-module"></p>
+    <form id="dlg-instance-form" onsubmit="event.preventDefault(); submitInstance();">
+        <label for="dlg-instance-name">Instanzname</label>
+        <input type="text" id="dlg-instance-name" autocomplete="off" spellcheck="false">
+        <div class="dlg-error" id="dlg-instance-error"></div>
+        <div class="dlg-actions">
+            <button type="button" class="btn-secondary" onclick="closeInstDialog()">Abbrechen</button>
+            <button type="submit" class="btn-primary" id="dlg-instance-ok">Anlegen</button>
+        </div>
+    </form>
+</dialog>
 <script>
+var _instDlg = {instId: 0, module: ''};
+function openInstDialog(instId, btn) {
+    _instDlg.instId = instId;
+    _instDlg.module = btn.dataset.module;
+    document.getElementById('dlg-instance-module').textContent = 'Modul: ' + _instDlg.module;
+    document.getElementById('dlg-instance-name').value = _instDlg.module;
+    document.getElementById('dlg-instance-error').textContent = '';
+    document.getElementById('dlg-instance').showModal();
+    document.getElementById('dlg-instance-name').focus();
+}
+function closeInstDialog() {
+    document.getElementById('dlg-instance').close();
+}
+function submitInstance() {
+    var name = document.getElementById('dlg-instance-name').value.trim();
+    var err = document.getElementById('dlg-instance-error');
+    if (!name) { err.textContent = 'Bitte einen Instanznamen eingeben.'; return; }
+    fetch('/installation/' + _instDlg.instId + '/instance', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({module: _instDlg.module, name: name})
+    }).then(function (r) { return r.json(); }).then(function (j) {
+        if (j && j.ok) {
+            try { sessionStorage.setItem('inst_msg', j.message || 'Instanz angelegt.'); } catch (e) {}
+            location.reload();
+        }
+        else { err.textContent = j && j.error ? j.error : 'Fehler beim Anlegen der Instanz.'; }
+    }).catch(function () {
+        err.textContent = 'Instanz konnte nicht angelegt werden (Verbindungsfehler).';
+    });
+}
+
+function showInstMsg() {
+    try {
+        var m = sessionStorage.getItem('inst_msg');
+        if (!m) { return; }
+        sessionStorage.removeItem('inst_msg');
+        var el = document.getElementById('inst-feedback');
+        if (el) { el.textContent = m; el.style.display = 'block'; }
+    } catch (e) {}
+}
+showInstMsg();
 function toggleStdOverride(instId, btn) {
     var module = btn.dataset.module;
     var active = btn.dataset.active !== '1';

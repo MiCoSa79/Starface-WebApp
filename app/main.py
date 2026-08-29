@@ -3091,6 +3091,44 @@ async def installation_module_standard(request: Request, inst_id: int):
     return JSONResponse({"ok": True})
 
 
+@app.post("/installation/{inst_id}/instance")
+async def installation_instance_create(request: Request, inst_id: int):
+    """F79: Neue Instanz eines Moduls auf dieser Anlage anlegen.
+
+    JSON {module, name}: legt über das Deployment-Modul (RPC ``CreateInstance``,
+    dm-v9) eine neue, sofort aktive Instanz des Moduls an. Nur Administratoren;
+    die Anlage muss existieren und das Deployment-Modul installiert + aktiv sein.
+    """
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user or not user["is_admin"]:
+        return RedirectResponse("/")
+    data = await request.json()
+    module = str(data.get("module", "")).strip()
+    name = str(data.get("name", "")).strip()
+    if not module:
+        return JSONResponse({"ok": False, "error": "module fehlt"}, status_code=400)
+    if not name:
+        return JSONResponse({"ok": False, "error": "Instanzname leer"}, status_code=400)
+    conn = _db()
+    inst = conn.execute("SELECT * FROM installations WHERE id=?", (inst_id,)).fetchone()
+    conn.close()
+    if not inst:
+        return JSONResponse({"ok": False, "error": "Anlage unbekannt"}, status_code=404)
+    try:
+        token = _get_token(inst)
+        res = module_updates.create_instance(inst, token,
+                                             module_name=module, instance_name=name)
+    except Exception as e:  # OAuth/Verbindung defekt o. ä. → Meldung statt Crash
+        return JSONResponse({"ok": False, "error": str(e)})
+    if res["status"] != "ok":
+        return JSONResponse({"ok": False, "error": res.get("message", "Fehler")},
+                            status_code=502)
+    _log_event(inst_id, user["user_id"], "instance_create", f"{module}: {name}")
+    return JSONResponse({"ok": True,
+                         "message": f"Instanz „{name}“ für {module} angelegt.",
+                         "response": res.get("response", "")})
+
+
 @app.get("/installation/{inst_id}/test")
 async def installation_test(request: Request, inst_id: int):
     user = verify_session(request.cookies.get(SESSION_COOKIE))

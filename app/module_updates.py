@@ -107,3 +107,34 @@ def ping_channel(inst: dict, token: str, *, filename: str,
                 "response": _extract_response(raw)}
     except RuntimeError as e:  # XML-RPC-Fault u. ä. → kontrollierter Fehler
         return {"status": "error", "message": str(e)}
+
+
+def create_instance(inst: dict, token: str, *, module_name: str,
+                    instance_name: str) -> dict:
+    """Legt eine neue, sofort aktive Instanz eines Moduls auf der Anlage an.
+
+    F79 (v1.0.76): RPC ``CreateInstance`` an das Deployment-Modul (dm-v9) —
+    dieses übersetzt den Modulnamen in die Modul-ID (ModuleRegistry), prüft
+    auf Namenskollision, legt die Instanz an, persistiert und aktiviert sie.
+
+    inst:  installations-Zeile der WebApp-DB (url, deployer_instance_name)
+    token: OAuth-Token der Anlage (aus _get_token)
+    Liefert {"status": "ok", "raw": ..., "response": ...} oder
+    {"status": "error", "message": ...}.
+    """
+    inst_name = str(dict(inst).get("deployer_instance_name") or "")
+    if not inst_name:
+        return {"status": "error",
+                "message": "Keine Deployer-Instanz konfiguriert (deployer_instance_name)."}
+    payload = {"moduleName": module_name, "instanceName": instance_name}
+    try:
+        res = _xmlrpc(inst["url"], token, "CreateInstance", payload,
+                      instance_name=inst_name)
+        raw = res.get("raw", "")
+        response = _extract_response(raw)
+        if response.startswith("ERROR"):
+            return {"status": "error", "message": response}
+        return {"status": "ok", "message": "ok", "raw": raw[:200],
+                "response": response}
+    except RuntimeError as e:  # XML-RPC-Fault u. ä. → kontrollierter Fehler
+        return {"status": "error", "message": str(e)}

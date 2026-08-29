@@ -151,3 +151,22 @@ button { padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer;
     .cb-list li.empty { color: #8b93a7; cursor: default; background: none; }
     .cb-native { position: absolute; opacity: 0; pointer-events: none; width: 1px; height: 1px; }
     @media (max-width: 640px) { .cb { min-width: 100%; } }
+
+/* ── F79: Dialog („Instanz anlegen“) — natives <dialog>, zentrale Klasse ── */
+.inst-create { margin-top: 4px; }
+dialog.dlg {
+    background: #1e2340; color: #e8ecf8; border: 1px solid #3a3f5c;
+    border-radius: 8px; padding: 18px 20px; max-width: 420px; width: 100%;
+    box-sizing: border-box;
+}
+dialog.dlg::backdrop { background: rgba(0, 0, 0, .55); }
+.dlg h3 { margin: 0 0 6px; font-size: 16px; }
+.dlg-hint { color: #9aa4bd; font-size: 13px; margin: 0 0 12px; }
+.dlg label { display: block; font-size: 13px; color: #9aa4bd; margin: 0 0 4px; }
+.dlg input[type="text"] {
+    width: 100%; box-sizing: border-box; background: #141830; color: #e8ecf8;
+    border: 1px solid #3a3f5c; border-radius: 6px; padding: 8px 10px; font-size: 14px;
+}
+.dlg input[type="text"]:focus { outline: none; border-color: #e94560; }
+.dlg-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+.dlg-error { color: #e94560; font-size: 13px; margin-top: 10px; min-height: 16px; }

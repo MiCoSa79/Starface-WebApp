@@ -31,3 +31,7 @@ Thumbs.db
 data/
 *.db
 *.sqlite3
+
+# STARFACE-Modul-Build-Artefakte (Klasse immer nur im .sfm liefern!)
+module-deployment/classes/
+module-deployment/out/

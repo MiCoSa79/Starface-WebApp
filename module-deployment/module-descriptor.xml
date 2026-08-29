@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<module lastChangedTime="1787817600000" moduleType="EXTENDED" createTime="1787767616269" id="ab50cee5-bae2-4cf4-9378-8ecfa7448791" name="Deployment-Modul" specVersion="5" vendor="Axel Meiser - Kraemer IT" version="8">
- <description>Deployment-Modul: zentrales HUB-Modul für automatische Modul-Updates. v1 = PingChannel (Kanal-Beweis). v2 = UpdateFromUrl: signierter Download + ModuleRegistry.importModule (echtes Update). v4 = GUI-Tab 'Sicherheit' mit Token-Feld (GU_UPDATE_TOKEN).</description>
+<module lastChangedTime="1788015600000" moduleType="EXTENDED" createTime="1787767616269" id="ab50cee5-bae2-4cf4-9378-8ecfa7448791" name="Deployment-Modul" specVersion="5" vendor="Axel Meiser - Kraemer IT" version="9">
+ <description>Deployment-Modul: zentrales HUB-Modul für automatische Modul-Updates. v1 = PingChannel (Kanal-Beweis). v2 = UpdateFromUrl: signierter Download + ModuleRegistry.importModule (echtes Update). v4 = GUI-Tab 'Sicherheit' mit Token-Feld (GU_UPDATE_TOKEN). v9 = CreateInstance: neue Instanz eines installierten Moduls anlegen (InstanzAnlegen).</description>
     <descriptionURL />
     <disabled>false</disabled>
     <inputVars>
@@ -127,6 +127,32 @@
         </function>
 
 
+        <function visibility="Private" createTime="1787770000000" id="InstanzAnlegen" name="InstanzAnlegen" specVersion="0" vendor="Axel Meiser - Kraemer IT" version="0">
+            <description>Legt eine neue Instanz eines installierten Moduls an (CreateInstance-RPC, dm-v9).</description>
+            <descriptionURL />
+            <disabled>false</disabled>
+            <inputVars>
+                <variable id="moduleName" label="moduleName" name="moduleName" type="STRING" valueByReference="false" valueByReferenceAllowed="false" valueByValueAllowed="true" visible="true">
+                    <description>Name des Zielmoduls</description>
+                    <value />
+                </variable>
+                <variable id="instanceName" label="instanceName" name="instanceName" type="STRING" valueByReference="false" valueByReferenceAllowed="false" valueByValueAllowed="true" visible="true">
+                    <description>Name der neuen Instanz</description>
+                    <value />
+                </variable>
+            </inputVars>
+            <outputVars>
+                <variable id="response" label="response" name="response" type="STRING" valueByReference="false" valueByReferenceAllowed="false" valueByValueAllowed="true" visible="true">
+                    <description>OK: ... oder ERROR: ...</description>
+                    <value />
+                </variable>
+            </outputVars>
+            <resources />
+            <children />
+            <implementationFile>InstanzAnlegen.class</implementationFile>
+        </function>
+
+
         <function visibility="Private" createTime="1787767616269" id="bc617c70-d544-4e23-8ae2-1dce50ac6334" name="UpdateModuleRpc" specVersion="0" vendor="Axel Meiser - Kraemer IT" version="0">
             <description>RPC-Wrapper: UpdateFromUrl (moduleName, signedUrl, targetVersion, updateToken) — verdrahtet auf die Java-Klasse UpdateFromUrl (installedToken aus GU_UPDATE_TOKEN).</description>
             <descriptionURL />
@@ -195,6 +221,56 @@
                 </functionCall>
             </children>
         </function>
+
+
+        <function visibility="Private" createTime="1787770000000" id="48a74b8e-33e7-49b8-b066-4efee34bd0e8" name="CreateInstanceRpc" specVersion="0" vendor="Axel Meiser - Kraemer IT" version="0">
+            <description>RPC-Wrapper: CreateInstance (moduleName, instanceName) — verdrahtet auf die Java-Klasse InstanzAnlegen.</description>
+            <descriptionURL />
+            <disabled>false</disabled>
+            <inputVars>
+                <variable id="93f1efa6-491b-42ba-bc41-70410bcbca66" label="moduleName" name="moduleName" type="STRING" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="true" visible="true">
+                    <description>Name des Zielmoduls</description>
+                    <value />
+                </variable>
+                <variable id="fa5f4f65-c9b4-449b-8e28-8db670b90931" label="instanceName" name="instanceName" type="STRING" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="true" visible="true">
+                    <description>Name der neuen Instanz</description>
+                    <value />
+                </variable>
+            </inputVars>
+            <outputVars>
+                <variable id="197790a0-748d-4802-81d1-ff2fe532a6f2" label="response" name="response" type="STRING" valueByReference="true" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="true">
+                    <description>OK: ... oder ERROR: ...</description>
+                    <value />
+                </variable>
+            </outputVars>
+            <resources />
+            <children>
+                <functionCall createTime="1787770000000" id="fde70bef-b954-4276-8b0d-273acace2ee6" name="Call --&gt; InstanzAnlegen" specVersion="0" vendor="Axel Meiser - Kraemer IT" version="0">
+                    <description />
+                    <descriptionURL />
+                    <disabled>false</disabled>
+                    <inputVars>
+                        <variable id="moduleName" label="" name="moduleName" type="STRING" valueByReference="true" valueByReferenceAllowed="true" valueByValueAllowed="true" visible="false">
+                            <description />
+                            <value>93f1efa6-491b-42ba-bc41-70410bcbca66</value>
+                        </variable>
+                        <variable id="instanceName" label="" name="instanceName" type="STRING" valueByReference="true" valueByReferenceAllowed="true" valueByValueAllowed="true" visible="false">
+                            <description />
+                            <value>fa5f4f65-c9b4-449b-8e28-8db670b90931</value>
+                        </variable>
+                    </inputVars>
+                    <outputVars>
+                        <variable id="response" label="" name="response" type="STRING" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
+                            <description />
+                            <value>197790a0-748d-4802-81d1-ff2fe532a6f2</value>
+                        </variable>
+                    </outputVars>
+                    <resources />
+                    <children />
+                    <target targetDomainId="ab50cee5-bae2-4cf4-9378-8ecfa7448791" targetId="InstanzAnlegen" targetName="InstanzAnlegen" targetVersion="0" />
+                </functionCall>
+            </children>
+        </function>
     </children>
     <createdWith>STARFACE 10.0.2.5</createdWith>
     <defaultLocale>de</defaultLocale>
@@ -206,6 +282,10 @@
         </rpcEntryPoint>
         <rpcEntryPoint id="f01fff83-0e35-4aba-a0e5-5bb92b392dcb" name="UpdateFromUrl">
             <functionReference targetDomainId="ab50cee5-bae2-4cf4-9378-8ecfa7448791" targetId="bc617c70-d544-4e23-8ae2-1dce50ac6334" targetName="UpdateModuleRpc" targetVersion="0" />
+            <type>XMLRPC_auth</type>
+        </rpcEntryPoint>
+        <rpcEntryPoint id="fbfa781b-b115-430d-9fd6-695fad3731cc" name="CreateInstance">
+            <functionReference targetDomainId="ab50cee5-bae2-4cf4-9378-8ecfa7448791" targetId="48a74b8e-33e7-49b8-b066-4efee34bd0e8" targetName="CreateInstanceRpc" targetVersion="0" />
             <type>XMLRPC_auth</type>
         </rpcEntryPoint>
     </entryPoints>
@@ -247,6 +327,6 @@
         <key>module.name{ab50cee5-bae2-4cf4-9378-8ecfa7448791}</key>
         <propertyName>NAME</propertyName>
     </resourceKeys>
-    <shortDescription>Zentraler Modul-Updater (v4: GUI-Tab Update-Token + UpdateFromUrl)</shortDescription>
+    <shortDescription>Zentraler Modul-Updater (v9: + CreateInstance fürs Anlegen neuer Instanzen)</shortDescription>
     <writeHash>6a5867d7498984896eb49e8f16936e4f42dc844e</writeHash>
-<noLicenseId>c678729b57434d28e8e75b19a56d81818d896e77</noLicenseId></module>
+<noLicenseId>2ec6e85123937869b86101a6cb99eed444d76f09</noLicenseId></module>

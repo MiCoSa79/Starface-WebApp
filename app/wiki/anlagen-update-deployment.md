@@ -10,7 +10,9 @@ updated: 2026-08-27
 
 **Kernfrage (Axel):** Kann das Deployment-Modul neben Modul-Updates auch **Anlagen-Updates** (STARFACE-Server-/System-Update) triggern?
 
-**Kurzantwort:** Heute **nein** (Modul v8 = reines Modul-Update), aber **technisch machbar und produktiv belegt**: Das Fremdmodul Admin Power Pack (Fluxpunkt) triggert Server-Updates exakt über die unten stehende Bean-Kette (`EXECUTE_STARFACE_UPDATE`). Offiziell gibt es **keinen** externen Trigger-Weg (nur GUI: Admin → Server → Status → „Jetzt suchen“, Auto-Backup, 2 Installationswege, Neustart).
+**Kurzantwort:** Heute **nein** (Modul v9 = Modul-Update + Instanz-Verwaltung, aber **kein** Anlagen-Update), aber **technisch machbar und produktiv belegt**: Das Fremdmodul Admin Power Pack (Fluxpunkt) triggert Server-Updates exakt über die unten stehende Bean-Kette (`EXECUTE_STARFACE_UPDATE`). Offiziell gibt es **keinen** externen Trigger-Weg (nur GUI: Admin → Server → Status → „Jetzt suchen“, Auto-Backup, 2 Installationswege, Neustart).
+
+> **Update 29.08. (F79, dm-v9):** Das Deployment-Modul ist seit v9 um den RPC **`CreateInstance`** erweitert (WebApp-Detailseite: „Instanz anlegen“ — `ModuleRegistry.createModuleInstance`-Kette). Das betrifft die **Instanz-Verwaltung**, NICHT die hier beschriebenen Anlagen-/Server-Updates — die sind davon unabhängig und bleiben **TODO** (Freigabe Axel steht aus: Reboot + TK-Ausfall).
 
 ## Befundlage (27.08., 3 parallele Recherchen — alle Belege in der Hermes-Wiki-Entity „deployment-modul-anlagen-update“, Abschnitt „Artefakte“)
 
