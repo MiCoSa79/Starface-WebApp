@@ -415,6 +415,20 @@ with TestClient(main.app) as c:
           and 'btn-mini" data-module' not in body_u,
           "Button hat noch die kompakte btn-mini-Größe?")
 
+    # ── F87: „Aktualisieren“-Klick-Kette am Leben (Härtung nach Live-Bericht
+    #        „ohne Funktion“; Browser-Vollpfad-Beweis separat in /opt/data/f87) ──
+    check("F87: Feedback-Banner (#inst-feedback) auf der Detailseite gerendert",
+          'id="inst-feedback"' in body_u,
+          "Banner-Element fehlt → Klick-Feedback wäre unsichtbar")
+    check("F87: onclick exakt 'updateModuleInst(1, this)' gerendert",
+          'onclick="updateModuleInst(1, this)"' in body_u,
+          "onclick-Format unerwartet — Klick tot")
+    check("F87: updateModuleInst + showInstMsg + Banner-Hook im Inline-Script",
+          "function updateModuleInst" in body_u
+          and "function showInstMsg" in body_u
+          and "getElementById('inst-feedback')" in body_u,
+          "JS-Funktionen fehlen im Inline-Script der Detailseite")
+
 
 
     _FAKE_INSTALLED = INSTALLED_OK
