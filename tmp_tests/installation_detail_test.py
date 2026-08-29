@@ -219,6 +219,79 @@ with TestClient(main.app) as c:
           and _CALLS[0]["method"] == "CreateInstance",
           json.dumps({"status": r.status_code, "d": d, "calls": _CALLS}, ensure_ascii=False))
 
+    # ── F80: eigene Module hinterlegen den Instanznamen automatisch als RPC-Zielfeld ──
+    check("Detail: Button trägt data-field (CallBlocker -> module_instance_name, F80)",
+          'data-field="module_instance_name"' in body2 and 'id="dlg-instance-rpc"' in body2)
+
+    conn = main._db()
+    r0 = dict(conn.execute("SELECT module_instance_name, monitoring_instance_name, deployer_instance_name "
+                           "FROM installations WHERE id=1").fetchone())
+    conn.close()
+
+    _CALLS.clear()
+    r = c.post("/installation/1/instance", json={"module": "CallBlocker", "name": "CallBlocker-Neu"})
+    d = r.json()
+    check("F80: CallBlocker-Instanz ok + Meldung erwähnt RPC-Zielfeld",
+          r.status_code == 200 and d.get("ok") is True and "RPC-Zielfeld" in d.get("message", ""),
+          json.dumps(d, ensure_ascii=False))
+    conn = main._db()
+    r1 = dict(conn.execute("SELECT module_instance_name, monitoring_instance_name, deployer_instance_name "
+                           "FROM installations WHERE id=1").fetchone())
+    conn.close()
+    check("F80: CallBlocker -> module_instance_name gesetzt (Monitoring/Deployer unverändert)",
+          r1 == {"module_instance_name": "CallBlocker-Neu",
+                 "monitoring_instance_name": r0["monitoring_instance_name"],
+                 "deployer_instance_name": r0["deployer_instance_name"]},
+          json.dumps(r1, ensure_ascii=False))
+
+    r = c.post("/installation/1/instance", json={"module": "TelefonieMonitoring", "name": "TelefonieMonitoring-I2"})
+    d = r.json()
+    check("F80: TelefonieMonitoring-Instanz ok", r.status_code == 200 and d.get("ok") is True,
+          json.dumps(d, ensure_ascii=False))
+    conn = main._db()
+    r2 = dict(conn.execute("SELECT module_instance_name, monitoring_instance_name, deployer_instance_name "
+                           "FROM installations WHERE id=1").fetchone())
+    conn.close()
+    check("F80: TelefonieMonitoring -> monitoring_instance_name gesetzt (Rest unverändert)",
+          r2["monitoring_instance_name"] == "TelefonieMonitoring-I2"
+          and r2["module_instance_name"] == "CallBlocker-Neu"
+          and r2["deployer_instance_name"] == r0["deployer_instance_name"],
+          json.dumps(r2, ensure_ascii=False))
+
+    r = c.post("/installation/1/instance", json={"module": "Deployment-Modul", "name": "Deployer2"})
+    d = r.json()
+    check("F80: Deployment-Modul-Instanz ok", r.status_code == 200 and d.get("ok") is True,
+          json.dumps(d, ensure_ascii=False))
+    conn = main._db()
+    r3 = dict(conn.execute("SELECT module_instance_name, monitoring_instance_name, deployer_instance_name "
+                           "FROM installations WHERE id=1").fetchone())
+    conn.close()
+    check("F80: Deployment-Modul -> deployer_instance_name gesetzt",
+          r3["deployer_instance_name"] == "Deployer2", json.dumps(r3, ensure_ascii=False))
+
+    # Fremdes Modul (keine Zuordnung) -> RPC ok, aber KEIN Feld-Update
+    _CALLS.clear()
+    r = c.post("/installation/1/instance", json={"module": "Fremdmodul", "name": "Fremdmodul"})
+    d = r.json()
+    conn = main._db()
+    r4 = dict(conn.execute("SELECT module_instance_name, monitoring_instance_name, deployer_instance_name "
+                           "FROM installations WHERE id=1").fetchone())
+    conn.close()
+    check("F80: Fremdmodul ok + kein Feld-Update",
+          r.status_code == 200 and d.get("ok") is True and r4 == r3,
+          json.dumps({"d": d, "r4": r4}, ensure_ascii=False))
+
+    # RPC-Fehler -> KEIN Feld-Update
+    r = c.post("/installation/1/instance", json={"module": "CallBlocker", "name": "FehlerFall"})
+    d = r.json()
+    conn = main._db()
+    r5 = dict(conn.execute("SELECT module_instance_name, monitoring_instance_name, deployer_instance_name "
+                           "FROM installations WHERE id=1").fetchone())
+    conn.close()
+    check("F80: RPC-Fehler -> kein Feld-Update",
+          d.get("ok") is False and r5 == r4,
+          json.dumps({"d": d, "r5": r5}, ensure_ascii=False))
+
     r = c.post("/installation/1/instance", json={"module": "CallBlocker", "name": "FehlerFall"})
     d = r.json()
     check("POST instance: Modul-Fehler -> ok:false mit Modul-Meldung (F79)",

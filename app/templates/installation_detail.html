@@ -75,7 +75,7 @@
                     {% endif %}
                 </td>
                 <td>{% if it.status == 'missing' %}— → v{{ it.version_soll }}{% elif it.status == 'outdated' %}v{{ it.version_ist }} → v{{ it.version_soll }}{% else %}v{{ it.version_ist }}{% endif %}</td>
-                <td>{% if it.instances %}{% for i in it.instances %}{{ i.name }} ({{ 'aktiv' if i.active else 'deaktiviert' }}){% if not loop.last %}, {% endif %}{% endfor %}{% else %}—{% endif %}{% if it.status == 'ok' and it.instances|selectattr('active')|list|length == 0 %}<button type="button" class="btn-secondary btn-mini inst-create" data-module="{{ it.name }}" onclick="openInstDialog({{ inst.id }}, this)" title="Neue Instanz des Moduls „{{ it.name }}“ auf dieser Anlage anlegen.">Instanz anlegen</button>{% endif %}</td>
+                <td>{% if it.instances %}{% for i in it.instances %}{{ i.name }} ({{ 'aktiv' if i.active else 'deaktiviert' }}){% if not loop.last %}, {% endif %}{% endfor %}{% else %}—{% endif %}{% if it.status == 'ok' and it.instances|selectattr('active')|list|length == 0 %}<button type="button" class="btn-secondary btn-mini inst-create" data-module="{{ it.name }}" data-field="{{ it.instance_field }}" onclick="openInstDialog({{ inst.id }}, this)" title="Neue Instanz des Moduls „{{ it.name }}“ auf dieser Anlage anlegen.">Instanz anlegen</button>{% endif %}</td>
                 <td style="text-align:right; white-space:nowrap;">
                     {% if it.settings %}
                     <a href="{{ it.settings.url }}" class="btn-secondary" title="{{ it.settings.title }}">📞 {{ it.settings.label }}</a>
@@ -98,6 +98,7 @@
 <dialog id="dlg-instance" class="dlg">
     <h3>Instanz anlegen</h3>
     <p class="dlg-hint" id="dlg-instance-module"></p>
+    <p class="dlg-hint" id="dlg-instance-rpc"></p>
     <form id="dlg-instance-form" onsubmit="event.preventDefault(); submitInstance();">
         <label for="dlg-instance-name">Instanzname</label>
         <input type="text" id="dlg-instance-name" autocomplete="off" spellcheck="false">
@@ -109,11 +110,15 @@
     </form>
 </dialog>
 <script>
-var _instDlg = {instId: 0, module: ''};
+var _instDlg = {instId: 0, module: '', field: ''};
 function openInstDialog(instId, btn) {
     _instDlg.instId = instId;
     _instDlg.module = btn.dataset.module;
+    _instDlg.field = btn.dataset.field || '';
     document.getElementById('dlg-instance-module').textContent = 'Modul: ' + _instDlg.module;
+    document.getElementById('dlg-instance-rpc').textContent = _instDlg.field
+        ? 'Wird nach dem Anlegen automatisch als RPC-Zielfeld dieser Anlage hinterlegt.'
+        : '';
     document.getElementById('dlg-instance-name').value = _instDlg.module;
     document.getElementById('dlg-instance-error').textContent = '';
     document.getElementById('dlg-instance').showModal();

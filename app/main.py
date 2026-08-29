@@ -3005,6 +3005,7 @@ async def installation_detail_page(request: Request, inst_id: int):
     for _ent in (mod_state.get("list") or []):
         _ent["is_standard"] = _ent.get("name") in _std_all
         _ent["override"] = _ent.get("name") in _ovr
+        _ent["instance_field"] = _EIGENE_MODUL_FELDER.get(_ent.get("name"), "")
         if _ent.get("name") == "CallBlocker":
             _act = [i for i in (_ent.get("instances") or []) if i.get("active")]
             if _ent.get("status") != "missing" and _act:
@@ -3091,6 +3092,15 @@ async def installation_module_standard(request: Request, inst_id: int):
     return JSONResponse({"ok": True})
 
 
+# F80: Eigene Module → Anlagen-RPC-Zielfeld. Beim Anlegen einer Instanz (CreateInstance)
+# wird der Instanzname automatisch in dieses Feld der Anlage geschrieben (nur eigene Module).
+_EIGENE_MODUL_FELDER = {
+    "CallBlocker": "module_instance_name",
+    "TelefonieMonitoring": "monitoring_instance_name",
+    "Deployment-Modul": "deployer_instance_name",
+}
+
+
 @app.post("/installation/{inst_id}/instance")
 async def installation_instance_create(request: Request, inst_id: int):
     """F79: Neue Instanz eines Moduls auf dieser Anlage anlegen.
@@ -3123,9 +3133,19 @@ async def installation_instance_create(request: Request, inst_id: int):
     if res["status"] != "ok":
         return JSONResponse({"ok": False, "error": res.get("message", "Fehler")},
                             status_code=502)
+    # F80: eigenes Modul → Instanzname automatisch als RPC-Zielfeld der Anlage hinterlegen
+    field = _EIGENE_MODUL_FELDER.get(module)
+    if field:
+        db2 = _db()
+        try:
+            db2.execute(f"UPDATE installations SET {field} = ? WHERE id = ?", (name, inst_id))
+            db2.commit()
+        finally:
+            db2.close()
     _log_event(inst_id, user["user_id"], "instance_create", f"{module}: {name}")
+    note = " Sie wird als RPC-Zielfeld der Anlage verwendet." if field else ""
     return JSONResponse({"ok": True,
-                         "message": f"Instanz „{name}“ für {module} angelegt.",
+                         "message": f"Instanz „{name}“ für {module} angelegt.{note}",
                          "response": res.get("response", "")})
 
 
