@@ -45,7 +45,6 @@
                 title="Verbindung testen (STARFACE-WebApp → Anlage)">⚡ Test</button>
         {% endif %}
     </h2>
-    <div class="msg ok" id="inst-feedback" role="status" style="display:none;"></div>
 
     <div class="card">
         <h2 style="margin-top:0;">Stammdaten</h2>
@@ -70,6 +69,10 @@
             <dt>Update-Token</dt>
             <dd>{% if inst.deployer_token %}<span class="badge badge-green">gesetzt</span>{% else %}<span class="badge badge-warn">nicht gesetzt</span>{% endif %}</dd>
         </dl>
+    </div>
+
+    <div class="msg ok" id="inst-feedback" role="status" style="display:none;">
+        <button type="button" class="btn-mini" onclick="this.closest('.msg').style.display='none'">OK</button><span id="inst-feedback-text"></span>
     </div>
 
     <div class="card">
@@ -193,7 +196,8 @@ function showInstMsg() {
         if (m.charAt(0) === '{') {
             try { var o = JSON.parse(m); text = o.t || text; err = !!o.e; } catch (x) {}
         }
-        el.textContent = text;
+        var t = document.getElementById('inst-feedback-text');
+        if (t) { t.textContent = text; }
         el.className = err ? 'msg err' : 'msg ok';
         el.style.display = 'block';
     } catch (e) {}

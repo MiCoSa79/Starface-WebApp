@@ -429,6 +429,21 @@ with TestClient(main.app) as c:
           and "getElementById('inst-feedback')" in body_u,
           "JS-Funktionen fehlen im Inline-Script der Detailseite")
 
+    # ── F88: Banner zwischen Stammdaten und Modul-Status + OK-Button ──
+    i_sd = body_u.find(">Stammdaten<")
+    i_fb = body_u.find('id="inst-feedback"')
+    i_ms = body_u.find(">Modul-Status<")
+    check("F88: Banner zwischen Stammdaten-Karte und Modul-Status-Karte",
+          -1 < i_sd < i_fb < i_ms,
+          f"Reihenfolge: Stammdaten@{i_sd}, inst-feedback@{i_fb}, Modul-Status@{i_ms} — Banner muss dazwischen stehen")
+    check("F88: Banner hat OK-Button (bestehendes .msg-Muster) + Meldungs-Span",
+          'class="btn-mini" onclick="this.closest(\'.msg\').style.display=\'none\'">OK</button>'
+          in body_u and 'id="inst-feedback-text"' in body_u,
+          "OK-Button oder Meldungs-Span fehlt im Banner")
+    check("F88: showInstMsg befüllt den Span (Button bleibt erhalten)",
+          "getElementById('inst-feedback-text')" in body_u,
+          "showInstMsg nutzt textContent → OK-Button würde gelöscht")
+
 
 
     _FAKE_INSTALLED = INSTALLED_OK
