@@ -162,7 +162,7 @@
             <a href="/">STARFACE WebApp</a>
             {% endif %}
             {% if user and user.is_admin %}
-            <details class="drop {% if active in ['anlagen','benutzer','rechte','grundeinstellungen','modules','updates','updates-modul','api-doku','wiki'] %}active{% endif %}">
+            <details class="drop {% if active in ['anlagen','benutzer','rechte','grundeinstellungen','modules','updates','updates-modul','updates-fehlende','api-doku','wiki'] %}active{% endif %}">
                 <summary>Administration ▾</summary>
                 <div class="drop-menu">
                     <a href="/anlagen" class="{% if active=='anlagen' %}active{% endif %}">Anlagen</a>
@@ -171,11 +171,12 @@
                     <a href="/grundeinstellungen" class="{% if active=='grundeinstellungen' %}active{% endif %}">Grundeinstellungen</a>
                     <div class="drop-sep"></div>
                     <a href="/admin/modules" class="{% if active=='modules' %}active{% endif %}">Module</a>
-                    <details class="sub {% if active in ['updates','updates-modul'] %}active{% endif %}" {% if active in ['updates','updates-modul'] %}open{% endif %}>
+                    <details class="sub {% if active in ['updates','updates-modul','updates-fehlende'] %}active{% endif %}" {% if active in ['updates','updates-modul','updates-fehlende'] %}open{% endif %}>
                         <summary>Modul-Updates ▸</summary>
                         <div class="sub-menu">
                             <a href="/admin/updates" class="{% if active=='updates' %}active{% endif %}">Updates nach Anlage</a>
                             <a href="/admin/updates/modul" class="{% if active=='updates-modul' %}active{% endif %}">Updates nach Modul</a>
+                            <a href="/admin/updates/fehlende" class="{% if active=='updates-fehlende' %}active{% endif %}">Fehlende Module</a>
                         </div>
                     </details>
                     <a href="/admin/api-doku" class="{% if active=='api-doku' %}active{% endif %}">API-Doku</a>

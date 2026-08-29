@@ -2086,6 +2086,163 @@ async def admin_updates_push_module(request: Request):
     return _modul_redirect(msg, module_name)
 
 
+def _fehlende_redirect(msg: str) -> RedirectResponse:
+    """F76/2: Redirect zurück auf die Fehlende-Module-Seite mit Meldung."""
+    return RedirectResponse("/admin/updates/fehlende?msg=" + quote(msg),
+                            status_code=303)
+
+
+def _standard_module_names(conn) -> list:
+    """Namen aller als Standard markierten Module (modules.is_standard=1)."""
+    return [r[0] for r in conn.execute(
+        "SELECT name FROM modules WHERE is_standard = 1").fetchall()]
+
+
+def _deployment_installed(st: dict, modules: dict) -> bool:
+    """IST-Status des Deployment-Moduls: im Status-List-Eintrag installiert?"""
+    dep_name = next((n for n in modules if "deployment" in n.lower()), None)
+    if not dep_name:
+        return False
+    it = next((x for x in (st.get("list") or []) if x.get("name") == dep_name),
+              None)
+    return bool(it and it.get("installed"))
+
+
+@app.get("/admin/updates/fehlende")
+async def admin_updates_fehlende_page(request: Request):
+    """F76/2: „Fehlende Module“ — dritter Punkt unter Modul-Updates.
+
+    Für jede Anlage (mit Monitoring-Instanz) werden die als Standard
+    markierten Module (modules.is_standard=1, nur wenn noch im Sortiment)
+    geprüft: fehlend (nicht installiert) ODER nicht aktuell → Zeile.
+    Gruppiert nach Anlage; pro Gruppe eine Anlagen-Checkbox (wählt alle
+    Module der Anlage) und ein Hinweis, wenn das Deployment-Modul fehlt.
+    """
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user or not user["is_admin"]:
+        return RedirectResponse("/")
+    conn = _db()
+    installations = conn.execute("SELECT * FROM installations ORDER BY name").fetchall()
+    standard_names = _standard_module_names(conn)
+    conn.close()
+    try:
+        from monitoring import _module_expectations, _collect_module_status
+    except ImportError:
+        from app.monitoring import _module_expectations, _collect_module_status
+    modules = _module_expectations()
+    # Standard-Module, die es im Sortiment noch gibt (gelöschte Datei → ausblenden)
+    wanted = [n for n in standard_names if n in modules]
+    groups, errors = [], {}
+    for inst in installations:
+        if not inst["monitoring_instance_name"] or not wanted:
+            continue
+        try:
+            token = _get_token(inst)
+            st = _collect_module_status(inst, token, inst["name"])
+        except Exception as e:  # Anlage nicht erreichbar → Meldung, keine Gruppe
+            errors[inst["name"]] = str(e)
+            continue
+        rows = []
+        for name in wanted:
+            it = next((x for x in (st.get("list") or []) if x.get("name") == name),
+                      None)
+            missing = it is None or not bool(it.get("installed"))
+            outdated = not missing and it.get("status") != "ok"
+            if missing or outdated:
+                rows.append({"name": name,
+                             "ist": it.get("version_ist") if it else None,
+                             "soll": modules[name].get("version"),
+                             "missing": missing, "is_install": missing})
+        if not rows:
+            continue
+        groups.append({"inst": inst, "rows": rows,
+                       "dep_missing": not (_deployment_installed(st, modules)
+                                           and bool(inst["deployer_instance_name"])),
+                       "has_deployer": bool(inst["deployer_instance_name"])})
+    return TEMPLATES.TemplateResponse(
+        "admin_updates_fehlende.html",
+        {"request": request, "user": user, "groups": groups, "errors": errors,
+         "any_standard": bool(standard_names),
+         "total": sum(len(g["rows"]) for g in groups),
+         "active": "updates-fehlende",
+         "version": os.environ.get("APP_VERSION", "dev"),
+         "msg": request.query_params.get("msg", "")})
+
+
+@app.post("/admin/updates/fehlende/push")
+async def admin_updates_fehlende_push(request: Request):
+    """F76/2: Sammel-Update/-Install für die Fehlende-Module-Seite.
+
+    items[] = "inst_id:module:install|update" (Paare). action=all: alle
+    angehakten Paare (Client-JS hakt erst alle an); ist die Auswahl leer,
+    berechnet der Server die komplette Liste frisch nach. Anlagen ohne
+    Deployment-Modul-Konfiguration werden übersprungen (Meldung, kein RPC).
+    """
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user or not user["is_admin"]:
+        return RedirectResponse("/")
+    form = await request.form()
+    action = str(form.get("action", "selected"))
+    pairs = []  # (inst_id, module_name, is_install)
+    for item in (str(v) for v in form.getlist("items")):
+        parts = item.split(":", 2)
+        if len(parts) == 3 and parts[0].isdigit() and parts[1]:
+            pairs.append((int(parts[0]), parts[1], parts[2] == "install"))
+    conn = _db()
+    insts = {r["id"]: r for r in conn.execute("SELECT * FROM installations").fetchall()}
+    standard_names = _standard_module_names(conn)
+    conn.close()
+    try:
+        from monitoring import _module_expectations, _collect_module_status
+    except ImportError:
+        from app.monitoring import _module_expectations, _collect_module_status
+    modules = _module_expectations()
+    if action == "all" and not pairs:
+        # Server-Fallback (kein JS): komplette Liste frisch berechnen
+        for inst in insts.values():
+            if not inst["monitoring_instance_name"]:
+                continue
+            try:
+                st = _collect_module_status(inst, _get_token(inst), inst["name"])
+            except Exception:
+                continue  # nicht erreichbar → ohne diese Anlage
+            for name in standard_names:
+                if name not in modules:
+                    continue
+                it = next((x for x in (st.get("list") or [])
+                           if x.get("name") == name), None)
+                missing = it is None or not bool(it.get("installed"))
+                if missing or (not missing and it.get("status") != "ok"):
+                    pairs.append((inst["id"], name, missing))
+    if not pairs:
+        return _fehlende_redirect("Keine Module ausgewählt.")
+    ok_count, errs, seen = 0, [], set()
+    for iid, name, is_install in pairs:
+        inst = insts.get(iid)
+        if not inst or not inst["monitoring_instance_name"] or name not in modules:
+            continue
+        if not inst["deployer_instance_name"]:
+            errs.append(f"{inst['name']}: kein Deployment-Modul — "
+                        "Update/Installation nicht möglich")
+            continue
+        key = (iid, name)
+        if key in seen:  # Duplikate (Anlagen-Checkbox + Einzelwahl) nicht doppelt
+            continue
+        seen.add(key)
+        status, m = _push_module(inst, name, modules[name].get("file", ""),
+                                 str(modules[name].get("version", "")),
+                                 is_install=is_install)
+        if status == "ok":
+            ok_count += 1
+        else:
+            errs.append(f"{inst['name']}: {m}")
+    parts = [f"{ok_count}× Update/Installation angestoßen."] if ok_count else []
+    if errs:
+        parts.append("Fehler: " + "; ".join(errs))
+    msg = " ".join(parts) if parts else "Keine Aktion ausgeführt."
+    return _fehlende_redirect(msg)
+
+
 @app.get("/admin/modules/{module_id}/download")
 async def admin_module_download(request: Request, module_id: int):
     """Download einer .sfm-Datei (nur Admins). Dateiname kommt aus der DB

@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}STARFACE WebApp — Fehlende Module{% endblock %}
+{% block styles %}{% endblock %}
+{% block content %}
+<div class="container">
+    {% if msg %}
+    <div class="msg {{ 'ok' if 'FEHLER' not in msg and 'kein Deployment' not in msg and 'Keine ' not in msg else 'err' }}">
+        <button type="button" class="btn-mini" onclick="this.closest('.msg').style.display='none'">OK</button>{{ msg }}</div>
+    {% endif %}
+
+    <h2 class="tbl-head">
+        Fehlende Module
+        <span class="muted">Standard-Module, die auf Anlagen fehlen oder nicht aktuell sind</span>
+    </h2>
+
+    {% if not any_standard %}
+    <p class="empty">Es sind noch keine Standard-Module festgelegt. Auf der Modul-Seite (Administration → Module) die Checkbox „Standard“ je Modul aktivieren — Standard-Module müssen auf jeder Anlage installiert und aktuell sein.</p>
+    {% elif not groups or (not groups and errors) %}
+    <p class="empty">Keine fehlenden oder veralteten Standard-Module — alle Standard-Module sind auf allen Anlagen aktuell installiert.</p>
+    {% else %}
+    {% if errors %}
+    <p class="hint" style="color:#d59595; margin-bottom:12px">
+        ⚠ {{ errors|length }} Anlage(n) nicht erreichbar — ohne IST-Version nicht bewertbar: {{ errors.keys()|join(', ') }}.</p>
+    {% endif %}
+
+    <div class="form-row">
+        <form id="bulk-fehlende" method="post" action="/admin/updates/fehlende/push">
+            <button type="submit" name="action" value="all" class="btn-primary">Alles aktualisieren bzw. installieren ({{ total }})</button>
+            <button type="submit" name="action" value="selected" class="btn-secondary">Ausgewählte aktualisieren bzw. installieren</button>
+            <button type="button" class="btn-secondary" id="sel-all">Alle auswählen</button>
+            <button type="button" class="btn-secondary" id="sel-none">Auswahl aufheben</button>
+        </form>
+    </div>
+
+    <div class="tbl-wrap" data-wrap="upd-fehl">
+    <table>
+        <tr>
+            <th style="width:44px">Auswahl</th>
+            <th>Modul</th>
+            <th>Version (IST)</th>
+            <th>Aktuellste Version</th>
+            <th style="width:1%; text-align:right">Aktion</th>
+        </tr>
+        {% for g in groups %}
+        <tr class="grp-head" style="background:#0f3460;color:#fff">
+            <th colspan="4" style="text-align:left; white-space:nowrap;">{{ g.inst.name }}</th>
+            <th style="text-align:right; white-space:nowrap;">
+                <label class="muted" style="display:inline-flex;gap:6px;align-items:center;color:#fff">
+                    <input type="checkbox" class="grp-cb" data-inst="{{ g.inst.id }}" title="Alle Module dieser Anlage auswählen" aria-label="{{ g.inst.name }}: alle Module auswählen"> Anlage wählen
+                </label>
+                {% if g.dep_missing %}
+                <span class="muted" style="color:#e94560; margin-left:10px" title="Das Deployment-Modul fehlt auf dieser Anlage — Sammel-Aktionen sind dort nur eingeschränkt möglich.">⚠ Deployment-Modul fehlt</span>
+                {% endif %}
+            </th>
+        </tr>
+        {% for r in g.rows %}
+        <tr>
+            <td>
+                <input type="checkbox" class="fehl-cb" data-inst="{{ g.inst.id }}" form="bulk-fehlende" name="items" value="{{ g.inst.id }}:{{ r.name }}:{{ 'install' if r.missing else 'update' }}" aria-label="{{ g.inst.name }}: {{ r.name }} auswählen">
+            </td>
+            <td>{{ r.name }}</td>
+            <td>
+                {% if r.ist %}<span style="color:#ffb74d">v{{ r.ist }}</span>
+                {% else %}<span class="muted">—</span>{% endif %}
+                {% if r.missing %}<span class="muted">(fehlt)</span>{% endif %}
+            </td>
+            <td>v{{ r.soll }}</td>
+            <td style="text-align:right; white-space:nowrap;">
+                {% if g.has_deployer %}
+                <form method="post" action="/admin/updates/fehlende/push" style="margin:0">
+                    <input type="hidden" name="action" value="selected">
+                    <input type="hidden" name="items" value="{{ g.inst.id }}:{{ r.name }}:{{ 'install' if r.missing else 'update' }}">
+                    <button type="submit" class="btn-primary">{{ 'Installieren' if r.missing else 'Update anstoßen' }}</button>
+                </form>
+                {% else %}
+                <span class="muted" title="Kein Deployment-Modul konfiguriert — unter Anlage bearbeiten hinterlegen.">— kein Deployment-Modul</span>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+        {% endfor %}
+    </table>
+    </div>
+    {% endif %}
+</div>
+<script>
+document.getElementById('bulk-fehlende').addEventListener('submit', function (ev) {
+    if (ev.submitter && ev.submitter.value === 'all') {
+        document.querySelectorAll('.fehl-cb').forEach(function (x) { x.checked = true; });
+    }
+});
+document.querySelectorAll('.grp-cb').forEach(function (cb) {
+    cb.addEventListener('change', function () {
+        document.querySelectorAll('.fehl-cb[data-inst="' + cb.dataset.inst + '"]')
+            .forEach(function (x) { x.checked = cb.checked; });
+    });
+});
+document.getElementById('sel-all').addEventListener('click', function () {
+    document.querySelectorAll('.fehl-cb').forEach(function (c) { c.checked = true; });
+    document.querySelectorAll('.grp-cb').forEach(function (c) { c.checked = true; });
+});
+document.getElementById('sel-none').addEventListener('click', function () {
+    document.querySelectorAll('.fehl-cb').forEach(function (c) { c.checked = false; });
+    document.querySelectorAll('.grp-cb').forEach(function (c) { c.checked = false; });
+});
+</script>
+{% endblock %}
