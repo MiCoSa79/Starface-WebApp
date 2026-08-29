@@ -139,45 +139,54 @@ assert r.status_code == 401
 ok += 1
 print("6. API: Bob nur A / Admin beide / ohne Login 401  OK")
 
-# 7) Startseite (/) enthält Monitoring-Link für alle eingeloggten User
+# 7) Nav: Monitoring-Link für alle eingeloggten User auf der Anlagen-Seite
 login("eve")
-r = c.get("/")
-assert r.status_code == 200 and 'href="/monitoring"' in r.text, "Nav-Monitoring fehlt auf Startseite"
+r = c.get("/anlagen")
+assert r.status_code == 200 and 'href="/monitoring"' in r.text, "Nav-Monitoring fehlt auf Anlagen-Seite"
 ok += 1
-print("7. Nav-Link /monitoring auf / für Eve  OK")
+print("7. Nav-Link /monitoring auf /anlagen für Eve  OK")
 
-# 8) Admin /: Anlagen-Tabelle mit 2 Zeilen (Test/Edit/Löschen), Formular
+# 8) Admin: Startseite / = Admin-Monitoring (F64); Anlagen-Übersicht unter /anlagen
 login("admin")
 r = c.get("/")
 assert r.status_code == 200, r.status_code
 body = r.text
-assert body.count("⚡ Test") == 2, "Admin erwartet 2 Test-Buttons auf /"
+assert "Admin-Monitoring" in body and "Anlagen mit Provider-Fehlern" in body, \
+    "Startseite (Admin) muss das Admin-Monitoring sein"
+assert 'id="tbl-inst"' not in body, "Anlagen-Tabelle gehört nicht mehr auf die Startseite"
+r = c.get("/anlagen")
+assert r.status_code == 200, r.status_code
+body = r.text
+assert body.count("⚡ Test") == 2, "Admin erwartet 2 Test-Buttons auf /anlagen"
 assert "Testanlage A" in body and "Testanlage B" in body, "Admin sieht nicht beide Anlagen"
-assert "Anlage hinzufügen" in body, "Admin-Formular (Anlegen) fehlt auf /"
+assert "Anlage hinzufügen" in body, "Admin-Formular (Anlegen) fehlt auf /anlagen"
 ok += 1
-print("8. Admin /: 2 Anlagen-Zeilen + 2 Test-Buttons + Anlegen-Formular  OK")
+print("8. Admin / = Admin-Monitoring; /anlagen: 2 Anlagen-Zeilen + 2 Test-Buttons + Formular  OK")
 
-# 9) Bob /: nur Anlage A sichtbar (can_read), genau 1 Detail-Link aufs native Monitoring
+# 9) Bob: / -> Redirect /anlagen; /anlagen: nur Anlage A (can_read), 1 Detail-Link
 login("bob")
 r = c.get("/")
+assert r.status_code in (302, 307) and "/anlagen" in r.headers.get("location", ""), \
+    f"Bob: / muss auf /anlagen zeigen, war {r.status_code} -> {r.headers.get('location')}"
+r = c.get("/anlagen")
 body = r.text
-assert "Testanlage A" in body and "Testanlage B" not in body, "Bob sieht auf / die falsche Anlagenmenge"
+assert "Testanlage A" in body and "Testanlage B" not in body, "Bob sieht auf /anlagen die falsche Anlagenmenge"
 assert body.count('class="detail-dl"') == 1, "Bob: genau 1 Detail-Link erwartet"
 assert 'href="/monitoring/installations/1"' in body, "Detail-Link-Ziel (eigenes Monitoring) fehlt"
-assert "grafana" not in body.lower(), "Grafana-Rest auf Startseite (v1.0.55)"
+assert "grafana" not in body.lower(), "Grafana-Rest auf Anlagen-Seite (v1.0.55)"
 assert "Anlage hinzufügen" not in body, "Bob darf kein Anlegen-Formular sehen"
 assert body.count("⚡ Test") == 1, "Bob: genau 1 Test-Button (User-Route) erwartet"
 ok += 1
-print("9. Bob /: 1 Zeile (nur can_read) + Detail-Link → /monitoring/installations/1  OK")
+print("9. Bob / -> /anlagen; 1 Zeile (nur can_read) + Detail-Link → /monitoring/installations/1  OK")
 
-# 10) Eve /: keine Anlagen, keine Links, kein Formular
+# 10) Eve /anlagen: keine Anlagen, keine Links, kein Formular
 login("eve")
-r = c.get("/")
+r = c.get("/anlagen")
 body = r.text
 assert "Testanlage" not in body and body.count('class="detail-dl"') == 0, "Eve darf keine Anlagen/Links sehen"
 assert "Anlage hinzufügen" not in body, "Eve darf kein Formular sehen"
 ok += 1
-print("10. Eve /: 0 Anlagen, 0 Links, kein Formular  OK")
+print("10. Eve /anlagen: 0 Anlagen, 0 Links, kein Formular  OK")
 
 # 11) Alte Grafana-Einstellung ist wirkungslos (Feld existiert nicht mehr; POST wird ignoriert)
 login("admin")
@@ -197,13 +206,14 @@ ok += 1
 print("11. Alt-POST grafana_base_url wirkungslos; Feld weg; keine Grafana-URLs  OK")
 
 # 12) Alle Seiten grafana-frei (Auslieferungszustand) — auch nach Alt-POST oben
-for path in ("/", "/monitoring", "/grundeinstellungen", "/admin/monitoring"):
+login("admin")
+for path in ("/", "/anlagen", "/monitoring", "/grundeinstellungen", "/admin/monitoring"):
     r = c.get(path)
     assert r.status_code == 200, (path, r.status_code)
     assert "grafana" not in r.text.lower(), f"grafana-Rest auf {path}"
     assert "hideLogo" not in r.text, f"kiosk-Rest auf {path}"
 ok += 1
-print("12. /, /monitoring, /grundeinstellungen, /admin/monitoring grafana-frei  OK")
+print("12. /, /anlagen, /monitoring, /grundeinstellungen, /admin/monitoring grafana-frei  OK")
 
 # 13) Kein Grafana-Admin-Übersicht-Link mehr (für Admin UND Bob)
 login("admin")

@@ -27,8 +27,26 @@
         .topbar h1 img { height: 24px; width: auto; }
         .topbar h1 span { color: #e94560; }
         .topbar a { color: #e94560; text-decoration: none; margin-left: 16px; }
-        .topbar .user { color: #aaa; font-size: 13px; }
         .badge-admin { background: #2d6a4f; color: #95d5b2; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+
+        /* ── Dropdown oben rechts (Benutzereinstellungen + Abmelden) ── */
+        .topbar details.user-drop { position: relative; }
+        .topbar details.user-drop > summary { cursor: pointer; list-style: none; color: #aaa;
+                 font-size: 13px; padding: 6px 10px; border-radius: 6px;
+                 display: flex; align-items: center; gap: 4px; user-select: none;
+                 max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .topbar details.user-drop > summary::-webkit-details-marker { display: none; }
+        .topbar details.user-drop > summary:hover,
+        .topbar details.user-drop[open] > summary { background: #0f3460; color: #fff; }
+        .topbar details.user-drop.active > summary { background: #e94560; color: #fff; font-weight: 600; }
+        .topbar details.user-drop .drop-menu { position: absolute; top: calc(100% + 6px); right: 0;
+                 min-width: 210px; background: #16213e; border: 1px solid #333;
+                 border-radius: 8px; padding: 6px; box-shadow: 0 8px 24px rgba(0,0,0,.5);
+                 z-index: 50; display: flex; flex-direction: column; }
+        .topbar details.user-drop .drop-menu a { padding: 10px 12px; border-radius: 6px; color: #ddd;
+                 white-space: nowrap; }
+        .topbar details.user-drop .drop-menu a:hover { background: #0f3460; color: #fff; }
+        .topbar details.user-drop .drop-menu a.active { background: #e94560; color: #fff; }
 
         .nav { background: #16213e; border-bottom: 1px solid #333;
                display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
@@ -57,10 +75,6 @@
         .nav details.drop .drop-menu a:hover { background: #0f3460; color: #fff; }
         .nav details.drop .drop-menu a.active { background: #e94560; color: #fff; }
         .nav details.drop .drop-sep { height: 1px; background: #333; margin: 5px 8px; }
-        .nav .logo-link { display: flex; align-items: center; gap: 8px;
-                 color: inherit; text-decoration: none; padding: 6px 14px;
-                 border-radius: 6px; }
-        .nav .logo-link:hover { background: #0f3460; }
 
         .container { max-width: 1400px; margin: 0 auto; padding: 24px;
                      padding-bottom: 60px; }
@@ -110,24 +124,31 @@
             <h1><img src="/static/kits-logo.png" alt="Logo"><span>STARFACE WebApp</span></h1>
             <div style="display:flex;align-items:center;gap:12px;">
                 {% if user and user.is_admin %}<span class="badge-admin">Admin</span>{% endif %}
-                <span class="user">{% if user %}{{ user.username }}{% endif %}</span>
+                {% if user %}
+                <details class="user-drop{% if active=='konto' %} active{% endif %}" {% if active=='konto' %}open{% endif %}>
+                    <summary title="Benutzereinstellungen und Abmelden">{{ user.username }} ▾</summary>
+                    <div class="drop-menu">
+                        <a href="/konto" class="{% if active=='konto' %}active{% endif %}">Mein Konto</a>
+                        <a href="/logout">Abmelden</a>
+                    </div>
+                </details>
+                {% endif %}
                 <label for="nav-open" class="hamburger" title="Menü">☰</label>
             </div>
         </div>
         {% block nav %}
         <nav class="nav">
             {% if user %}
-            <a href="/" class="logo-link" title="Anlagenübersicht (Startseite)" style="{% if active=='anlagen' %}background:#e94560;color:#fff;font-weight:600;{% endif %}">
-                <img src="/static/kits-logo.png" alt="Logo" style="height:20px;width:auto;">Anlagen</a>
+            <a href="/anlagen" class="{% if active=='anlagen' %}active{% endif %}" title="Anlagenübersicht">Anlagen</a>
             <a href="/monitoring" class="{% if active=='monitoring' %}active{% endif %}">Monitoring</a>
             {% else %}
-            <a href="/" class="logo-link"><img src="/static/kits-logo.png" alt="Logo" style="height:20px;width:auto;">STARFACE WebApp</a>
+            <a href="/">STARFACE WebApp</a>
             {% endif %}
             {% if user and user.is_admin %}
             <details class="drop {% if active in ['anlagen','benutzer','rechte','grundeinstellungen','modules','updates','api-doku','wiki'] %}active{% endif %}">
                 <summary>Administration ▾</summary>
                 <div class="drop-menu">
-                    <a href="/" class="{% if active=='anlagen' %}active{% endif %}">Anlagen</a>
+                    <a href="/anlagen" class="{% if active=='anlagen' %}active{% endif %}">Anlagen</a>
                     <a href="/benutzer" class="{% if active=='benutzer' %}active{% endif %}">Benutzer</a>
                     <a href="/rechte" class="{% if active=='rechte' %}active{% endif %}">Rechteverwaltung</a>
                     <a href="/grundeinstellungen" class="{% if active=='grundeinstellungen' %}active{% endif %}">Grundeinstellungen</a>
@@ -136,15 +157,6 @@
                     <a href="/admin/updates" class="{% if active=='updates' %}active{% endif %}">Modul-Updates</a>
                     <a href="/admin/api-doku" class="{% if active=='api-doku' %}active{% endif %}">API-Doku</a>
                     <a href="/wiki" class="{% if active=='wiki' %}active{% endif %}">Wiki</a>
-                </div>
-            </details>
-            {% endif %}
-            {% if user %}
-            <details class="drop {% if active=='konto' %}active{% endif %}">
-                <summary>👤 {{ user.username }} ▾</summary>
-                <div class="drop-menu">
-                    <a href="/konto" class="{% if active=='konto' %}active{% endif %}">Mein Konto</a>
-                    <a href="/logout">Abmelden</a>
                 </div>
             </details>
             {% endif %}

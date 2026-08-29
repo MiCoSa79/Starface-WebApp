@@ -733,7 +733,7 @@ async def password_change(request: Request,
     if new_password != confirm:
         if user["is_admin"] and target_uid and target_uid != user["user_id"]:
             return RedirectResponse("/benutzer?pw_err=nomatch", status_code=303)
-        return RedirectResponse("/?pw_err=nomatch", status_code=303)
+        return RedirectResponse("/anlagen?pw_err=nomatch", status_code=303)
 
     if user["is_admin"] and target_uid and target_uid != user["user_id"]:
         # Admin setzt Passwort eines anderen Users neu — kein aktuelles Passwort nötig.
@@ -759,7 +759,7 @@ async def password_change(request: Request,
         "SELECT password_hash FROM users WHERE id = ?", (user["user_id"],)).fetchone()
     conn.close()
     if not row or not bcrypt.checkpw(password.encode(), row["password_hash"].encode()):
-        return RedirectResponse("/?pw_err=wrong", status_code=303)
+        return RedirectResponse("/anlagen?pw_err=wrong", status_code=303)
 
     new_hash = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt()).decode()
     conn = _db()
@@ -767,7 +767,7 @@ async def password_change(request: Request,
                  (new_hash, user["user_id"]))
     conn.commit()
     conn.close()
-    return RedirectResponse("/?pw_ok=1", status_code=303)
+    return RedirectResponse("/anlagen?pw_ok=1", status_code=303)
 
 
 # ─────────────────────────────────────────────────────────────
@@ -977,8 +977,30 @@ async def index(request: Request):
             "passkey_enabled": bool(WEBAUTHN_RP_ID and WEBAUTHN_ORIGIN and FIDO2_OK),
             "password_login_enabled": PASSWORD_LOGIN_ENABLED,
         })
-    # Startseite = Anlagenübersicht (F62): Admins sehen alle Anlagen
-    # (inkl. Anlegen-Formular), normale Benutzer nur ihre (Zugriff wie altes Dashboard).
+    # Startseite (F64): Admins sehen das Admin-Monitoring (Übersicht aller
+    # Anlagen, Kennzahlen + Fehlerliste, Auto-Refresh); normale Benutzer
+    # landen auf der Anlagen-Übersicht (nur eigene, Zugriff wie gehabt).
+    if user["is_admin"]:
+        conn = _db()
+        inst_rows = conn.execute("SELECT id, name FROM installations ORDER BY name").fetchall()
+        conn.close()
+        id_by_name = {r["name"]: r["id"] for r in inst_rows}
+        return TEMPLATES.TemplateResponse("admin_monitoring.html",
+            {"request": request, "user": user, "active": "start",
+             "summary": _admin_monitoring_summary(monitoring.status(), id_by_name),
+             "version": os.environ.get("APP_VERSION", "dev")})
+    return RedirectResponse("/anlagen")
+
+
+@app.get("/anlagen", response_class=HTMLResponse)
+async def anlagen_page(request: Request):
+    """Anlagen-Übersicht (F64): eigene Seite — Startseite der Nicht-Admins,
+    über den Nav-Link „Anlagen“ für alle erreichbar. Admins sehen alle
+    Anlagen (inkl. Anlegen-Formular), normale Benutzer nur ihre.
+    """
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user:
+        return RedirectResponse("/")
     conn = _db()
     installations = conn.execute("SELECT * FROM installations ORDER BY name").fetchall()
     conn.close()
@@ -1992,7 +2014,7 @@ async def admin_installation_create(request: Request,
     conn.commit()
     conn.close()
     _log_event(None, user["user_id"], "installation_create", name)
-    return RedirectResponse("/", status_code=303)
+    return RedirectResponse("/anlagen", status_code=303)
 
 
 @app.post("/admin/installations/{inst_id}/delete")
@@ -2006,7 +2028,7 @@ async def admin_installation_delete(request: Request, inst_id: int):
     conn.commit()
     conn.close()
     _log_event(inst_id, user["user_id"], "installation_delete", str(inst_id))
-    return RedirectResponse("/", status_code=303)
+    return RedirectResponse("/anlagen", status_code=303)
 
 
 @app.get("/admin/installations/{inst_id}/edit", response_class=HTMLResponse)
@@ -2019,7 +2041,7 @@ async def admin_installation_edit_page(request: Request, inst_id: int):
     inst = conn.execute("SELECT * FROM installations WHERE id=?", (inst_id,)).fetchone()
     if not inst:
         conn.close()
-        return RedirectResponse("/", status_code=303)
+        return RedirectResponse("/anlagen", status_code=303)
     # Daten entschlüsseln für die Form (zum Bearbeiten)
     inst_data = dict(inst)
     inst_data["auth_id"] = _decrypt(inst["auth_id"])
@@ -2066,7 +2088,7 @@ async def admin_installation_update(request: Request, inst_id: int,
     inst = conn.execute("SELECT * FROM installations WHERE id=?", (inst_id,)).fetchone()
     if not inst:
         conn.close()
-        return RedirectResponse("/", status_code=303)
+        return RedirectResponse("/anlagen", status_code=303)
     # Nur aktualisieren wenn Feld nicht leer
     new_auth_id = _encrypt(auth_id) if auth_id else inst["auth_id"]
     new_auth_pass = _encrypt(auth_pass) if auth_pass else inst["auth_pass"]
@@ -2080,7 +2102,7 @@ async def admin_installation_update(request: Request, inst_id: int,
     conn.commit()
     conn.close()
     _log_event(inst_id, user["user_id"], "installation_update", name)
-    return RedirectResponse("/", status_code=303)
+    return RedirectResponse("/anlagen", status_code=303)
 
 
 @app.get("/admin/installations/{inst_id}/test-conn")

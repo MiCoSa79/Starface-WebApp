@@ -56,10 +56,10 @@ with TestClient(main.app) as c:
     check("DB: v10-Anlage hat is_starface10=1", flags.get("Testanlage v10") == 1, str(flags))
     check("DB: v9-Anlage hat is_starface10=0", flags.get("Altanlage v9") == 0, str(flags))
 
-    # 3) Startseite (Anlagen-Tabelle): Version-Spalte prüfen
-    r = c.get("/")
+    # 3) Anlagen-Seite (/anlagen): Version-Spalte prüfen
+    r = c.get("/anlagen")
     html = r.text
-    check("Startseite 200", r.status_code == 200, str(r.status_code))
+    check("Anlagen-Seite 200", r.status_code == 200, str(r.status_code))
     v10_cell = re.search(r'Testanlage v10.*?<td>10\.x</td>', html, re.S)
     v9_cell = re.search(r'Altanlage v9.*?<td>≤9\.x</td>', html, re.S)
     check("v10-Anlage zeigt 10.x", v10_cell is not None,

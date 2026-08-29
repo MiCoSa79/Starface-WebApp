@@ -113,8 +113,12 @@ with c:
     check("User ohne Admin: /wiki → Redirect /",
           r.status_code in (303, 307) and (r.headers.get("location", "").rstrip("/") == "" or r.headers.get("location", "").endswith("/")),
           f"{r.status_code} -> {r.headers.get('location')}")
-    r = c.get("/")
-    check("User: Startseite ohne Wiki-Nav", 'href="/wiki"' not in r.text)
+    r = c.get("/")   # Startseite User (ohne Admin) -> Redirect /anlagen (Anlagen-Übersicht)
+    check("User: / -> Redirect /anlagen",
+          r.status_code in (303, 307) and "/anlagen" in r.headers.get("location", ""),
+          f"{r.status_code} -> {r.headers.get('location')}")
+    r = c.get("/anlagen")
+    check("User: Anlagen-Seite ohne Wiki-Nav", 'href="/wiki"' not in r.text)
     r = c.get("/wiki/search?q=SimpleMatch")
     check("User ohne Admin: Suche → leere JSON-Ergebnisse",
           r.status_code == 200 and r.json() == {"results": []})

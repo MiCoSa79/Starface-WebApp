@@ -68,7 +68,7 @@ with TestClient(main.app) as c:
     r = c.post("/admin/users", data={"username": "filter.tester", "password": "pw12345", "is_admin": "0"})
     check("Benutzer angelegt", r.status_code in (200, 303))
 
-    html_inst = c.get("/").text     # Startseite = Anlagen
+    html_inst = c.get("/anlagen").text     # Anlagen-Übersicht (seit F64 eigene Seite)
     html_users = c.get("/benutzer").text
     html_access = c.get("/rechte").text
     html_settings = c.get("/grundeinstellungen").text

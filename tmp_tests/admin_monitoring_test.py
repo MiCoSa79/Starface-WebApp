@@ -6,7 +6,7 @@
 - Fehlerliste unter den Karten: nur Anlagen mit disconnected > 0
 - Auto-Refresh: Countdown „aktualisiert sich automatisch in X s“ (5-s-Takt über
   1-s-Tick, Overlap-Schutz refreshBusy) + /api/monitoring/admin
-- Rechte: Seite + API nur für Admins; User -> /dashboard; Gäste -> /
+- Rechte: Seite + API nur für Admins; User -> / (Startseite); Gäste -> /
 - Grafana entfernt (v1.0.55) — kein Link/Button/Name mehr; Admin-Seite rein nativ
 """
 import os, sys, sqlite3, tempfile
@@ -125,13 +125,13 @@ def login(username):
     assert r.json()["status"] == "ok", (username, r.json())
 
 
-# 1) Nicht eingeloggt -> Redirect auf /dashboard (Konvention Admin-Routen)
+# 1) Nicht eingeloggt -> Redirect auf / (Startseite/Login, Konvention)
 r = c.get("/admin/monitoring")
 check("ohne Login -> Redirect /",
       r.status_code in (302, 307) and (r.headers.get("location", "").rstrip("/") == "" or r.headers.get("location", "").endswith("/")),
       f"{r.status_code} {r.headers.get('location')}")
 
-# 2) User (nicht Admin) -> Redirect /dashboard
+# 2) User (nicht Admin) -> Redirect / (Startseite)
 login("bob")
 r = c.get("/admin/monitoring")
 check("User -> Redirect /",

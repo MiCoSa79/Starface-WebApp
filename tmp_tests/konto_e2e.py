@@ -72,10 +72,10 @@ check("GET /konto ohne Login -> Redirect", r.status_code == 303, str(r.status_co
 # ── 2) Admin-Login, Nav, Seiten ────────────────────────────────
 check("Login admin", login("admin", "pw123"))
 r = c.get("/")
-check("GET / (Startseite=Anlagen) -> 200", r.status_code == 200, str(r.status_code))
+check("GET / (Startseite=Admin-Monitoring) -> 200", r.status_code == 200, str(r.status_code))
 nav_admin = r.text
 check("Admin-Nav zeigt Administration-Dropdown", "<summary>Administration" in nav_admin)
-check("Admin-Nav zeigt Benutzer-Dropdown", "Mein Konto" in nav_admin)
+check("Admin-Topbar zeigt Benutzer-Dropdown (Mein Konto)", "Mein Konto" in nav_admin and 'class="user-drop"' in nav_admin)
 check("Admin-Nav hat keinen flachen Passwort-Link mehr",
       'href="/password"' not in nav_admin)
 
@@ -170,11 +170,11 @@ check("Login mit neuem Passwort", login("admin", "neu123"))
 
 # ── 6) Normaluser: Nav ohne Administration ─────────────────────
 check("Login axel", login("axel", "pw456"))
-r = c.get("/")
-check("Normaluser-Startseite -> 200", r.status_code == 200, str(r.status_code))
+r = c.get("/anlagen")
+check("Normaluser-Anlagen-Seite -> 200", r.status_code == 200, str(r.status_code))
 check("Normaluser sieht KEIN Administration", "<summary>Administration" not in r.text)
 check("Normaluser sieht KEINEN Wiki-Link", ">Wiki<" not in r.text)
-check("Normaluser sieht Mein Konto", "Mein Konto" in r.text)
+check("Normaluser sieht Mein Konto (Topbar-Dropdown)", "Mein Konto" in r.text)
 r = c.get("/konto")
 check("Normaluser /konto -> 200", r.status_code == 200, str(r.status_code))
 check("Normaluser-Rolle 'Benutzer'", ">Benutzer<" in r.text)

@@ -71,7 +71,7 @@
 {% block content %}
 <div class="topbar">
     <h1>STARFACE WebApp <span>/ Modul-Updates</span></h1>
-    <div><a href="/">← Anlagen</a></div>
+    <div><a href="/anlagen">← Anlagen</a></div>
 </div>
 <div class="container">
     {% if msg %}
@@ -87,7 +87,7 @@
     {% endif %}
 
     {% if not installations %}
-    <p class="empty">Keine Anlagen konfiguriert — bitte zuerst auf der <a href="/" class="btn-secondary">Anlagen-Seite</a> eine Anlage anlegen.</p>
+    <p class="empty">Keine Anlagen konfiguriert — bitte zuerst auf der <a href="/anlagen" class="btn-secondary">Anlagen-Seite</a> eine Anlage anlegen.</p>
     {% endif %}
 
     {% for inst in installations %}

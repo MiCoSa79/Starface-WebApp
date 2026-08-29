@@ -92,7 +92,8 @@ async function main() {
     const txt = (sel) => { const el = document.querySelector(sel); return el ? el.textContent : null; };
     return {
       adminDrop: has('details.drop > summary') && (txt('details.drop summary') || '').includes('Administration'),
-      userDrop: (txt('.nav details:nth-of-type(2) summary') || '').includes('👤'),
+      userDropInTopbar: has('.topbar .user-drop') && (txt('.topbar .user-drop summary') || '').includes('admin'),
+      noKontoInNav: Array.from(document.querySelectorAll('.nav details.drop summary')).every(s => !s.textContent.includes('👤')),
       flatPw: has('a[href="/password"]'),
       dashLink: has('a[href="/dashboard"]'),
       wikiLink: has('a[href="/wiki"]'),
@@ -100,11 +101,22 @@ async function main() {
     };
   })()`);
   check('Admin: Administration-Dropdown in Nav', adminNav.adminDrop);
-  check('Admin: Benutzer-Dropdown in Nav', adminNav.userDrop);
+  check('Admin: Benutzer-Dropdown oben rechts (Topbar), kein 👤 in Nav', adminNav.userDropInTopbar && adminNav.noKontoInNav);
   check('Admin: kein flacher /password-Link', !adminNav.flatPw);
   check('Admin: KEIN Dashboard-Link mehr', !adminNav.dashLink);
   check('Admin: Wiki-Link vorhanden (im Dropdown)', adminNav.wikiLink);
   check('Admin: Startseite ohne Traceback', adminNav.bodyOk);
+
+  // Topbar-Dropdown aufklappen → Benutzereinstellungen + Abmelden
+  await evalJs(`(() => { document.querySelector('.topbar .user-drop summary').click(); })()`);
+  await sleep(250);
+  const userMenu = await evalJs(`(() => {
+    const menu = document.querySelector('.topbar .user-drop .drop-menu');
+    return { links: menu ? Array.from(menu.querySelectorAll('a')).map(a => a.textContent.trim()) : [], h: menu ? Math.round(menu.getBoundingClientRect().height) : 0 };
+  })()`);
+  check('Admin: Topbar-Dropdown enthält Mein Konto + Abmelden',
+        userMenu.h > 0 && userMenu.links.includes('Mein Konto') && userMenu.links.includes('Abmelden'),
+        JSON.stringify(userMenu));
 
   // Administration aufklappen → 4 Bereiche + Modul-Updates + Wiki sichtbar
   await evalJs(`(() => { const s = document.querySelector('details.drop summary'); s.click(); })()`);
@@ -138,11 +150,13 @@ async function main() {
   await loginAs('axel', 'pw456');
   await open('/');
   const userNav = await evalJs(`(() => {
-    const sums = Array.from(document.querySelectorAll('details.drop summary')).map(s => s.textContent.trim());
-    return { hasAdmin: sums.some(s => s.includes('Administration')), hasKonto: sums.some(s => s.includes('👤')), sums };
+    const sums = Array.from(document.querySelectorAll('.nav details.drop summary')).map(s => s.textContent.trim());
+    const tb = document.querySelector('.topbar .user-drop summary');
+    return { hasAdmin: sums.some(s => s.includes('Administration')), sums,
+             topbarDrop: tb ? tb.textContent.trim() : null };
   })()`);
   check('Normaluser: KEIN Administration-Dropdown', !userNav.hasAdmin, JSON.stringify(userNav));
-  check('Normaluser: Benutzer-Dropdown vorhanden', userNav.hasKonto);
+  check('Normaluser: Benutzer-Dropdown oben rechts (Topbar)', !!userNav.topbarDrop && userNav.topbarDrop.includes('axel'), JSON.stringify(userNav));
   await open('/konto');
   const userKonto = await evalJs(`(() => document.body.innerText.includes('Benutzer') && !document.body.innerHTML.includes('Traceback'))()`);
   check('Normaluser: /konto 200 (Rolle Benutzer), kein Traceback', userKonto);
@@ -164,10 +178,14 @@ async function main() {
   const navOpen = await evalJs(`(() => {
     const nav = document.querySelector('.nav');
     const sums = Array.from(nav.querySelectorAll('details.drop summary')).map(s => s.textContent.trim());
-    return { disp: getComputedStyle(nav).display, hasKonto: sums.some(s => s.includes('👤')), hasAdmin: sums.some(s => s.includes('Administration')) };
+    const tb = document.querySelector('.topbar .user-drop summary');
+    return { disp: getComputedStyle(nav).display, hasKontoInNav: sums.some(s => s.includes('👤')),
+             hasAdmin: sums.some(s => s.includes('Administration')), topbarDropVisible: !!tb && getComputedStyle(tb).display !== 'none' };
   })()`);
-  check('Mobile: Hamburger öffnet Nav mit Gruppen', navOpen.disp === 'flex' && navOpen.hasKonto,
+  check('Mobile: Hamburger öffnet Nav mit Gruppen', navOpen.disp === 'flex' && navOpen.hasAdmin,
         JSON.stringify(navOpen));
+  check('Mobile: KEIN Benutzer-Dropdown mehr in der Nav (Topbar stattdessen)',
+        !navOpen.hasKontoInNav && navOpen.topbarDropVisible, JSON.stringify(navOpen));
   check('Mobile: Admin sieht Administration-Gruppe', navOpen.hasAdmin);
 
   // Admin-Mobile: Administration aufklappen → Unterlinks sichtbar (in Page flow)

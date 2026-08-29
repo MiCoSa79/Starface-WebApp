@@ -140,7 +140,7 @@ async function pkVerifyAndRedirect(payload) {
     });
     const j = await r.json();
     if (!r.ok || j.status !== 'ok') throw new Error(j.message || 'Anmeldung fehlgeschlagen');
-    window.location.href = '/dashboard';
+    window.location.href = '/';
 }
 async function passkeyLogin() {
     const errEl = document.getElementById('passkeyError');
@@ -216,7 +216,7 @@ if (!__pkPassword) {
                     document.getElementById('loginBtn').disabled = false;
                     return;
                 }
-                window.location.href = '/dashboard';
+                window.location.href = '/';
             } catch (err) {
                 showError('Verbindungsfehler. Bitte erneut versuchen.');
                 document.getElementById('loginBtn').disabled = false;
@@ -242,7 +242,7 @@ if (!__pkPassword) {
                     document.getElementById('otpBtn').disabled = false;
                     return;
                 }
-                window.location.href = '/dashboard';
+                window.location.href = '/';
             } catch (err) {
                 showError('Verbindungsfehler. Bitte erneut versuchen.');
                 document.getElementById('otpBtn').disabled = false;

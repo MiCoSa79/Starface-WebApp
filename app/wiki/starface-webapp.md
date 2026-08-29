@@ -1,7 +1,7 @@
 ---
 title: STARFACE WebApp — Gesamtdokumentation & Versionshistorie
 description: Die WebApp selbst: Architektur, Betrieb, Routen, Konventionen und die vollständige Versionshistorie (v0.0.1–v0.0.198, aus Git-Tags).
-updated: 2026-08-28
+updated: 2026-08-29
 ---
 
 # STARFACE WebApp
@@ -28,13 +28,13 @@ Modul-Updates (Deployment-Modul). Repo `MiCoSa79/Starface-WebApp`, Image
 - **Tests:** `tmp_tests/<name>.py` mit eigenem `check()`-Muster (kein pytest);
   Fakes/Zweige für Container-Importe; E2E via TestClient.
 
-## Routen (Stand v0.0.190)
+## Routen (Stand v1.0.56)
 
 | Bereich | Routen |
 |---|---|
-| Startseite/Login (Anlagen) | `/` (Anlagen-Übersicht = Startseite, für alle eingeloggten; nicht eingeloggt → Login), `/api/login`, `/api/2fa/verify`, `/password`, `/logout`, `/oauth/callback`; Alt `[/dashboard](/admin)` → Redirect `/` |
-| Monitoring | `/monitoring`, `/api/monitoring/status`, `/monitoring/installations/{id}` (Detail-Seite F60, mit `/api/monitoring/detail/{id}`), `/admin/monitoring` (Admin-Seite F59, mit `/api/monitoring/admin`), `/health`, `/version` |
-| Anlagen | `/` = Anlagen-Übersicht (Startseite, Suchfelder); Administration: `/admin/installations` (+ `/…/{id}`, `/edit`, `/delete`, `/test-conn`, `/oauth-start`) |
+| Startseite/Login | `/` = **Admin-Monitoring für Admins** (F64), Normaluser → Redirect `/anlagen`, nicht eingeloggt → Login), `/api/login`, `/api/2fa/verify`, `/password`, `/logout`, `/oauth/callback`; Alt `/dashboard` + `/admin` → Redirect `/` |
+| Monitoring | `/monitoring`, `/api/monitoring/status`, `/monitoring/installations/{id}` (Detail-Seite F60, mit `/api/monitoring/detail/{id}`), `/admin/monitoring` (Admin-Seite F59 = Startseite für Admins, mit `/api/monitoring/admin`), `/health`, `/version` |
+| Anlagen | `/anlagen` = Anlagen-Übersicht für alle eingeloggten (Suchfelder, Anlegen-Formular nur Admin); Administration: `/admin/installations` (+ `/…/{id}`, `/edit`, `/delete`, `/test-conn`, `/oauth-start`) |
 | Benutzer | `/benutzer` (Admin): Konten + Anlegen + Suche; `/admin/users` (+ role/delete/totp-*), `/password?uid=` (Admin-Reset) |
 | Rechteverwaltung | `/rechte` (Admin): Recht setzen + Liste; `/admin/access` |
 | Grundeinstellungen | `/grundeinstellungen` (Admin): Update-Server-Basis-URL; `/admin/settings`, Admin-Monitoring-Einstieg |
@@ -44,14 +44,16 @@ Modul-Updates (Deployment-Modul). Repo `MiCoSa79/Starface-WebApp`, Image
 | Wiki/API-Doku | `/wiki`, `/wiki/search`, `/wiki/{wiki_page}`, `/admin/api-doku`, `/sw.js` |
 | CallBlocker | `/installation/{id}/blocklist` (+ add/remove/update), `/installation/{id}/test` |
 
+**Stand 29.08. (F64, v1.0.56):** **Admin-Monitoring ist die Startseite; Anlagen-Übersicht läuft unter `/anlagen`; Benutzer-Menü wandert in die Topbar.** `/` zeigt Admins das Admin-Monitoring (`admin_monitoring.html`: Kennzahlen, Fehlerliste, Vollbild, Auto-Refresh) und leitet normale Benutzer auf `/anlagen` weiter; nicht eingeloggt → Login. Neue Route `GET /anlagen` = Anlagen-Übersicht für alle eingeloggten (Admins: Anlegen-Formular + Tabelle mit Suchfeldern + Aktionen; User: nur eigene Anlagen mit `.detail-dl`/Blocklist/Test, kein Formular; Rendering `anlagen.html` unverändert, nur URL neu). **Navigation:** das Logo steht nur noch im Seitenkopf (Topbar); die Navigationsleiste enthält die flachen Links **Anlagen** (→ `/anlagen`), **Monitoring** und das **Administration ▾**-Dropdown — **ohne Logo-Link und ohne Benutzer-Dropdown**. Stattdessen sitzen **Benutzereinstellungen + Abmelden** als Dropdown **oben rechts am Benutzernamen** (`details.user-drop` in der Topbar: „Mein Konto“ → `/konto`, „Abmelden“ → `/logout`; funktioniert auch mobil, Hamburger bleibt). Redirects vereinheitlicht: POST Anlagen-CRUD (create/update/delete/edit-not-found) + Zurück-Links (Blocklist, Bearbeiten, Admin-Monitoring, Modul-Updates) → `/anlagen`; Passwort-Rückmeldungen (`?pw_ok`/`?pw_err`) → `/anlagen?…`; Schutz-Guards zeigen weiter auf `/`; Login-JS navigiert direkt auf `/` statt über den Alt-Umweg `/dashboard`. Tests: Suite 29 Dateien grün; angepasst: `admin_aufteilung_e2e` (Startseite = Admin-Monitoring, `/anlagen`-Verträge, Redirects), `monitoring_rechte_e2e` (#7–#10 + #12 auf `/anlagen` umgestellt + Startseiten-Wächter), `konto_e2e` (Topbar-Dropdown), `wiki_e2e` (User-Redirect), `admin_filter_e2e`/`badge_e2e`/`e2e_update` (GET `/anlagen`); CDP `menu_umbau_cdp.mjs` 21/21 (Topbar-Dropdown Desktop + Mobile, kein 👤/Logo mehr in der Nav), `mobile_url_layout_cdp.mjs` 7/7.
+
 **Stand 28.08. (Grafana-Entfernung, v1.0.55):** **Grafana ist komplett raus** — Monitoring wird nativ
 in der WebApp visualisiert (Anlagen-Detail `/monitoring/installations/{id}` + Admin-Monitoring
 `/admin/monitoring`; InfluxDB bleibt Datenquelle). Entfernt: `_grafana_base()`-Helper (inkl. Env-Fallback),
-die Einstellung `grafana_base_url` aus den Grundeinstellungen, alle Grafana-Links/Buttons auf Startseite,
-`/monitoring`, `/admin/monitoring` und den Grundeinstellungen. Die `.grafana-dl`-Buttons sind durch den
-**`.detail-dl`-Detail-Link aufs eigene Monitoring** ersetzt (auch Nicht-Admins haben ihn jetzt auf der
-Startseite). Stack: `grafana`-Service (Port 8894), `grafana-data`-Volume, `GRAFANA_BASE_URL`/`GRAFANA_ADMIN_PASSWORD`
-aus `docker-compose.yml`/`.env.example` entfernt, `grafana/`-Provisioning-Ordner gelöscht
+die Einstellung `grafana_base_url` aus den Grundeinstellungen, alle Grafana-Links/Buttons auf der
+Anlagen-Seite `/anlagen` (damals Startseite), `/monitoring`, `/admin/monitoring` und den Grundeinstellungen.
+Die `.grafana-dl`-Buttons sind durch den **`.detail-dl`-Detail-Link aufs eigene Monitoring** ersetzt
+(auch Nicht-Admins haben ihn jetzt auf der Anlagen-Seite). Stack: `grafana`-Service (Port 8894),
+`grafana-data`-Volume, `GRAFANA_BASE_URL`/`GRAFANA_ADMIN_PASSWORD` aus `docker-compose.yml`/`.env.example` entfernt, `grafana/`-Provisioning-Ordner gelöscht
 (**Axel nimmt den Grafana-Container beim nächsten Stack-Neustart aus dem Stack**). Monitoring-Tabelle
 8 → 7 Spalten (`colSpan=7`), Auto-Refresh/Timer unverändert. Tests: Suite 29 Testdateien grün
 (monitoring_rechte_e2e 16, admin_monitoring 77, admin_settings 15, admin_detail 110, admin_aufteilung 30,
@@ -104,7 +106,8 @@ Quelle: `git for-each-ref refs/tags/v0.0.*` — Stichworte = Commit-Subject.
 
 | Version | Commit | Änderung |
 |---|---|---|
-| v1.0.55 | (28.08.) | feat(F63): **Grafana komplett entfernt** — Monitoring nativ (Anlagen-Detail + Admin-Monitoring; InfluxDB bleibt Datenquelle). Grundeinstellungen: nur noch Update-Server-URL (Feld `grafana_base_url` + Helper `_grafana_base`/Env-Fallback gelöscht); `.grafana-dl`-Buttons → `.detail-dl` aufs eigene Monitoring (auch Non-Admin-Startseite); compose: `grafana`-Service/Port 8894/`grafana-data`-Volume/`GRAFANA_*`-Env + `grafana/`-Provisioning gelöscht (Container-Neustart durch Axel); Monitoring-Tabelle 8→7 Spalten. Tests: Suite 29 Dateien + CDP 7/7 + 19/19 grün. |
+| v1.0.56 | (29.08.) | feat(F64): **Admin-Monitoring = Startseite, Anlagen unter `/anlagen`, Benutzer-Menü in der Topbar** — `/` rendert für Admins das Admin-Monitoring, Normaluser → Redirect `/anlagen`; neue Route `GET /anlagen` (Anlagen-Übersicht für alle, Anlegen nur Admin). Nav: Logo raus aus der Navigationsleiste (nur noch Topbar), flache Links Anlagen→`/anlagen`/Monitoring/Administration; Benutzer-Dropdown („Mein Konto“+„Abmelden“) in die Topbar rechts am Benutzernamen (`details.user-drop`). Redirects: Anlagen-CRUD + Zurück-Links → `/anlagen`, Passwort-Meldungen → `/anlagen?…`; Login-JS direkt auf `/`. Tests: Suite 29 grün, `admin_aufteilung_e2e`/`monitoring_rechte_e2e`/`konto_e2e`/`wiki_e2e`/`admin_filter_e2e`/`badge_e2e`/`e2e_update` angepasst, CDP `menu_umbau_cdp.mjs` 21/21 + `mobile_url_layout_cdp.mjs` 7/7. |
+| v1.0.55 | (28.08.) | feat(F63): **Grafana komplett entfernt** — Monitoring nativ (Anlagen-Detail + Admin-Monitoring; InfluxDB bleibt Datenquelle). Grundeinstellungen: nur noch Update-Server-URL (Feld `grafana_base_url` + Helper `_grafana_base`/Env-Fallback gelöscht); `.grafana-dl`-Buttons → `.detail-dl` aufs eigene Monitoring (auch auf der Anlagen-Seite); compose: `grafana`-Service/Port 8894/`grafana-data`-Volume/`GRAFANA_*`-Env + `grafana/`-Provisioning gelöscht (Container-Neustart durch Axel); Monitoring-Tabelle 8→7 Spalten. Tests: Suite 29 Dateien + CDP 7/7 + 19/19 grün. |
 | v1.0.54 | (28.08.) | feat(F62): **Admin-Aufteilung + Anlagen-Startseite** — Dashboard entfernt; `/` = Anlagenübersicht für alle (Admins: Anlegen-Formular + Tabelle + Aktionen; User: nur eigene Anlagen mit Grafana-/Blocklist-/Test-Aktion). Ehemalige Admin-Sektionen als eigene Seiten: `/benutzer` (Konten + Suche), `/rechte` (Rechte + Liste), `/grundeinstellungen` (Basis-Domains); Alt-Routen `/dashboard` + `/admin` → Redirect `/`; POST-Redirects zielgerichtet (Users→`/benutzer`, Access→`/rechte`, Settings→`/grundeinstellungen?set_ok=1`, OAuth/PW→`/`). Nav: Logo = Anlagen-Link, Administration-Dropdown mit Trennlinie; `admin.html`/`dashboard.html` gelöscht, CSS/JS nach `static/admin.css`/`admin.js`. Tests: `admin_aufteilung_e2e.py` (neu), `admin_filter_e2e.py` auf 4 Seiten, Suite 28 Dateien + CDP 19 Checks grün. |
 | v1.0.53 | (28.08.) | feat: **Menü-Umbau — Navigation entzerrt + „Mein Konto“ Self-Service**: base.html-Nav auf 4 Einstiege reduziert — `[Dashboard] [Monitoring] [Administration ▾]` (nur Admin: Admin, Module, Modul-Updates, API-Doku, Wiki) + `[👤 Name ▾]` (Mein Konto, Abmelden); `<details>/<summary>`-Dropdowns (Klick statt Hover, Touch-fähig), Mobile-Hamburger mit aufklappbaren Gruppen. Neue Seite `GET /konto` für alle: Profil + Sicherheit — Passwort ändern, TOTP-2FA einrichten/abschalten (QR, einmalige Backup-Codes 5-min-TTL), Passkeys verwalten; Änderungen mit Re-Auth (aktuelles Passwort). `GET /password` ohne `?uid=` → Redirect `/konto#sicherheit`; Admin-Reset (`?uid=<fremd>`) bleibt schmale 520-px-Seite. Admin-2FA-/Passkey-Wege (Support-Fall) unverändert. Tests: `konto_e2e.py` (40+), `menu_umbau_cdp.mjs` (17, Desktop+Mobile), Suite grün. |
 | v1.0.52 | (27.08.) | fix(Axel): **Modul-Tabelle prüft wieder nur bekannte + installierte Module** — v1.0.51-Experiment `raw_installed` (alle installierten Module inkl. ohne Paket) komplett zurückgenommen; erkannt: auf der Anlage waren alle Module aktuell. Es gelten wieder NUR Module, die die WebApp kennt (eigene aus `app/modules/*.sfm` + Drittanbieter aus der DB, Quelle = Modul-Verwaltung) und die auf der Anlage installiert sind — unbekannte Module erscheinen nie. Behalten aus v1.0.51: oranger Hinweis „Modul-Status nicht verfügbar“ bei `modules_error`/leerer Liste statt fälschlich „alle aktuell“; Überschrift-Abstand 12 px; NEU: `_merge_third_party` schluckt DB-Fehler nicht mehr still (Warnung ins [Monitoring]-Log). Test: Fixture bereinigt, Checks auf „unbekanntes Modul nicht in Tabelle“ + API outdated_total=3, 19/19. |
