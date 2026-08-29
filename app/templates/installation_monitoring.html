@@ -136,7 +136,7 @@
     <div class="monitor-head">
         <h2>Monitoring: {{ inst.name }}</h2>
         <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px;">
-            <a href="/monitoring" class="btn-secondary" style="text-decoration:none;">← Zurück zur Übersicht</a>
+            <a href="/monitoring" class="btn-secondary btn-back">← Zurück zur Übersicht</a>
             {% if show_dropdown %}
             <select id="inst-select" class="inst-select" aria-label="Anlage wählen" title="Andere Anlage anzeigen">
                 {% for v in visible %}

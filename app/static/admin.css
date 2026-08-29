@@ -25,6 +25,12 @@ button { padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer;
 .btn-primary { background: #e94560; color: #fff; }
 .btn-secondary { background: #333; color: #ccc; border-radius: 6px; }
 .btn-danger { background: #8b0000; color: #fff; }
+/* Link-Buttons (<a>) bekommen dieselbe Optik wie echte Buttons (F71):
+   Padding + inline-block, sonst wirken sie als nackte Textstuecke. */
+a.btn-secondary, a.btn-danger { display: inline-block; padding: 8px 16px; text-decoration: none; }
+/* Einheitlicher Zurueck-Button ueber alle Seiten (F71): Basis = btn-secondary,
+   ergaenzt um inline-block + Abstand darunter. */
+.btn-back { display: inline-block; margin-bottom: 16px; }
 .form-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
 /* URL-Eingabefelder: Desktop min. 380px breit; Mobile darf flex-basis NICHT
    als Hoehe greifen (column-Flexbox) → wird in der Media-Query ueberschrieben */

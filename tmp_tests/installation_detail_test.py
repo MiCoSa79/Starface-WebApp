@@ -161,8 +161,11 @@ with TestClient(main.app) as c:
     body = r.text
     check("Detail: 200 + Stammdaten-Karte", r.status_code == 200 and "Anlage: Testanlage A" in body
           and "Stammdaten" in body and "http://ok" in body, str(r.status_code))
-    check("Detail: Deployment-Instanz + Token-Status",
-          'Deployment-Modul-Instanz' in body and ">Deployer" in body and "Update-Token gesetzt" in body)
+    check("Stammdaten: Anlagen-Version + Deployment-Status + Token (F71)",
+          "Anlagen-Version" in body and "10.0.2.5" in body
+          and "Deployment-Modul" in body and "installiert und aktiv" in body
+          and "Update-Token" in body and "gesetzt" in body
+          and "CallBlocker-Instanz" not in body and "TelefonieMonitoring-Instanz" not in body)
     check("Detail: Modul-Status-Karte mit Deployment-Modul",
           "Modul-Status" in body and "Deployment-Modul" in body and "Aktuell" in body)
     check("Detail: Einstellungen-Spalte mit Blocklist-Button (installiert+aktiv, F70)",

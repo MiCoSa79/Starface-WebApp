@@ -27,8 +27,6 @@
         button { width: 100%; padding: 14px; background: #e94560; color: #fff; border: none;
                  border-radius: 8px; font-size: 16px; cursor: pointer; font-weight: 600; }
         button:hover { background: #c73e56; }
-        a.back { display: block; text-align: center; color: #888; text-decoration: none;
-                 margin-top: 16px; font-size: 14px; }
 
         /* ── Scrollbars an das Dark-Design anpassen (app-weit) ──── */
         ::-webkit-scrollbar { width: 10px; height: 10px; }
@@ -57,6 +55,6 @@
             <button type="submit">Bestätigen</button>
         </form>
 
-        <a class="back" href="/benutzer">Zurück zur Benutzerverwaltung</a>
+        <a href="/benutzer" class="btn-secondary btn-back" style="display:block; text-align:center;">Zurück zur Benutzerverwaltung</a>
     </div>
 {% endblock %}

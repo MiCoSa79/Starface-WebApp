@@ -83,6 +83,7 @@
         .empty { color: #666; text-align: center; padding: 24px; }
         .hint { color: #888; font-size: 13px; margin-bottom: 8px; }
         .back { display: inline-block; color: #888; text-decoration: none; margin-bottom: 16px; font-size: 14px; }
+        /* (F71: Zurueck-Links nutzen app-weit .btn-back; .back bleibt hier fuer Historik) */
     .header-wrap { position: sticky; top: 0; left: 0; right: 0;
           z-index: 30; background: #16213e; box-shadow: 0 2px 8px rgba(0,0,0,.35); }
 
@@ -98,7 +99,7 @@
 {% endblock %}
 {% block content %}
 <div class="container">
-        <a class="back" href="/anlagen">← Zurück</a>
+            <a href="/anlagen" class="btn-secondary btn-back">← Zurück</a>
         <h2>Blocklist</h2>
 
         {% if request.query_params.get('ok') %}
@@ -167,7 +168,7 @@
         {% endif %}
 
         <div style="margin-top:16px;">
-            <a href="/installation/{{ inst.id }}/test?json=1" id="testbtn" class="back">Verbindungstest</a>
+            <a href="/installation/{{ inst.id }}/test?json=1" id="testbtn" class="btn-secondary">Verbindungstest</a>
         </div>
     </div>
 

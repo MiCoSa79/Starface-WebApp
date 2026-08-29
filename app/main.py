@@ -2644,8 +2644,38 @@ async def installation_detail_page(request: Request, inst_id: int):
                     "url": f"/installation/{inst_id}/blocklist",
                     "title": "Blocklist der Anlage bearbeiten (CallBlocker-Modul)",
                 }
+    # Stammdaten (F71): Anlagen-Version (GetStats, frisch) + Deployment-Modul-Status aus
+    # demselben Modul-Status-Lauf (kein zweiter GetModuleStatus-Aufruf).
+    pbx_version = None
+    if inst.get("monitoring_instance_name"):
+        try:
+            from monitoring import _xmlrpc
+        except ImportError:
+            from app.monitoring import _xmlrpc
+        try:
+            token = _get_token(inst)
+            _raw = _xmlrpc(inst["url"], token, "GetStats",
+                           instance_name=inst.get("monitoring_instance_name"))
+            pbx_version = str(((_raw or {}).get("members") or {}).get("systemVersion") or "").strip() or None
+        except Exception:
+            pbx_version = None
+    dep_state = None
+    if mod_state and mod_state.get("list"):
+        try:
+            from monitoring import _module_expectations
+        except ImportError:
+            from app.monitoring import _module_expectations
+        dep_name = next((k for k in _module_expectations() if "deployment" in k.lower()), None)
+        dep_it = next((x for x in mod_state["list"] if x.get("name") == dep_name), None) if dep_name else None
+        if dep_it is None or dep_it.get("status") == "missing":
+            dep_state = "not-installed"
+        elif not any(i.get("active") for i in (dep_it.get("instances") or [])):
+            dep_state = "no-active-instance"
+        else:
+            dep_state = "ok"
     return TEMPLATES.TemplateResponse("installation_detail.html",
         {"request": request, "user": user, "inst": inst, "mod_state": mod_state,
+         "pbx_version": pbx_version, "dep_state": dep_state,
          "active": "anlagen",
          "version": os.environ.get("APP_VERSION", "dev")})
 

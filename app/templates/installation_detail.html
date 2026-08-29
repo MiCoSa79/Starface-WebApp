@@ -14,8 +14,8 @@
 {% endblock %}
 {% block content %}
 <div class="container">
-    <p style="margin:0 0 10px;">
-        <a href="/anlagen" class="btn-secondary" style="text-decoration:none;">← Zurück zur Anlagen-Übersicht</a>
+    <p style="margin:0;">
+        <a href="/anlagen" class="btn-secondary btn-back">← Zurück zur Anlagen-Übersicht</a>
     </p>
     <h2 style="margin:0 0 14px;">Anlage: {{ inst.name }}</h2>
 
@@ -25,9 +25,22 @@
             <dt>Name</dt><dd>{{ inst.name }}</dd>
             <dt>URL</dt><dd>{{ inst.url }}</dd>
             <dt>API-Version</dt><dd>{% if inst.is_starface10 %}STARFACE 10.x (OAuth){% else %}STARFACE ≤ 9.x (Legacy){% endif %}</dd>
-            <dt>CallBlocker-Instanz</dt><dd>{{ inst.module_instance_name or '—' }}</dd>
-            <dt>TelefonieMonitoring-Instanz</dt><dd>{{ inst.monitoring_instance_name or '—' }}</dd>
-            <dt>Deployment-Modul-Instanz</dt><dd>{{ inst.deployer_instance_name or '—' }}{% if inst.deployer_instance_name %} {% if inst.deployer_token %}<span class="badge badge-green" style="margin-left:8px;">Update-Token gesetzt</span>{% else %}<span class="badge badge-warn" style="margin-left:8px;">kein Update-Token</span>{% endif %}{% endif %}</dd>
+            <dt>Anlagen-Version</dt><dd>{{ pbx_version or '—' }}</dd>
+            <dt>Deployment-Modul</dt>
+            <dd>
+            {% if dep_state == 'ok' %}<span class="badge badge-green"
+               title="Deployment-Modul installiert und mindestens eine Instanz aktiv.">installiert und aktiv</span>
+            {% elif dep_state == 'not-installed' %}<span class="badge badge-red"
+               title="Deployment-Modul ist auf der Anlage nicht installiert.">nicht installiert</span>
+            {% elif dep_state == 'no-active-instance' %}<span class="badge badge-warn"
+               title="Deployment-Modul installiert, aber keine Instanz aktiv.">keine aktive Instanz</span>
+            {% else %}{% if m and m.error and m.error.category == 'config' %}<span class="badge badge-warn"
+               title="{{ m.error.msg }}">Konfiguration nötig</span>
+            {% else %}<span class="badge badge-red"
+               title="{{ m.error.msg if m and m.error else '' }}">nicht erreichbar</span>{% endif %}{% endif %}
+            </dd>
+            <dt>Update-Token</dt>
+            <dd>{% if inst.deployer_token %}<span class="badge badge-green">gesetzt</span>{% else %}<span class="badge badge-warn">nicht gesetzt</span>{% endif %}</dd>
         </dl>
     </div>
 
@@ -62,10 +75,9 @@
                 </td>
                 <td>{% if it.status == 'missing' %}— → v{{ it.version_soll }}{% elif it.status == 'outdated' %}v{{ it.version_ist }} → v{{ it.version_soll }}{% else %}v{{ it.version_ist }}{% endif %}</td>
                 <td>{% if it.instances %}{% for i in it.instances %}{{ i.name }} ({{ 'aktiv' if i.active else 'deaktiviert' }}){% if not loop.last %}, {% endif %}{% endfor %}{% else %}—{% endif %}</td>
-                <td>
+                <td style="text-align:right; white-space:nowrap;">
                     {% if it.settings %}
-                    <a href="{{ it.settings.url }}" class="btn-secondary" title="{{ it.settings.title }}"
-                       style="text-decoration:none; padding:5px 10px; display:inline-block; white-space:nowrap;">📞 {{ it.settings.label }}</a>
+                    <a href="{{ it.settings.url }}" class="btn-secondary" title="{{ it.settings.title }}">📞 {{ it.settings.label }}</a>
                     {% else %}—{% endif %}
                 </td>
             </tr>
