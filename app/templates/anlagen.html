@@ -84,6 +84,10 @@
                 <td style="text-align:right; white-space:nowrap;">
                     {% if user.is_admin %}
                     <div class="actions-inline">
+                    <a class="detail-dl" title="Detail-Monitoring der Anlage {{ inst.name }} öffnen"
+                       href="/monitoring/installations/{{ inst.id }}">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.8"/></svg>
+                    </a>
                     <a href="/installation/{{ inst.id }}" class="btn-secondary"
                        title="Alle Informationen zur Anlage anzeigen">Zur Anlage</a>
                     <button onclick="testConn({{ inst.id }}, '{{ inst.name }}', true)"
@@ -102,12 +106,12 @@
                     </div>
                     {% else %}
                     <div class="actions-inline">
-                    <a href="/installation/{{ inst.id }}" class="btn-secondary"
-                       title="Alle Informationen zur Anlage anzeigen">Zur Anlage</a>
                     <a class="detail-dl" title="Detail-Monitoring der Anlage {{ inst.name }} öffnen"
                        href="/monitoring/installations/{{ inst.id }}">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.8"/></svg>
                     </a>
+                    <a href="/installation/{{ inst.id }}" class="btn-secondary"
+                       title="Alle Informationen zur Anlage anzeigen">Zur Anlage</a>
                     <button onclick="testConn({{ inst.id }}, '{{ inst.name }}', false)"
                             class="btn-secondary"
                             title="Verbindung testen (STARFACE-WebApp → Anlage)">

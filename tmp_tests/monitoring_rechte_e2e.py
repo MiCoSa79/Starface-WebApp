@@ -173,6 +173,8 @@ body = r.text
 assert "Testanlage A" in body and "Testanlage B" not in body, "Bob sieht auf /anlagen die falsche Anlagenmenge"
 assert body.count('class="detail-dl"') == 1, "Bob: genau 1 Detail-Link erwartet"
 assert 'href="/monitoring/installations/1"' in body, "Detail-Link-Ziel (eigenes Monitoring) fehlt"
+assert body.index("/monitoring/installations/1") < body.index('href="/installation/1"'), \
+    "Auge-Link muss VOR dem Zur-Anlage-Button stehen (F69)"
 assert "grafana" not in body.lower(), "Grafana-Rest auf Anlagen-Seite (v1.0.55)"
 assert "Anlage hinzufügen" not in body, "Bob darf kein Anlegen-Formular sehen"
 assert body.count("⚡ Test") == 1, "Bob: genau 1 Test-Button (User-Route) erwartet"

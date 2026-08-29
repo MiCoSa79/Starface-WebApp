@@ -181,6 +181,9 @@ with TestClient(main.app) as c:
     body = r.text
     check("Anlagen-Übersicht: „Zur Anlage“ statt Blocklist-Button",
           "Zur Anlage" in body and "/installation/1" in body and "/blocklist" not in body)
+    check("Tabelle: Auge-Link (Detail-Monitoring) VOR „Zur Anlage“ (F69)",
+          "Detail-Monitoring der Anlage" in body
+          and body.index("/monitoring/installations/1") < body.index('href="/installation/1"'))
 
     # Admin-Test-Button-Endpunkt (test-conn) liefert ebenfalls den Deployment-Check
     r = c.get("/admin/installations/1/test-conn")
@@ -189,14 +192,14 @@ with TestClient(main.app) as c:
           d.get("ok") is True and "Deployment-Modul" in d.get("message", ""),
           json.dumps(d, ensure_ascii=False))
 
-    # F68: Edit-Seite — Zurück-Button oben + Auge-Button zur Monitoring-Detailseite
+    # F68/F69: Edit-Seite — Zurück-Button oben; das Auge wandert in die Tabellen-Zeile (F69)
     r = c.get("/admin/installations/1/edit")
     body = r.text
     check("Edit-Seite: 200 + Zurück-Button oben",
           r.status_code == 200 and "Zurück zur Anlagen-Übersicht" in body
           and 'href="/anlagen"' in body)
-    check("Edit-Seite: Auge-Button zur Monitoring-Detailseite",
-          f"/monitoring/installations/1" in body and "Detail-Monitoring der Anlage" in body)
+    check("Edit-Seite: KEIN Auge-Link zur Monitoring-Detailseite (F69)",
+          f"/monitoring/installations/1" not in body)
     # F68: einheitliche Button-Optik in der Tabellen-Zeile (keine Inline-Style-Reste)
     r = c.get("/anlagen")
     body = r.text
