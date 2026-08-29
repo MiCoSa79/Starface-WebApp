@@ -139,8 +139,10 @@ function testConn(instId, name, adminRoute) {
             const wrap = document.querySelector('.tbl-wrap[data-wrap="' + btn.dataset.collapse + '"]');
             if (!wrap) return;
             const key = 'sf.admin.collapse.' + btn.dataset.collapse;
-            let collapsed = true;  // Standard: eingeklappt; nur explizites Aufklappen (='1') hält
-            try { collapsed = localStorage.getItem(key) !== '1'; } catch (e) {}
+            // F66/v1.0.59: Standard = AUFGEKLAPPT (war früher eingeklappt, als alles
+            // auf einer Seite war). Nur explizites Zuklappen (='0') hält den Zustand.
+            let collapsed = false;
+            try { collapsed = localStorage.getItem(key) === '0'; } catch (e) {}
             if (collapsed) wrap.classList.add('collapsed');
             btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
             btn.addEventListener('click', () => {
