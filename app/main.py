@@ -206,6 +206,11 @@ def init_db():
             key TEXT PRIMARY KEY,
             value TEXT
         );
+        CREATE TABLE IF NOT EXISTS module_default_overrides (
+            installation_id INTEGER NOT NULL,
+            module_name TEXT NOT NULL,
+            PRIMARY KEY (installation_id, module_name)
+        );
     """)
     # Migration (v0.0.34+): bestehende DBs um Modul-Versionierungs-Spalten erweitern
     cols = [r[1] for r in conn.execute("PRAGMA table_info(modules)").fetchall()]
@@ -2086,16 +2091,27 @@ async def admin_updates_push_module(request: Request):
     return _modul_redirect(msg, module_name)
 
 
-def _fehlende_redirect(msg: str) -> RedirectResponse:
-    """F76/2: Redirect zurück auf die Fehlende-Module-Seite mit Meldung."""
-    return RedirectResponse("/admin/updates/fehlende?msg=" + quote(msg),
+def _standard_redirect(msg: str) -> RedirectResponse:
+    """F76/2+3: Redirect zurück auf die Standard-Module-Seite mit Meldung."""
+    return RedirectResponse("/admin/updates/standard?msg=" + quote(msg),
                             status_code=303)
 
 
-def _standard_module_names(conn) -> list:
-    """Namen aller als Standard markierten Module (modules.is_standard=1)."""
-    return [r[0] for r in conn.execute(
+def _standard_module_names(conn, inst_id=None) -> list:
+    """Namen aller als Standard markierten Module (modules.is_standard=1).
+
+    Mit inst_id: abzüglich der Anlagen-Ausnahmen (module_default_overrides) —
+    ein Standard-Modul mit Ausnahme gilt auf DIESER Anlage nicht als Pflicht
+    und taucht weder in der Seite noch im Server-Fallback auf.
+    """
+    names = [r[0] for r in conn.execute(
         "SELECT name FROM modules WHERE is_standard = 1").fetchall()]
+    if inst_id is not None:
+        ex = {r[0] for r in conn.execute(
+            "SELECT module_name FROM module_default_overrides "
+            "WHERE installation_id = ?", (inst_id,)).fetchall()}
+        names = [n for n in names if n not in ex]
+    return names
 
 
 def _deployment_installed(st: dict, modules: dict) -> bool:
@@ -2109,12 +2125,19 @@ def _deployment_installed(st: dict, modules: dict) -> bool:
 
 
 @app.get("/admin/updates/fehlende")
-async def admin_updates_fehlende_page(request: Request):
-    """F76/2: „Fehlende Module“ — dritter Punkt unter Modul-Updates.
+async def admin_updates_fehlende_alt(request: Request):
+    """F76/3: alte URL („Fehlende Module“) → neue „Standard-Module“-Seite."""
+    return RedirectResponse("/admin/updates/standard", status_code=303)
+
+
+@app.get("/admin/updates/standard")
+async def admin_updates_standard_page(request: Request):
+    """F76/2+3: „Standard-Module“ — dritter Punkt unter Modul-Updates.
 
     Für jede Anlage (mit Monitoring-Instanz) werden die als Standard
-    markierten Module (modules.is_standard=1, nur wenn noch im Sortiment)
-    geprüft: fehlend (nicht installiert) ODER nicht aktuell → Zeile.
+    markierten Module (modules.is_standard=1, nur wenn noch im Sortiment,
+    abzüglich Anlagen-Ausnahmen aus module_default_overrides) geprüft:
+    fehlend (nicht installiert) ODER nicht aktuell → Zeile.
     Gruppiert nach Anlage; pro Gruppe eine Anlagen-Checkbox (wählt alle
     Module der Anlage) und ein Hinweis, wenn das Deployment-Modul fehlt.
     """
@@ -2124,6 +2147,9 @@ async def admin_updates_fehlende_page(request: Request):
     conn = _db()
     installations = conn.execute("SELECT * FROM installations ORDER BY name").fetchall()
     standard_names = _standard_module_names(conn)
+    ovr: dict = {}
+    for r in conn.execute("SELECT installation_id, module_name FROM module_default_overrides").fetchall():
+        ovr.setdefault(r[0], set()).add(r[1])
     conn.close()
     try:
         from monitoring import _module_expectations, _collect_module_status
@@ -2131,10 +2157,14 @@ async def admin_updates_fehlende_page(request: Request):
         from app.monitoring import _module_expectations, _collect_module_status
     modules = _module_expectations()
     # Standard-Module, die es im Sortiment noch gibt (gelöschte Datei → ausblenden)
-    wanted = [n for n in standard_names if n in modules]
+    group_targets = [n for n in standard_names if n in modules]
     groups, errors = [], {}
     for inst in installations:
-        if not inst["monitoring_instance_name"] or not wanted:
+        if not inst["monitoring_instance_name"] or not group_targets:
+            continue
+        # Ausnahmen je Anlage: überrridete Standard-Module sind hier nicht Pflicht
+        wanted = [n for n in group_targets if n not in ovr.get(inst["id"], set())]
+        if not wanted:
             continue
         try:
             token = _get_token(inst)
@@ -2160,23 +2190,25 @@ async def admin_updates_fehlende_page(request: Request):
                                            and bool(inst["deployer_instance_name"])),
                        "has_deployer": bool(inst["deployer_instance_name"])})
     return TEMPLATES.TemplateResponse(
-        "admin_updates_fehlende.html",
+        "admin_updates_standard.html",
         {"request": request, "user": user, "groups": groups, "errors": errors,
          "any_standard": bool(standard_names),
          "total": sum(len(g["rows"]) for g in groups),
-         "active": "updates-fehlende",
+         "active": "updates-standard",
          "version": os.environ.get("APP_VERSION", "dev"),
          "msg": request.query_params.get("msg", "")})
 
 
-@app.post("/admin/updates/fehlende/push")
-async def admin_updates_fehlende_push(request: Request):
-    """F76/2: Sammel-Update/-Install für die Fehlende-Module-Seite.
+@app.post("/admin/updates/standard/push")
+async def admin_updates_standard_push(request: Request):
+    """F76/2+3: Sammel-Update/-Install für die Standard-Module-Seite.
 
     items[] = "inst_id:module:install|update" (Paare). action=all: alle
     angehakten Paare (Client-JS hakt erst alle an); ist die Auswahl leer,
-    berechnet der Server die komplette Liste frisch nach. Anlagen ohne
-    Deployment-Modul-Konfiguration werden übersprungen (Meldung, kein RPC).
+    berechnet der Server die komplette Liste frisch nach — dabei werden die
+    Anlagen-Ausnahmen (module_default_overrides) NICHT mit angestoßen.
+    Anlagen ohne Deployment-Modul-Konfiguration werden übersprungen
+    (Meldung, kein RPC).
     """
     user = verify_session(request.cookies.get(SESSION_COOKIE))
     if not user or not user["is_admin"]:
@@ -2191,6 +2223,9 @@ async def admin_updates_fehlende_push(request: Request):
     conn = _db()
     insts = {r["id"]: r for r in conn.execute("SELECT * FROM installations").fetchall()}
     standard_names = _standard_module_names(conn)
+    ovr: dict = {}
+    for r in conn.execute("SELECT installation_id, module_name FROM module_default_overrides").fetchall():
+        ovr.setdefault(r[0], set()).add(r[1])
     conn.close()
     try:
         from monitoring import _module_expectations, _collect_module_status
@@ -2202,20 +2237,22 @@ async def admin_updates_fehlende_push(request: Request):
         for inst in insts.values():
             if not inst["monitoring_instance_name"]:
                 continue
+            wanted = [n for n in standard_names if n in modules
+                      and n not in ovr.get(inst["id"], set())]
+            if not wanted:
+                continue
             try:
                 st = _collect_module_status(inst, _get_token(inst), inst["name"])
             except Exception:
                 continue  # nicht erreichbar → ohne diese Anlage
-            for name in standard_names:
-                if name not in modules:
-                    continue
+            for name in wanted:
                 it = next((x for x in (st.get("list") or [])
                            if x.get("name") == name), None)
                 missing = it is None or not bool(it.get("installed"))
                 if missing or (not missing and it.get("status") != "ok"):
                     pairs.append((inst["id"], name, missing))
     if not pairs:
-        return _fehlende_redirect("Keine Module ausgewählt.")
+        return _standard_redirect("Keine Module ausgewählt.")
     ok_count, errs, seen = 0, [], set()
     for iid, name, is_install in pairs:
         inst = insts.get(iid)
@@ -2240,7 +2277,7 @@ async def admin_updates_fehlende_push(request: Request):
     if errs:
         parts.append("Fehler: " + "; ".join(errs))
     msg = " ".join(parts) if parts else "Keine Aktion ausgeführt."
-    return _fehlende_redirect(msg)
+    return _standard_redirect(msg)
 
 
 @app.get("/admin/modules/{module_id}/download")
@@ -2955,8 +2992,19 @@ async def installation_detail_page(request: Request, inst_id: int):
         except Exception as e:
             mod_state = {"list": None, "by_name": {},
                          "error": {"category": "fetch", "msg": str(e)}}
+    # Standard-Module (F76/3): je Modul anzeigen, ob es ein Standard-Modul ist
+    # und ob für DIESE Anlage eine Ausnahme (Override) besteht.
+    conn = _db()
+    _std_all = {r[0] for r in conn.execute(
+        "SELECT name FROM modules WHERE is_standard = 1").fetchall()}
+    _ovr = {r[0] for r in conn.execute(
+        "SELECT module_name FROM module_default_overrides "
+        "WHERE installation_id = ?", (inst_id,)).fetchall()}
+    conn.close()
     # Modul-Einstellungen (F70): eigene Tabellen-Spalte pro Modul — nur wenn installiert UND Instanz aktiv.
     for _ent in (mod_state.get("list") or []):
+        _ent["is_standard"] = _ent.get("name") in _std_all
+        _ent["override"] = _ent.get("name") in _ovr
         if _ent.get("name") == "CallBlocker":
             _act = [i for i in (_ent.get("instances") or []) if i.get("active")]
             if _ent.get("status") != "missing" and _act:
@@ -2999,6 +3047,48 @@ async def installation_detail_page(request: Request, inst_id: int):
          "pbx_version": pbx_version, "dep_state": dep_state,
          "active": "anlagen",
          "version": os.environ.get("APP_VERSION", "dev")})
+
+
+@app.post("/installation/{inst_id}/module/standard")
+async def installation_module_standard(request: Request, inst_id: int):
+    """F76/3: Ausnahme (Override) für ein Standard-Modul auf dieser Anlage setzen/entfernen.
+
+    active=true  → Modul gilt auf dieser Anlage nicht zwingend (Ausnahme)
+    active=false → Ausnahme entfernen, Standard-Pflicht gilt wieder.
+    Nur Administratoren; nur echte Standard-Module; Anlage muss existieren.
+    """
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user or not user["is_admin"]:
+        return RedirectResponse("/")
+    data = await request.json()
+    module = str(data.get("module", ""))
+    active = bool(data.get("active", False))
+    if not module:
+        return JSONResponse({"ok": False, "error": "module fehlt"}, status_code=400)
+    conn = _db()
+    try:
+        inst = conn.execute("SELECT id FROM installations WHERE id=?",
+                            (inst_id,)).fetchone()
+        if not inst:
+            return JSONResponse({"ok": False, "error": "Anlage unbekannt"},
+                                status_code=404)
+        std = conn.execute("SELECT 1 FROM modules WHERE name=? AND is_standard=1",
+                           (module,)).fetchone()
+        if not std:
+            return JSONResponse({"ok": False, "error": "kein Standard-Modul"},
+                                status_code=400)
+        if active:
+            conn.execute("INSERT OR IGNORE INTO module_default_overrides "
+                         "(installation_id, module_name) VALUES (?,?)",
+                         (inst_id, module))
+        else:
+            conn.execute("DELETE FROM module_default_overrides "
+                         "WHERE installation_id=? AND module_name=?",
+                         (inst_id, module))
+        conn.commit()
+    finally:
+        conn.close()
+    return JSONResponse({"ok": True})
 
 
 @app.get("/installation/{inst_id}/test")

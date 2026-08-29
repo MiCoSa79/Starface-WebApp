@@ -56,7 +56,7 @@
         {% else %}
         <div class="tbl-wrap">
         <table id="tbl-mod">
-            <tr><th>Modul</th><th>Status</th><th>Version (IST → SOLL)</th><th>Instanzen</th><th>Einstellungen</th></tr>
+            <tr><th>Modul</th><th>Status</th><th>Version (IST → SOLL)</th><th>Instanzen</th><th>Einstellungen</th><th style="width:1%; text-align:right">Standard</th></tr>
             {% for it in m.list %}
             <tr>
                 <td>{{ it.name }}{% if it.source == 'third_party' %}<span style="display:inline-block;background:#3a3f5c;color:#c7cbe0;border-radius:4px;padding:1px 7px;font-size:11px;margin-left:6px;vertical-align:middle;">Drittanbieter</span>{% endif %}</td>
@@ -80,6 +80,13 @@
                     <a href="{{ it.settings.url }}" class="btn-secondary" title="{{ it.settings.title }}">📞 {{ it.settings.label }}</a>
                     {% else %}—{% endif %}
                 </td>
+                <td style="text-align:right; white-space:nowrap;">
+                    {% if it.is_standard %}
+                    <span style="display:inline-block;background:#2e7d32;color:#fff;border-radius:4px;padding:1px 7px;font-size:11px;vertical-align:middle;" title="Standard-Modul: muss auf jeder Anlage installiert und aktuell sein.">Standard</span>
+                    {% if it.override %}<span style="display:inline-block;background:#b26a00;color:#fff;border-radius:4px;padding:1px 7px;font-size:11px;margin-left:4px;vertical-align:middle;" title="Ausnahme für diese Anlage: muss hier nicht zwingend installiert sein — wird von der Standard-Module-Seite ausgenommen.">Ausnahme</span>{% endif %}
+                    <button type="button" class="btn-mini" data-module="{{ it.name }}" data-active="{{ '1' if it.override else '0' }}" onclick="toggleStdOverride({{ inst.id }}, this)" title="{{ 'Ausnahme aufheben — Standard-Pflicht gilt für diese Anlage wieder' if it.override else 'Ausnahme setzen — das Modul muss auf dieser Anlage nicht zwingend installiert sein' }}">{{ 'Ausnahme aufheben' if it.override else 'Ausnahme setzen' }}</button>
+                    {% else %}—{% endif %}
+                </td>
             </tr>
             {% endfor %}
         </table>
@@ -87,6 +94,20 @@
         {% endif %}
     </div>
 </div>
+<script>
+function toggleStdOverride(instId, btn) {
+    var module = btn.dataset.module;
+    var active = btn.dataset.active !== '1';
+    fetch('/installation/' + instId + '/module/standard', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({module: module, active: active})
+    }).then(function (r) { return r.json(); }).then(function (j) {
+        if (j && j.ok) { location.reload(); }
+        else { alert('Standard-Ausnahme: ' + (j && j.error ? j.error : 'Fehler')); }
+    }).catch(function () { alert('Standard-Ausnahme: konnte nicht gespeichert werden.'); });
+}
+</script>
 {% endblock %}
 {% block scripts %}
     <script src="/static/admin.js?v={{ version }}" defer></script>
