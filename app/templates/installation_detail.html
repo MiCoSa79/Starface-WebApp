@@ -104,8 +104,17 @@
                 <td>{% if it.status == 'missing' %}— → v{{ it.version_soll }}{% elif it.status == 'outdated' %}v{{ it.version_ist }} → v{{ it.version_soll }}{% else %}v{{ it.version_ist }}{% endif %}</td>
                 <td>{% if it.instances %}{% for i in it.instances %}{{ i.name }} ({{ 'aktiv' if i.active else 'deaktiviert' }}){% if not loop.last %}, {% endif %}{% endfor %}{% else %}—{% endif %}{% if it.status == 'ok' and it.instances|selectattr('active')|list|length == 0 and dep_can_create %}<button type="button" class="btn-secondary btn-mini inst-create" data-module="{{ it.name }}" data-field="{{ it.instance_field }}" onclick="openInstDialog({{ inst.id }}, this)" title="Neue Instanz des Moduls „{{ it.name }}“ auf dieser Anlage anlegen.">Instanz anlegen</button>{% elif it.status == 'ok' and it.instances|selectattr('active')|list|length == 0 %}<span class="mod-hint" title="Das Deployment-Modul der Anlage ist älter als v9 — der RPC CreateInstance (Instanz anlegen) ist erst ab v9 verfügbar. Bitte zuerst das Deployment-Modul aktualisieren.">— DM v9 nötig</span>{% endif %}</td>
                 <td style="text-align:right; white-space:nowrap;">
-                    {% if it.settings %}
-                    <a href="{{ it.settings.url }}" class="btn-secondary" title="{{ it.settings.title }}">📞 {{ it.settings.label }}</a>
+                    {% if it.status == 'outdated' or it.settings %}
+                    <span style="display:inline-flex; gap:6px; align-items:center;">
+                        {% if it.status == 'outdated' %}
+                        <button type="button" class="btn-secondary btn-mini" data-module="{{ it.name }}"
+                                onclick="updateModuleInst({{ inst.id }}, this)"
+                                title="Modul „{{ it.name }}“ (v{{ it.version_ist }}) auf v{{ it.version_soll }} aktualisieren. Stößt das Update über das Deployment-Modul der Anlage an.">⬆ Aktualisieren</button>
+                        {% endif %}
+                        {% if it.settings %}
+                        <a href="{{ it.settings.url }}" class="btn-secondary" title="{{ it.settings.title }}">📞 {{ it.settings.label }}</a>
+                        {% endif %}
+                    </span>
                     {% else %}—{% endif %}
                 </td>
                 <td style="text-align:right; white-space:nowrap;">
@@ -179,8 +188,35 @@ function showInstMsg() {
         if (!m) { return; }
         sessionStorage.removeItem('inst_msg');
         var el = document.getElementById('inst-feedback');
-        if (el) { el.textContent = m; el.style.display = 'block'; }
+        if (!el) { return; }
+        var err = false, text = m;
+        if (m.charAt(0) === '{') {
+            try { var o = JSON.parse(m); text = o.t || text; err = !!o.e; } catch (x) {}
+        }
+        el.textContent = text;
+        el.className = err ? 'msg err' : 'msg ok';
+        el.style.display = 'block';
     } catch (e) {}
+}
+function updateModuleInst(instId, btn) {
+    var moduleName = btn.dataset.module;
+    fetch('/installation/' + instId + '/module/update', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({module: moduleName})
+    }).then(function (r) { return r.json(); }).then(function (j) {
+        var msg = (j && j.msg) ? j.msg : ((j && j.error) ? j.error : 'Update angestoßen.');
+        var ok = !!(j && j.ok);
+        try { sessionStorage.setItem('inst_msg', JSON.stringify({t: msg, e: !ok})); } catch (x) {}
+        location.reload();
+    }).catch(function () {
+        try {
+            sessionStorage.setItem('inst_msg', JSON.stringify({
+                t: 'Update konnte nicht angestoßen werden (Verbindungsfehler).', e: true
+            }));
+        } catch (x) {}
+        location.reload();
+    });
 }
 showInstMsg();
 function toggleStdOverride(instId, btn) {

@@ -3156,6 +3156,47 @@ async def installation_instance_create(request: Request, inst_id: int):
                          "response": res.get("response", "")})
 
 
+@app.post("/installation/{inst_id}/module/update")
+async def installation_module_update(request: Request, inst_id: int):
+    """F83: Modul-Update direkt von der Anlagen-Detailseite anstoßen (Admin).
+
+    JSON {module}: löst über _push_module (Deployment-Modul-RPC UpdateFromUrl,
+    signierte URL) ein Aktualisieren aus. Modulname wird gegen die
+    _module_expectations geprüft; Dateiname/Version kommen ausschließlich
+    serverseitig daher (nie aus dem Request).
+    """
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user or not user["is_admin"]:
+        return JSONResponse({"ok": False, "msg": "Keine Rechte."}, status_code=403)
+    try:
+        data = await request.json()
+    except Exception:
+        data = {}
+    module = str(data.get("module", "")).strip()
+    if not module:
+        return JSONResponse({"ok": False, "msg": "Modul fehlt."}, status_code=400)
+    conn = _db()
+    inst = conn.execute("SELECT * FROM installations WHERE id=?", (inst_id,)).fetchone()
+    conn.close()
+    if not inst:
+        return JSONResponse({"ok": False, "msg": "Anlage unbekannt."}, status_code=404)
+    try:
+        from monitoring import _module_expectations
+    except ImportError:
+        from app.monitoring import _module_expectations
+    exp = (_module_expectations() or {}).get(module) or {}
+    version = _norm_version(exp.get("version"))
+    if version is None:
+        return JSONResponse({"ok": False, "msg": "Modul nicht im Update-Server bekannt."},
+                            status_code=400)
+    filename = exp.get("filename") or f"{module.lower()}.sfm"
+    try:
+        status, msg = _push_module(inst, module, filename, str(version))
+    except Exception as e:  # OAuth/Verbindung defekt o. ä.
+        return JSONResponse({"ok": False, "msg": str(e)})
+    return JSONResponse({"ok": status == "ok", "msg": msg}, status_code=200)
+
+
 @app.get("/installation/{inst_id}/test")
 async def installation_test(request: Request, inst_id: int):
     user = verify_session(request.cookies.get(SESSION_COOKIE))

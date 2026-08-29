@@ -90,6 +90,15 @@ INSTALLED_OK_DM8 = json.dumps([
     {"id": "c", "name": "Deployment-Modul", "version": 8, "vendor": "MiCoSa79",
      "instances": [{"name": "Deployer", "disabled": False}]},
 ])
+# F83: CallBlocker ist veraltet (v27 < SOLL 28) -> Update verfügbar -> Aktualisieren-Button
+INSTALLED_OUTDATED = json.dumps([
+    {"id": "a", "name": "CallBlocker", "version": 27, "vendor": "MiCoSa79",
+     "instances": [{"name": "CallBlocker", "disabled": False}]},
+    {"id": "b", "name": "TelefonieMonitoring", "version": 5, "vendor": "MiCoSa79",
+     "instances": [{"name": "TelefonieMonitoring", "disabled": False}]},
+    {"id": "c", "name": "Deployment-Modul", "version": 9, "vendor": "MiCoSa79",
+     "instances": [{"name": "Deployer", "disabled": False}]},
+])
 NO_DEPLOY = json.dumps([
     {"name": "CallBlocker", "version": 28, "vendor": "MiCoSa79", "instances": []},
     {"name": "TelefonieMonitoring", "version": 5, "vendor": "MiCoSa79",
@@ -121,6 +130,10 @@ def fake_xmlrpc(url, token, method, params=None, instance_name=None):
             txt = "OK: Instanz angelegt und aktiviert"
         return {"raw": f'<?xml version="1.0"?><methodResponse><params><param><value><struct><member><name>response</name><value><string>{txt}</string></value></member></struct></value></param></params></methodResponse>',
                 "values": [txt], "members": {"response": txt}}
+    if method == "UpdateFromUrl":
+        _CALLS.append({"method": method, "params": dict(params or {}),
+                       "instance_name": instance_name, "url": url})
+        return {"raw": "<methodResponse>ok</methodResponse>", "values": ["imported"]}
     raise AssertionError(method)
 
 
@@ -129,6 +142,9 @@ monitoring.MODULES_DIR = MODDIR
 monitoring._EXPECT_CACHE["sig"], monitoring._EXPECT_CACHE["data"] = None, {}
 import module_updates  # noqa: E402
 module_updates._xmlrpc = fake_xmlrpc  # from-Import-Kopie separat mocken!
+# F83: Update-Kanal für signierte Update-URLs (Env live von _module_update_base gelesen)
+os.environ["MODULE_UPDATE_BASE_URL"] = "https://modulupdates.example"
+os.environ["UPDATE_SIGNING_SECRET"] = "f83-secret"
 main._get_token = lambda inst: "tok123"  # OAuth-Erwerb im Test überspringen
 
 # ── 1. _deployment_modul_status (Unit) ───────────────────────────────────
@@ -335,6 +351,57 @@ with TestClient(main.app) as c:
     check("F82: DM v9 (zurückgeschaltet) -> inst-create-Button wieder da",
           "inst-create" in r.text and "DM v9 nötig" not in r.text,
           "Umschalt-Mechanik defekt")
+    _FAKE_INSTALLED = INSTALLED_OK
+
+    # ── F83: Modul-Aktualisierung direkt von der Detailseite ──
+    r = c.get("/installation/1")
+    body_ok = r.text
+    check("F83: aktuell (ok) -> KEIN Aktualisieren-Button",
+         "Aktualisieren" not in body_ok, "Button trotz aktueller Version?")
+    _FAKE_INSTALLED = INSTALLED_OUTDATED
+    r = c.get("/installation/1")
+    body_u = r.text
+    check("F83: outdated-Zeile -> Aktualisieren-Button",
+         "⬆ Aktualisieren" in body_u and "updateModuleInst(1, this)" in body_u
+         and 'data-module="CallBlocker"' in body_u,
+         "Button fehlt in der outdated-Zeile?")
+    _CALLS.clear()
+    r = c.post("/installation/1/module/update", json={"module": "CallBlocker"})
+    _j = None
+    try:
+       _j = r.json()
+    except Exception:
+       _j = {"raw": r.text[:200]}
+    check("F83: POST ok + UpdateFromUrl-RPC (Deployer-Instanz)",
+         r.status_code == 200 and (_j or {}).get("ok") is True
+         and any(x.get("method") == "UpdateFromUrl"
+                 and "CallBlocker" in str(x.get("params"))
+                 for x in _CALLS),
+         json.dumps({"st": r.status_code, "j": _j,
+                     "calls": [x.get("method") for x in _CALLS[-3:]]},
+                    ensure_ascii=False))
+    r = c.post("/installation/1/module/update", json={"module": "   "})
+    check("F83: leerer Modulname -> 400", r.status_code == 400)
+    _FAKE_INSTALLED = INSTALLED_OK
+    c.cookies.clear()
+    r = c.post("/installation/1/module/update", json={"module": "CallBlocker"})
+    check("F83: ohne Login -> 403", r.status_code == 403)
+    login(c, "admin", "pw123")
+    # Anlage kurz auf unerreichbare URL schalten (passiert live bei Netz-/OAuth-Fehlern)
+    _db2 = main._db()
+    _db2.execute("UPDATE installations SET url='http://net' WHERE id=1")
+    _db2.commit()
+    _db2.close()
+    r = c.post("/installation/1/module/update", json={"module": "CallBlocker"})
+    _j = r.json() if "json" in r.headers.get("content-type", "") else {}
+    check("F83: Anlage nicht erreichbar -> ok:false + Meldung",
+          r.status_code == 200 and _j.get("ok") is False and len(_j.get("msg", "")) > 0,
+          json.dumps(_j, ensure_ascii=False))
+    _db3 = main._db()
+    _db3.execute("UPDATE installations SET url='http://ok' WHERE id=1")
+    _db3.commit()
+    _db3.close()
+
     _FAKE_INSTALLED = INSTALLED_OK
 
     r = c.post("/installation/1/instance", json={"module": "CallBlocker", "name": "FehlerFall"})

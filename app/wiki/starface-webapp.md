@@ -28,7 +28,7 @@ Modul-Updates (Deployment-Modul). Repo `MiCoSa79/Starface-WebApp`, Image
 - **Tests:** `tmp_tests/<name>.py` mit eigenem `check()`-Muster (kein pytest);
   Fakes/Zweige für Container-Importe; E2E via TestClient.
 
-## Routen (Stand v1.0.79)
+## Routen (Stand v1.0.80)
 
 | Bereich | Routen |
 |---|---|
@@ -43,6 +43,8 @@ Modul-Updates (Deployment-Modul). Repo `MiCoSa79/Starface-WebApp`, Image
 | Benutzerkonto (Self-Service) | `/konto` (Profil, Sicherheit: Passwort/2FA/Passkeys) |
 | Wiki/API-Doku | `/wiki`, `/wiki/search`, `/wiki/{wiki_page}`, `/admin/api-doku`, `/sw.js` |
 | CallBlocker | `/installation/{id}/blocklist` (+ add/remove/update), `/installation/{id}/test` |
+
+**Stand 29.08. (F83, v1.0.80):** **Modul-Aktualisierung direkt von der Detailseite** — Zeigt die Modul-Tabelle von `/installation/{id}` ein Modul als `outdated` (Badge „Update verfügbar“), liegt in der **Einstellungen-Spalte** ein Button **„⬆ Aktualisieren“** (`btn-secondary btn-mini`, daneben weiterhin „📞 Blocklist bearbeiten“ wenn vorhanden; `display:inline-flex`-Wrapper). Klick → `updateModuleInst` (JS) → `POST /installation/{id}/module/update` (Admin-only; JSON `{module}`; Dateiname/Version **ausschließlich serverseitig** aus `_module_expectations` → bestehendes `_push_module` → Deployment-Modul-RPC `[Instanz].UpdateFromUrl` mit signierter URL) → Reload mit Banner-Meldung (inst_msg jetzt auch JSON `{t, e}`: `updateModuleInst`+`showInstMsg` färben `msg ok`/`msg err` — alte Plain-Strings bleiben kompatibel). Fehlerpfade: kein Login→403, leer/„zu strippen“→400, Modul nicht in expectations→400, Anlage unbekannt→404, Netz-/OAuth-Fehler→200 `{ok:false}` mit Meldung. 6 neue Checks (installation_detail_test 49), TDD RED 5 FAIL → GRÜN.
 
 **Stand 29.08. (F78, v1.0.75):** **Design-Umbau Standard-Module-Seite + Anlagen-Detail** (Axel-Feedback aus Screenshots): Die Aktions-Spalte von `/admin/updates/standard` stellt den „Standard entfernen“-Button **nebeneinander** neben „Installieren/Update anstoßen“ (Formular `style="margin:0; display:inline-flex; gap:6px"`, V1-Muster) und nutzt **farbige Buttons statt weißer Browser-Buttons**: „Standard entfernen“ → `btn-secondary` (grau `#333`, gleiche Größe/Höhe wie der `btn-primary`-Nachbar, Hover `#0f3460`). Auf der Detail-Seite `/installation/{id}` ist der Toggle verkürzt (**„Ausnahme“** / „Ausnahme aufheben“ statt „Ausnahme setzen“) und farbig (`btn-secondary btn-mini`). Pitfall: `.btn-mini` definiert nur `padding`/`font-size` — **kein** `background` — als Einzelklasse bleibt der Button ein weißer Browser-Button; daher immer mit Farb-Klasse kombinieren (`btn-secondary btn-mini`). Badges (grün „Standard“, orange „Ausnahme“) unverändert, 42+ Checks grün, CDP-computedStyle-Beweis (nebeneinander: gleiche `top`, gleiche Höhe `h:34`, bg `#333`/`#e94560`).
 
@@ -126,6 +128,7 @@ Quelle: `git for-each-ref refs/tags/v0.0.*` — Stichworte = Commit-Subject.
 
 | Version | Commit | Änderung |
 |---|---|---|
+| v1.0.80 | (29.08.) | feat(F83): **Modul-Aktualisierung direkt von der Detailseite** — ist ein Modul `outdated` („Update verfügbar“), sitzt in der Einstellungen-Spalte ein `⬆ Aktualisieren`-Button (btn-secondary btn-mini); `POST /installation/{id}/module/update` (Admin, JSON {module}, Dateiname/Version serverseitig aus `_module_expectations`, nutzt bestehendes `_push_module` → UpdateFromUrl-RPC mit signierter URL); Feedback über das inst_msg-Banner (`updateModuleInst` + `showInstMsg` lesen JSON {t, e} und färben `msg ok`/`msg err`); Fehlerpfade: kein Login→403, leer→400, unbekanntes Modul→400, Anlage nicht erreichbar→ok:false mit Meldung. 6 neue Checks (installation_detail_test 49). |
 | v1.0.79 | (29.08.) | feat(F82): **Detailseite: Auge/⚡ Test/✎ Edit im Kopf + DM-v8-Schutz** — Kopf-Aktionen im anlagen.html-Muster (`detail-dl`-Auge → `/monitoring/installations/{id}`, ⚡ `testConn` (Admin→test-conn, User→Test-JS), ✎ Edit nur Admin); „Instanz anlegen“-Button erst ab Deployment-Modul **v9** (`dep_can_create` aus `version_ist`), sonst Hinweis „— DM v9 nötig“ (verhindert live beobachteten Fehler „No processor found … CreateInstance“ auf Anlagen mit DM v8); 5 neue Checks (installation_detail_test 43) | – |
 | v1.0.78 | (29.08.) | fix(F81): **„Instanz anlegen“-Dialog mittig statt links oben** — `dialog.dlg` bekam explizit `position: fixed; inset: 0; margin: auto;`: der CSS-Reset (`margin: 0` auf `*`) schlägt sonst die UA-Zentrierung des nativen `<dialog>` (`margin: auto` + `inset-block`) → Dialog landete bei (0,0). CDP-Beweis: vorher rect x=0/y=0 → nachher x=430/y=271 bei 1280×800 (420×258 Dialog) = exakt zentriert | – |
 | v1.0.77 | (29.08.) | feat(F80): **RPC-Zielfeld-Automatik beim „Instanz anlegen“** — eigene Module hinterlegen den Instanznamen automatisch als Anlagen-RPC-Feld (`_EIGENE_MODUL_FELDER`: CallBlocker→`module_instance_name`, TelefonieMonitoring→`monitoring_instance_name`, Deployment-Modul→`deployer_instance_name`); Button `data-field` + Dialog-Hinweis, Meldung erwähnt RPC-Zielfeld; Fremdmodul/RPC-Fehler → kein Update; 8 neue Checks (installation_detail_test 38) | – |
