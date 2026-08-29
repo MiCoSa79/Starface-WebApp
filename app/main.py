@@ -2602,7 +2602,7 @@ def _deployment_modul_status(inst: dict) -> dict:
 
 @app.get("/installation/{inst_id}", response_class=HTMLResponse)
 async def installation_detail_page(request: Request, inst_id: int):
-    """Detail-Seite einer Anlage (F67, „Zur Anlage“): Stammdaten + Modul-Status + Modul-Einstellungen."""
+    """Detail-Seite einer Anlage (F67, „Zur Anlage“): Stammdaten + Modul-Status-Karte; seit F70 mit Einstellungen-Spalte pro Modul."""
     user = verify_session(request.cookies.get(SESSION_COOKIE))
     if not user:
         return RedirectResponse("/")
@@ -2634,6 +2634,16 @@ async def installation_detail_page(request: Request, inst_id: int):
         except Exception as e:
             mod_state = {"list": None, "by_name": {},
                          "error": {"category": "fetch", "msg": str(e)}}
+    # Modul-Einstellungen (F70): eigene Tabellen-Spalte pro Modul — nur wenn installiert UND Instanz aktiv.
+    for _ent in (mod_state.get("list") or []):
+        if _ent.get("name") == "CallBlocker":
+            _act = [i for i in (_ent.get("instances") or []) if i.get("active")]
+            if _ent.get("status") != "missing" and _act:
+                _ent["settings"] = {
+                    "label": "Blocklist bearbeiten",
+                    "url": f"/installation/{inst_id}/blocklist",
+                    "title": "Blocklist der Anlage bearbeiten (CallBlocker-Modul)",
+                }
     return TEMPLATES.TemplateResponse("installation_detail.html",
         {"request": request, "user": user, "inst": inst, "mod_state": mod_state,
          "active": "anlagen",

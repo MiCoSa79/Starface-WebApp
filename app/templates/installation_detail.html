@@ -43,7 +43,7 @@
         {% else %}
         <div class="tbl-wrap">
         <table id="tbl-mod">
-            <tr><th>Modul</th><th>Status</th><th>Version (IST → SOLL)</th><th>Instanzen</th></tr>
+            <tr><th>Modul</th><th>Status</th><th>Version (IST → SOLL)</th><th>Instanzen</th><th>Einstellungen</th></tr>
             {% for it in m.list %}
             <tr>
                 <td>{{ it.name }}{% if it.source == 'third_party' %}<span style="display:inline-block;background:#3a3f5c;color:#c7cbe0;border-radius:4px;padding:1px 7px;font-size:11px;margin-left:6px;vertical-align:middle;">Drittanbieter</span>{% endif %}</td>
@@ -62,25 +62,16 @@
                 </td>
                 <td>{% if it.status == 'missing' %}— → v{{ it.version_soll }}{% elif it.status == 'outdated' %}v{{ it.version_ist }} → v{{ it.version_soll }}{% else %}v{{ it.version_ist }}{% endif %}</td>
                 <td>{% if it.instances %}{% for i in it.instances %}{{ i.name }} ({{ 'aktiv' if i.active else 'deaktiviert' }}){% if not loop.last %}, {% endif %}{% endfor %}{% else %}—{% endif %}</td>
+                <td>
+                    {% if it.settings %}
+                    <a href="{{ it.settings.url }}" class="btn-secondary" title="{{ it.settings.title }}"
+                       style="text-decoration:none; padding:5px 10px; display:inline-block; white-space:nowrap;">📞 {{ it.settings.label }}</a>
+                    {% else %}—{% endif %}
+                </td>
             </tr>
             {% endfor %}
         </table>
         </div>
-        {% endif %}
-    </div>
-
-    <div class="card">
-        <h2 style="margin-top:0;">Modul-Einstellungen</h2>
-        {% set cb = (m.by_name or {}).get('CallBlocker') if m else none %}
-        {% if cb and cb.status != 'missing' %}
-        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-            <a href="/installation/{{ inst.id }}/blocklist" class="btn-secondary"
-               style="text-decoration:none; padding:6px 12px; display:inline-block;"
-               title="Blocklist der Anlage bearbeiten (CallBlocker-Modul)">📞 Blocklist bearbeiten (CallBlocker)</a>
-            <span style="color:#9aa4bd; font-size:13px;">CallBlocker-Modul ist installiert.</span>
-        </div>
-        {% else %}
-        <p style="margin:0; color:#888; font-size:14px;">CallBlocker-Modul ist nicht installiert — keine Modul-Einstellungen verfügbar. Weitere Modul-Einstellungen folgen, sobald ein Modul sie anbietet.</p>
         {% endif %}
     </div>
 </div>

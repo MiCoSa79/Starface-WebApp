@@ -4,7 +4,8 @@
 Geprüft werden:
 1. _deployment_modul_status: ok / not-installed / no-active-instance / config / unreachable
 2. Route GET /installation/{id}: 200 für Admin, Stammdaten-Karte, Modul-Status-Karte
-   (inkl. Deployment-Modul-Badge), Modul-Einstellungen (CallBlocker -> Blocklist-Link),
+   (inkl. Deployment-Modul-Badge), Einstellungen-Spalte in der Tabelle (CallBlocker ->
+   Blocklist-Button NUR wenn installiert UND Instanz aktiv),
    Redirects (ohne Login, unbekannte Anlage)
 3. Route GET /installation/{id}/test: Deployment-Check-Ergebnis als JSON
 4. Anlagen-Übersicht: „Zur Anlage“-Button statt Blocklist-Button
@@ -164,9 +165,22 @@ with TestClient(main.app) as c:
           'Deployment-Modul-Instanz' in body and ">Deployer" in body and "Update-Token gesetzt" in body)
     check("Detail: Modul-Status-Karte mit Deployment-Modul",
           "Modul-Status" in body and "Deployment-Modul" in body and "Aktuell" in body)
-    check("Detail: CallBlocker installiert -> Blocklist-Einstellung",
-          "Modul-Einstellungen" in body and "/installation/1/blocklist" in body
-          and "Blocklist bearbeiten" in body)
+    check("Detail: Einstellungen-Spalte mit Blocklist-Button (installiert+aktiv, F70)",
+          "<th>Einstellungen</th>" in body and "/installation/1/blocklist" in body
+          and "Blocklist bearbeiten" in body and "Modul-Einstellungen" not in body)
+    check("Detail: sein eigener Einstellungs-Button in der CallBlocker-Zeile (installiert+aktiv)",
+          body.count("Blocklist bearbeiten") == 1)
+
+    # CallBlocker-Instanz deaktivieren -> kein Einstellungs-Button (keine aktive Instanz)
+    _saved = INSTALLED_OK
+    _noact = json.loads(INSTALLED_OK)
+    _noact[0]["instances"][0]["disabled"] = True
+    INSTALLED_OK = json.dumps(_noact)
+    r = c.get("/installation/1")
+    body2 = r.text
+    check("Detail: ohne aktive Instanz -> KEIN Blocklist-Button, nur Badge (F70)",
+          "Keine aktive Instanz" in body2 and "Blocklist bearbeiten" not in body2)
+    INSTALLED_OK = _saved
 
     r = c.get("/installation/1/test")
     d = r.json()
