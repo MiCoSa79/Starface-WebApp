@@ -211,6 +211,9 @@ dep_row = dbody.split('id="tbl-mod"')[1].split("</table>")[0].split(">Deployment
 check("4c. Deployment-Modul ohne Standard-Badge (Zelle '—')",
       ">Standard</span>" not in dep_row and ">—<" in dep_row)
 check("4d. Kein 'Ausnahme'-Badge vor Toggle", ">Ausnahme</span>" not in dbody)
+check("4h. Toggle-Button kurz + farbig: 'Ausnahme' statt 'Ausnahme setzen', btn-secondary btn-mini",
+      ">Ausnahme</button>" in dbody and '"Ausnahme setzen"' not in dbody
+      and 'class="btn-secondary btn-mini"' in dbody)
 r = c.post("/installation/1/module/standard", json={"module": "CallBlocker", "active": True})
 check("4e. Ausnahme setzen → ok", r.status_code == 200 and r.json().get("ok") is True)
 dbody = c.get("/installation/1").text
@@ -259,6 +262,12 @@ check("5h. 'Standard entfernen' setzt die Anlagen-Ausnahme (POST ok)",
 b4 = c.get("/admin/updates/standard").text
 check("5i. Zeile verschwindet sofort aus der Liste (4 Buttons statt 5)",
       b4.count("Standard entfernen") == 4)
+
+# ── 5j+: F78-Design: Buttons nebeneinander, gleiche Höhe, farbig statt weiß ──
+check("5j. Aktions-Formular der Zeile ist inline-flex (Buttons nebeneinander)",
+      'display:inline-flex' in seg_a3)
+check("5k. 'Standard entfernen' nutzt btn-secondary (farbig wie Nachbar, gleiche Grösse), kein btn-mini",
+      'class="btn-secondary"' in seg_a3 and 'class="btn-mini"' not in seg_a3)
 
 # ── 6. Leerzustände + Guards ──
 conn = sqlite3.connect(DB)

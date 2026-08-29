@@ -84,7 +84,7 @@
                     {% if it.is_standard %}
                     <span style="display:inline-block;background:#2e7d32;color:#fff;border-radius:4px;padding:1px 7px;font-size:11px;vertical-align:middle;" title="Standard-Modul: muss auf jeder Anlage installiert und aktuell sein.">Standard</span>
                     {% if it.override %}<span style="display:inline-block;background:#b26a00;color:#fff;border-radius:4px;padding:1px 7px;font-size:11px;margin-left:4px;vertical-align:middle;" title="Ausnahme für diese Anlage: muss hier nicht zwingend installiert sein — wird von der Standard-Module-Seite ausgenommen.">Ausnahme</span>{% endif %}
-                    <button type="button" class="btn-mini" data-module="{{ it.name }}" data-active="{{ '1' if it.override else '0' }}" onclick="toggleStdOverride({{ inst.id }}, this)" title="{{ 'Ausnahme aufheben — Standard-Pflicht gilt für diese Anlage wieder' if it.override else 'Ausnahme setzen — das Modul muss auf dieser Anlage nicht zwingend installiert sein' }}">{{ 'Ausnahme aufheben' if it.override else 'Ausnahme setzen' }}</button>
+                    <button type="button" class="btn-secondary btn-mini" data-module="{{ it.name }}" data-active="{{ '1' if it.override else '0' }}" onclick="toggleStdOverride({{ inst.id }}, this)" title="{{ 'Ausnahme aufheben — Standard-Pflicht gilt für diese Anlage wieder' if it.override else 'Ausnahme setzen — das Modul muss auf dieser Anlage nicht zwingend installiert sein' }}">{{ 'Ausnahme aufheben' if it.override else 'Ausnahme' }}</button>
                     {% else %}—{% endif %}
                 </td>
             </tr>

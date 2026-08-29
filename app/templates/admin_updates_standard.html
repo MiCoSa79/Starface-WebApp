@@ -67,7 +67,7 @@
             <td>v{{ r.soll }}</td>
             <td style="text-align:right; white-space:nowrap;">
                 {% if g.has_deployer %}
-                <form method="post" action="/admin/updates/standard/push" style="margin:0">
+                <form method="post" action="/admin/updates/standard/push" style="margin:0; display:inline-flex; gap:6px">
                     <input type="hidden" name="action" value="selected">
                     <input type="hidden" name="items" value="{{ g.inst.id }}:{{ r.name }}:{{ 'install' if r.missing else 'update' }}">
                     <button type="submit" class="btn-primary">{{ 'Installieren' if r.missing else 'Update anstoßen' }}</button>
@@ -75,7 +75,7 @@
                 {% else %}
                 <span class="muted" title="Kein Deployment-Modul konfiguriert — unter Anlage bearbeiten hinterlegen.">— kein Deployment-Modul</span>
                 {% endif %}
-                <button type="button" class="btn-mini" data-inst="{{ g.inst.id }}" data-module="{{ r.name }}"
+                <button type="button" class="btn-secondary" data-inst="{{ g.inst.id }}" data-module="{{ r.name }}"
                         onclick="removeStandard(this)"
                         title="Standard nur für diese Anlage entfernen — das Modul wird hier nicht mehr als Pflicht gemeldet (der globale Standard bleibt bestehen). Die Ausnahme kann auf der Detailseite der Anlage wieder aufgehoben werden.">Standard entfernen</button>
             </td>
