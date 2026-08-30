@@ -17,7 +17,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 .topbar details.user-drop > summary .user-avatar { display: none; }
 .topbar details.user-drop > summary .user-avatar circle,
 .topbar details.user-drop > summary .user-avatar path { color: inherit; }
-.container { max-width: 1400px; margin: 0 auto; padding: 24px;
+.container { width: 100%; max-width: 1400px; margin: 0 auto; padding: 24px;
              padding-bottom: calc(32px + env(safe-area-inset-bottom, 0px)); }
 h2 { font-size: 18px; margin: 24px 0 12px; color: #e94560; }
 h2:first-child { margin-top: 0; }
@@ -94,6 +94,10 @@ button { padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer;
              color: #e94560; background: none; border: none;
              padding: 4px 8px; line-height: 1; }
 @media (max-width: 640px) {
+    /* F101/F99: Aktions-Buttons in Tabellen duerfen umbrechen statt ueberzulaufen.
+       nowrap liegt auf den td-Zellen (style) und erbt in die Buttons — im MQ aufheben. */
+    .actions-inline { flex-wrap: wrap; }
+    .container table td { white-space: normal; }
                 .hamburger { display: inline-block; }
     .nav { display: none; flex-direction: column; padding: 8px 12px; gap: 2px; }
     .nav a { padding: 14px 12px; font-size: 15px; border-bottom: 1px solid #222; border-radius: 0; }

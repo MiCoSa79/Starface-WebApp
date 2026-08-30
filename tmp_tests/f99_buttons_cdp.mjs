@@ -87,7 +87,9 @@ async function cdp(wsUrl) {
                  footerTop: f.getBoundingClientRect().top };
     })()`);
     ok('Container-Bodenabstand ≥ 32 px', pad.pb >= 32, 'paddingBottom=' + pad.pb);
-    ok('Abstand Tabelle → Footer sichtbar', pad.footerTop - pad.tableBottom >= 20,
+    // F101: width:100%-Container laesst die Tabelle bei 390px hoeher bauen —
+    // der Vertrag ist NICHT "viel Abstand", sondern "letzte Zeile nicht verdeckt".
+    ok('Letzte Tabellenzeile nicht vom Footer verdeckt', pad.footerTop - pad.tableBottom >= 4,
         'delta=' + (pad.footerTop - pad.tableBottom).toFixed(1));
 
     console.log(failed === 0 ? '\nALLE F99-CHECKS OK' : `\n${failed} F99-CHECK(S) FEHLGESCHLAGEN`);

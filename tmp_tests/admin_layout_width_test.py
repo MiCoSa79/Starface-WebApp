@@ -70,16 +70,18 @@ for route in WIDE:
                                       "max-width: 1100px", "max-width: 720px")),
           "veraltete max-width-Breite noch im Template")
 
-# Login (password.html) bleibt schmal — jetzt nur noch im Admin-Reset-Modus
-# (GET /password ohne uid redirectet seit dem Menü-Umbau auf /konto#sicherheit)
+# F101: Einzige bewusst schmale Karte ist der Login (Auth-Dialog, 400 px);
+# alle Inhaltsseiten (auch Admin-Reset password.html) nutzen das 1400er-Muster.
 for route in ("/login",):
     r = c.get(route)
     if r.status_code == 200:
-        check("Login-Seite Container 520px", "max-width: 520px" in r.text)
+        check("Login-Seite bleibt Auth-Karte (400 px, kein 1400-Container)",
+              "max-width: 400px" in r.text and "max-width: 1400px" not in r.text,
+              f"status={r.status_code}")
         break
 r = c.get("/password", params={"uid": "2"})  # Admin-Reset für Fremduser (uid 2)
-check("Admin-Reset password.html Container 520px",
-      r.status_code == 200 and "max-width: 520px" in r.text,
+check("Admin-Reset password.html nutzt 1400-Muster (keine 520px-Lokalregel)",
+      r.status_code == 200 and "max-width: 520px" not in r.text,
       f"status={r.status_code}")
 r = c.get("/konto")
 check("Mein-Konto /konto Container 1400px",
@@ -178,6 +180,32 @@ check("F100: .actions-inline global in admin.css",
 check("F100: form-row-Buttons mobil kompakt (align-self:flex-start)",
       ".form-row .btn-primary" in _css and "align-self: flex-start" in _css,
       "form-row-Kompaktregel fehlt")
+
+# ── F101: PC-Breite einheitlich wie /anlagen (1400) + Kiosk vollbreit ──
+from pathlib import Path as _Path
+def _tpl(rel):
+    return (_Path(__file__).resolve().parents[1] / rel).read_text(encoding="utf-8")
+
+_pw   = _tpl("app/templates/password.html")
+_edit = _tpl("app/templates/edit_installation.html")
+_adm  = _tpl("app/templates/admin_monitoring.html")
+_inst = _tpl("app/templates/installation_monitoring.html")
+
+check("F101: password.html nutzt globales 1400-Muster (keine 520px-Lokalregel)",
+      "max-width: 520px" not in _pw and 'class="container"' in _pw,
+      "password.html: Lokal-520-Regel noch da oder container fehlt")
+check("F101: edit_installation.html nutzt Container-Muster (keine 600px-Karte)",
+      "max-width: 600px" not in _edit and 'class="container"' in _edit,
+      "edit_installation.html: 600px-Karte/ohne container")
+check("F101: Kiosk-Modus vollbreit — Admin-Monitoring (max-width:100%)",
+      "body.kiosk .container { max-width: 100%" in _adm,
+      "admin_monitoring Kiosk-Breite fehlt")
+check("F101: Kiosk-Modus vollbreit — Detail-Monitoring (max-width:100%)",
+      "body.kiosk .container { max-width: 100%" in _inst,
+      "installation_monitoring Kiosk-Breite fehlt")
+check("F101: Kiosk-Safe-Area-Padding gesetzt (beide Seiten)",
+      "12px + env(safe-area-inset-bottom" in _adm and "12px + env(safe-area-inset-bottom" in _inst,
+      "Kiosk-Safe-Area-Padding fehlt")
 
 if failed:
     print(f"FEHLGESCHLAGEN ({len(failed)}):")

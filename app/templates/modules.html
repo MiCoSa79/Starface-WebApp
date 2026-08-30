@@ -12,8 +12,8 @@
         .topbar h1 img { height: 24px; width: auto; }
         .topbar h1 span { color: #e94560; }
         .topbar a { color: #e94560; text-decoration: none; margin-left: 16px; }
-        .container { max-width: 1400px; margin: 0 auto; padding: 24px;
-                     padding-bottom: 60px; }
+        .container { width: 100%; max-width: 1400px; margin: 0 auto; padding: 24px;
+                     padding-bottom: calc(32px + env(safe-area-inset-bottom, 0px)); }
         h2 { font-size: 18px; margin: 24px 0 12px; color: #e94560; }
         h2:first-child { margin-top: 0; }
         table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
@@ -59,7 +59,7 @@
             #nav-open:checked ~ .nav { display: flex; }
             .topbar { padding: calc(12px + env(safe-area-inset-top, 0px)) 16px 12px; }
             .topbar h1 { font-size: 17px; }
-            .container { padding: 16px 14px 60px; }
+            .container { padding: 16px 14px calc(32px + env(safe-area-inset-bottom, 0px)); }
             table { display: block; overflow-x: auto; white-space: nowrap; }
         }
 

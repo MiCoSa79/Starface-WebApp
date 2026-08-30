@@ -6,8 +6,8 @@
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
                background: #1a1a2e; color: #e0e0e0; }
-        .container { max-width: 1400px; margin: 0 auto; padding: 24px;
-                     padding-bottom: 60px; }
+        .container { width: 100%; max-width: 1400px; margin: 0 auto; padding: 24px;
+                     padding-bottom: calc(32px + env(safe-area-inset-bottom, 0px)); }
         h2 { font-size: 18px; margin: 24px 0 12px; color: #e94560; }
         h2:first-child { margin-top: 0; }
         .card { background: #16213e; border-radius: 12px; padding: 20px; margin-bottom: 16px;
@@ -112,7 +112,7 @@
         @media (max-width: 640px) { body.kiosk .container { padding: 12px 12px calc(12px + env(safe-area-inset-bottom, 0px)); } }
 
         @media (max-width: 640px) {
-            .container { padding: 16px 14px 60px; }
+            .container { padding: 16px 14px calc(32px + env(safe-area-inset-bottom, 0px)); }
             .kpis { grid-template-columns: 1fr; }
             .charts { grid-template-columns: 1fr; }
             .inst-select { max-width: 100%; width: 100%; }
