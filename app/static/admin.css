@@ -191,8 +191,21 @@ dialog.dlg {
     position: fixed; inset: 0; margin: auto;
 }
 dialog.dlg::backdrop { background: rgba(0, 0, 0, .55); }
-/* F97 (v1.0.95): breite Variante für das Abruf-Ergebnis (Anlagen-Updates):
-   lange Update-Listen scrollen innerhal...[truncated]
+/* F97 (v1.0.95): breite Variante fuer das Abruf-Ergebnis (Anlagen-Updates).
+   F102 (v1.0.100): Regel NACHGETRAGEN — F97 hat nur den Kommentar hinterlassen,
+   die .dlg.wide-Regel selbst fehlte → Dialog fiel auf dialog.dlg max-width:420px
+   (F79-„Instanz anlegen“) zurueck → auf dem PC zu schmal, die Aktionstabelle
+   (Installieren + Planen-Datumsfeld) lief horizontal ueber (Axel-Screenshot 30.08.) */
+.dlg.wide { max-width: min(94vw, 960px); }
+.dlg.wide table { width: 100%; }
+/* F102: Popup-Kopf — Titelleiste mit X-Schließen (SVG, kein Emoji; statt „Schließen“-Button) */
+.au-dlg-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.au-dlg-head h3 { margin: 0; }
+.dlg-close-x {
+    background: none; border: none; padding: 6px; border-radius: 6px; cursor: pointer;
+    color: #9aa4bd; line-height: 0; flex: none;
+}
+.dlg-close-x:hover { background: #2a3153; color: #e8ecf8; }
 .dlg h3 { margin: 0 0 6px; font-size: 16px; }
 .dlg-hint { color: #9aa4bd; font-size: 13px; margin: 0 0 12px; }
 .dlg label { display: block; font-size: 13px; color: #9aa4bd; margin: 0 0 4px; }

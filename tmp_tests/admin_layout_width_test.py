@@ -207,6 +207,29 @@ check("F101: Kiosk-Safe-Area-Padding gesetzt (beide Seiten)",
       "12px + env(safe-area-inset-bottom" in _adm and "12px + env(safe-area-inset-bottom" in _inst,
       "Kiosk-Safe-Area-Padding fehlt")
 
+# ── F102: Abruf-Dialog (Anlagen-Updates) auf dem PC breit — .dlg.wide war nie definiert ──
+_bulk = _tpl("app/templates/_au_bulk.html")
+_einz = _tpl("app/templates/_au_einzel.html")
+check("F102: .dlg.wide = breite Dialog-Variante definiert (min(94vw, 960px))",
+      ".dlg.wide { max-width: min(94vw, 960px); }" in _css,
+      ".dlg.wide-Regel fehlt in admin.css (420px-Fallback → zu schmal)")
+check("F102: Tabellen im .dlg.wide nutzen die volle Dialogbreite",
+      ".dlg.wide table { width: 100%; }" in _css,
+      ".dlg.wide table-Regel fehlt")
+check("F102: Abruf-Aktionszellen ohne nowrap (Umbruch statt Ueberlauf)",
+      "white-space:nowrap" not in _bulk and "white-space:nowrap" not in _einz,
+      "nowrap noch in _au_bulk/_au_einzel-Aktionszelle")
+_au = _tpl("app/templates/admin_anlagen_updates.html")
+check("F102: Popup-Kopf: X-Schließen (SVG) statt 'Schließen'-Button",
+      'class="dlg-close-x"' in _au and ">Schließen<" not in _au and "au-dlg-close" in _au,
+      "Dialog-Kopf: dlg-close-x fehlt oder 'Schließen'-Button noch da")
+check("F102: X-Schließen stylbar (admin.css dlg-close-x + Kopf-Flex)",
+      ".dlg-close-x {" in _css and ".au-dlg-head {" in _css,
+      "dlg-close-x/au-dlg-head CSS fehlt")
+check("F102: Einzel-Popup ohne Auswahl-Hinweis (elif not dlg)",
+      "elif not dlg" in _einz,
+      "_au_einzel: Auswahl-Text erscheint noch im Popup (kein dlg-Guard)")
+
 if failed:
     print(f"FEHLGESCHLAGEN ({len(failed)}):")
     for name, detail in failed:

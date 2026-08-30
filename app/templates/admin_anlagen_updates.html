@@ -71,7 +71,10 @@
     <dialog id="au-dlg" class="dlg wide" data-dlg="1" aria-label="Ergebnis des Update-Abrufs">
         <div class="au-dlg-head">
             <h3>{% if bulk %}Ergebnis des Update-Abrufs{% else %}Verfügbare Updates{% endif %}</h3>
-            <button type="button" class="btn-secondary btn-mini" id="au-dlg-close">Schließen</button>
+            <button type="button" class="dlg-close-x" id="au-dlg-close" aria-label="Dialog schließen" title="Schließen">
+                <svg width="16" height="16" viewBox="0 0 14 14" fill="none" stroke="currentColor"
+                     stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M2 2l10 10M12 2L2 12"/></svg>
+            </button>
         </div>
         {% if bulk %}{% include "_au_bulk.html" %}{% else %}{% include "_au_einzel.html" %}{% endif %}
     </dialog>
