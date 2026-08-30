@@ -128,6 +128,25 @@ check("F91: Link-Klick im Dropdown schließt es (closest('a') + contains(link))"
       "closest('a')" in _js and "d.contains(link)" in _js,
       "Link-Klick-Logik fehlt in admin.js")
 
+# F98 (v1.0.96): Footer ans Seitenende — vorher `position: fixed` klebte er beim
+# Scrollen ueber dem Inhalt (iPhone-Foto 30.08.). Sticky-Footer ueber body-Flex:
+# kurze Seiten → Footer unten im Viewport, lange Seiten → unter dem letzten Inhalt.
+r = c.get("/static/admin.css")
+_css = r.text
+_footer = _css[_css.find(".footer"):_css.find("}", _css.find(".footer")) + 1]
+_footer = _footer[:_footer.find("}") + 1]  # nur die .footer-Regel
+check("F98: Footer-Klasse nicht fixed", "position: fixed" not in _footer
+      and "bottom: 0" not in _footer, "Footer-CSS: " + _footer.replace("\n", " "))
+check("F98: Footer per margin-top:auto ans Seitenende", "margin-top: auto" in _footer,
+      "margin-top:auto fehlt: " + _footer.replace("\n", " "))
+_body = _css[_css.find("body {"):_css.find("}", _css.find("body {")) + 1]
+check("F98: body-Flex (Sticky-Footer-Geruest)", "flex-direction: column" in _body
+      and "min-height: 100dvh" in _body, "body-Regel: " + _body.replace("\n", " "))
+r = c.get("/")
+check("F98: Login bindet die Basis-CSS (Footer-Geruest wirkt global)",
+      r.status_code == 200 and "/static/admin.css?v=" in r.text,
+      f"status={r.status_code}")
+
 if failed:
     print(f"FEHLGESCHLAGEN ({len(failed)}):")
     for name, detail in failed:
