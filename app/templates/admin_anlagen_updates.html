@@ -47,7 +47,8 @@
                         <input type="checkbox" class="au-cb" form="bulk-au-anlagen" name="installation_ids"
                                value="{{ r.id }}" aria-label="{{ r.name }} auswählen">
                     </td>
-                    <td>{{ r.name }} <span class="muted">({{ r.url }})</span></td>
+                    <td>{{ r.name }} <span class="muted">({{ r.url }})</span>
+                    {% if r.update_badge %}<br><span class="badge{% if r.update_badge.art == 'geplant' %} badge-warn{% endif %}" title="Für diese Anlage ist bereits ein Update geplant bzw. läuft gerade — kein weiteres Update planbar.">{{ r.update_badge.text }}</span>{% endif %}</td>
                     <td>{% if r.ist_version and r.ist_version != "—" %}<span style="color:#ffb74d">v{{ r.ist_version }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
                     <td style="text-align:right; white-space:nowrap">
                         {% if r.dep_ready %}

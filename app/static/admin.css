@@ -68,6 +68,7 @@ button { padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer;
 .badge { display: inline-block; background: #e94560; color: #fff;
          padding: 2px 8px; border-radius: 4px; font-size: 11px; }
 .badge-gray { background: #333; }
+.badge-warn { background: #8a6d1a; }
 .codes { font-family: monospace; word-break: break-all; }
 
 /* Navigation */

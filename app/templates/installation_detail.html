@@ -53,6 +53,7 @@
             <dt>URL</dt><dd>{{ inst.url }}</dd>
             <dt>API-Version</dt><dd>{% if inst.is_starface10 %}STARFACE 10.x (OAuth){% else %}STARFACE ≤ 9.x (Legacy){% endif %}</dd>
             <dt>Anlagen-Version</dt><dd>{{ pbx_version or '—' }}</dd>
+            {% if inst.update_badge %}<dt>Update-Status</dt><dd><span class="badge{% if inst.update_badge.art == 'geplant' %} badge-warn{% endif %}" title="Für diese Anlage ist bereits ein Update geplant bzw. läuft gerade — kein weiteres Update planbar.">{{ inst.update_badge.text }}</span></dd>{% endif %}
             <dt>Deployment-Modul</dt>
             <dd>
             {% if dep_state == 'ok' %}<span class="badge badge-green"

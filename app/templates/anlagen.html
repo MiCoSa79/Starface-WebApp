@@ -77,7 +77,7 @@
             {% for inst in installations %}
             <tr>
                 <td>{{ inst.id }}</td>
-                <td>{{ inst.name }}</td>
+                <td>{{ inst.name }}{% set ub = update_badges.get(inst.id) %}{% if ub %}<br><span class="badge{% if ub.art == 'geplant' %} badge-warn{% endif %}" title="Für diese Anlage ist bereits ein Update geplant bzw. läuft gerade — kein weiteres Update planbar.">{{ ub.text }}</span>{% endif %}</td>
                 <td>{{ inst.url }}</td>
                 <td>{% if inst.is_starface10 %}10.x{% else %}≤9.x{% endif %}</td>
                 <td style="text-align:right; white-space:nowrap;">

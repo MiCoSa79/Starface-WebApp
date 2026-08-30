@@ -245,6 +245,17 @@ def init_db():
     # dokumentiert — "Geplante Updates" zeigt nur noch status='planned'; der
     # Altbestand (executed/error/missed/cancelled) wird einmalig entfernt.
     conn.execute("DELETE FROM anlagen_update_plans WHERE status != 'planned'")
+    # Migration (F110): je Anlage höchstens EIN geplantes Update. Altbestand
+    # mit Duplikaten bereinigen (zuletzt angelegter Plan gewinnt), dann ein
+    # partial unique index als DB-Sicherheitsnetz — der App-Guard in der
+    # Schedule-Route fängt den Zustand bereits früher ab (Race-fest).
+    conn.execute(
+        "DELETE FROM anlagen_update_plans WHERE status='planned' AND id NOT IN"
+        " (SELECT MAX(id) FROM anlagen_update_plans WHERE status='planned'"
+        "  GROUP BY installation_id)")
+    conn.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS uq_anlagen_update_plans_einmalig"
+        " ON anlagen_update_plans(installation_id) WHERE status='planned'")
     # Migration (F96): Spalten an anlagen_update_log (Erreichbarkeits-Historie der Prüfung)
     lcols = [r[1] for r in conn.execute("PRAGMA table_info(anlagen_update_log)").fetchall()]
     for col, ddl in (("version_zuletzt", "TEXT DEFAULT ''"), ("zuletzt_um", "TEXT DEFAULT ''")):
@@ -1078,13 +1089,17 @@ async def anlagen_page(request: Request):
         return RedirectResponse("/")
     conn = _db()
     installations = conn.execute("SELECT * FROM installations ORDER BY name").fetchall()
+    belegt = _anlagen_update_belegt(conn)
     conn.close()
     if not user["is_admin"]:
         installations = [i for i in installations
                          if get_access(user["user_id"], i["id"])["can_read"]]
+    # F110: Badge je belegter Anlage (geplant / läuft gerade)
+    update_badges = {i: _anlagen_update_badge(b) for i, b in belegt.items()}
     return TEMPLATES.TemplateResponse("anlagen.html",
                                       {"request": request, "user": user,
                                        "installations": installations,
+                                       "update_badges": update_badges,
                                        "active": "anlagen",
                                        "version": os.environ.get("APP_VERSION", "dev")})
 
@@ -2373,6 +2388,59 @@ def _anlagen_updates_redirect(msg: str, inst_id: int = 0,
     return RedirectResponse(url, status_code=303)
 
 
+def _anlagen_update_belegt(conn, installation_id=None):
+    """F110: Belegte Anlagen — bereits geplant ODER gerade laufendes Update.
+
+    Rückgabe: dict installation_id → {"art": "geplant"|"laeuft", "zeit_utc": str}
+    - geplant: aktiver Plan (anlagen_update_plans.status='planned', scheduled_at)
+    - laeuft:  laufendes Update (anlagen_update_log.status='pruefen',
+               angestossen_um) — hat Vorrang vor 'geplant'.
+    installation_id=None → Belegung für ALLE Anlagen (ein Query-Satz für
+    Übersicht / Updates-einrichten).
+    """
+    if installation_id is not None:
+        plan = conn.execute(
+            "SELECT installation_id, scheduled_at AS zeit FROM"
+            " anlagen_update_plans WHERE installation_id=? AND status='planned'",
+            (installation_id,)).fetchall()
+        log = conn.execute(
+            "SELECT installation_id, angestossen_um AS zeit FROM"
+            " anlagen_update_log WHERE installation_id=? AND status='pruefen'",
+            (installation_id,)).fetchall()
+    else:
+        plan = conn.execute(
+            "SELECT installation_id, scheduled_at AS zeit FROM"
+            " anlagen_update_plans WHERE status='planned'").fetchall()
+        log = conn.execute(
+            "SELECT installation_id, angestossen_um AS zeit FROM"
+            " anlagen_update_log WHERE status='pruefen'").fetchall()
+    out = {}
+    for r in plan:
+        out.setdefault(r["installation_id"],
+                       {"art": "geplant", "zeit_utc": r["zeit"]})
+    for r in log:
+        out[r["installation_id"]] = {"art": "laeuft", "zeit_utc": r["zeit"]}
+    return out
+
+
+def _anlagen_update_badge(b):
+    """F110: Badge-Daten für eine Belegung → {"art", "text"} | None.
+
+    text: „Update geplant: <lokal>" / „Update läuft gerade (seit <lokal>)".
+    """
+    if not b:
+        return None
+    try:
+        from timeutil import utc_iso_zu_lokal_anzeige
+    except ImportError:
+        from app.timeutil import utc_iso_zu_lokal_anzeige
+    zeit = (b.get("zeit_utc") or "").strip()
+    anzeige = utc_iso_zu_lokal_anzeige(zeit) if zeit else "—"
+    if b.get("art") == "geplant":
+        return {"art": "geplant", "text": f"Update geplant: {anzeige}"}
+    return {"art": "laeuft", "text": f"Update läuft gerade (seit {anzeige})"}
+
+
 @app.get("/admin/anlagen-updates", response_class=HTMLResponse)
 async def admin_anlagen_updates_page(request: Request):
     """Admin-Seite: Anlagen-Updates (dm-v10, F95).
@@ -2401,15 +2469,18 @@ async def admin_anlagen_updates_page(request: Request):
     conn = _db()
     installations = conn.execute(
         "SELECT * FROM installations ORDER BY name").fetchall()
+    belegt = _anlagen_update_belegt(conn)
     conn.close()
 
-    # Tabelle: Ist-Version (frisch) + Deployment-Bereitschaft je Anlage
+    # Tabelle: Ist-Version (frisch) + Deployment-Bereitschaft + F110-Badge
+    # (bereits geplant / läuft gerade — kein weiteres Update planbar)
     rows = []
     for inst in installations:
         rows.append({
             "id": inst["id"], "name": inst["name"], "url": inst["url"],
             "ist_version": _anlagen_version(inst),
             "dep_ready": bool(inst["deployer_instance_name"]),
+            "update_badge": _anlagen_update_badge(belegt.get(inst["id"])),
         })
 
     try:
@@ -2675,18 +2746,47 @@ async def admin_anlagen_updates_schedule(request: Request):
     if not insts:
         conn.close()
         return back("Unbekannte Anlage.")
+    # F110: App-Guard — bereits geplant (anlagen_update_plans.status='planned')
+    # ODER gerade laufendes Update (anlagen_update_log.status='pruefen')
+    # blockiert die Neuplanung (die Anlage ist während eines Updates nicht
+    # abfragbar; ein zweiter Plan würde doppelt ausgeführt). Bulk: freie
+    # Anlagen planen, belegte überspringen und in der Meldung nennen.
+    belegt = _anlagen_update_belegt(conn)
+    freie, blockiert = [], []
     for inst in insts:
-        conn.execute(
-            "INSERT INTO anlagen_update_plans"
-            " (installation_id, version, update_url, scheduled_at)"
-            " VALUES (?,?,?,?)",
-            (inst["id"], version, update_url, utc_iso))
+        if belegt.get(inst["id"]):
+            blockiert.append((inst, belegt[inst["id"]]))
+        else:
+            freie.append(inst)
+    for inst in freie:
+        try:
+            conn.execute(
+                "INSERT INTO anlagen_update_plans"
+                " (installation_id, version, update_url, scheduled_at)"
+                " VALUES (?,?,?,?)",
+                (inst["id"], version, update_url, utc_iso))
+        except sqlite3.IntegrityError:
+            # Sicherheitsnetz: partial unique index (F110) — Race verloren,
+            # die Anlage ist faktisch bereits belegt.
+            blockiert.append((inst, {"art": "geplant", "zeit_utc": utc_iso}))
     conn.commit()
     conn.close()
     display = utc_iso_zu_lokal_anzeige(utc_iso)
-    for inst in insts:
+    for inst in freie:
         _log_event(inst["id"], user["user_id"], "anlagen-update-schedule",
                    f"{version} für {display}")
+    if blockiert:
+        namen = ", ".join(i["name"] for i, _ in blockiert)
+        if not freie:
+            return _anlagen_updates_redirect(
+                f"FEHLER: Kein Update geplant — bereits geplant bzw. läuft"
+                f" gerade: {namen}", single_id, inst_ids=target)
+        freie_namen = ", ".join(i["name"] for i in freie)
+        return _anlagen_updates_redirect(
+            f"Update {version} geplant für {len(freie)} Anlage(n) für"
+            f" {display}: {freie_namen}. Übersprungen (bereits geplant bzw."
+            f" läuft gerade): {namen}",
+            inst_ids=[i["id"] for i in freie])
     if len(insts) == 1:
         return _anlagen_updates_redirect(
             f"Update {version} geplant für {display}.", insts[0]["id"])
@@ -3599,7 +3699,10 @@ async def installation_detail_page(request: Request, inst_id: int):
     _ovr = {r[0] for r in conn.execute(
         "SELECT module_name FROM module_default_overrides "
         "WHERE installation_id = ?", (inst_id,)).fetchall()}
+    belegt = _anlagen_update_belegt(conn, inst_id)
     conn.close()
+    # F110: Badge „Update geplant / Update läuft gerade" in den Stammdaten
+    inst["update_badge"] = _anlagen_update_badge(belegt.get(inst_id))
     # Modul-Einstellungen (F70): eigene Tabellen-Spalte pro Modul — nur wenn installiert UND Instanz aktiv.
     for _ent in (mod_state.get("list") or []):
         _ent["is_standard"] = _ent.get("name") in _std_all
