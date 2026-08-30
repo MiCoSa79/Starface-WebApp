@@ -51,4 +51,37 @@
         </table>
     </div>
 </div>
+<script>
+/* F107: 10-s-Auto-Refresh + Filter-Erhalt (Geplante/Durchgeführte) */
+(function () {
+    var filters = document.querySelectorAll('.tbl-filters input, .tbl-filters select');
+    if (filters.length) {
+        try {
+            var prior = sessionStorage.getItem('sf.admin.tabFilter');
+            if (prior) {
+                sessionStorage.removeItem('sf.admin.tabFilter');
+                var vals = JSON.parse(prior);
+                filters.forEach(function (el) {
+                    var key = (el.dataset.filter || '') + '|' + (el.dataset.col || '') + '|' + (el.dataset.wildcard ? 'w' : '');
+                    if (Object.prototype.hasOwnProperty.call(vals, key)) {
+                        el.value = vals[key];
+                        el.dispatchEvent(new Event('input'));
+                        el.dispatchEvent(new Event('change'));
+                    }
+                });
+            }
+        } catch (e) { /* sessionStorage/JSON nicht verfügbar — Filterstart unverändert */ }
+        window.addEventListener('beforeunload', function () {
+            var vals = {};
+            filters.forEach(function (el) {
+                if (!el.value) return;
+                var key = (el.dataset.filter || '') + '|' + (el.dataset.col || '') + '|' + (el.dataset.wildcard ? 'w' : '');
+                vals[key] = el.value;
+            });
+            try { sessionStorage.setItem('sf.admin.tabFilter', JSON.stringify(vals)); } catch (e) {}
+        });
+    }
+    setInterval(function () { location.reload(); }, 10000);
+})();
+</script>
 {% endblock %}
