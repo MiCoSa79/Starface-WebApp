@@ -174,7 +174,7 @@
             <a href="/">STARFACE WebApp</a>
             {% endif %}
             {% if user and user.is_admin %}
-            <details class="drop {% if active in ['anlagen','benutzer','rechte','grundeinstellungen','modules','updates','updates-modul','updates-standard','anlagen-updates','api-doku','wiki'] %}active{% endif %}">
+            <details class="drop {% if active in ['anlagen','benutzer','rechte','grundeinstellungen','modules','updates','updates-modul','updates-standard','anlagen-updates','anlagen-updates-geplant','anlagen-updates-laufend','anlagen-updates-durchgefuehrt','api-doku','wiki'] %}active{% endif %}">
                 <summary>Administration ▾</summary>
                 <div class="drop-menu">
                     <a href="/anlagen" class="{% if active=='anlagen' %}active{% endif %}">Anlagen</a>
@@ -191,7 +191,15 @@
                             <a href="/admin/updates/standard" class="{% if active=='updates-standard' %}active{% endif %}">Standard-Module</a>
                         </div>
                     </details>
-                    <a href="/admin/anlagen-updates" class="{% if active=='anlagen-updates' %}active{% endif %}">Anlagen-Updates</a>
+                    <details class="sub {% if active in ['anlagen-updates','anlagen-updates-geplant','anlagen-updates-laufend','anlagen-updates-durchgefuehrt'] %}active{% endif %}" {% if active in ['anlagen-updates','anlagen-updates-geplant','anlagen-updates-laufend','anlagen-updates-durchgefuehrt'] %}open{% endif %}>
+                        <summary>Anlagen-Updates ▸</summary>
+                        <div class="sub-menu">
+                            <a href="/admin/anlagen-updates" class="{% if active=='anlagen-updates' %}active{% endif %}">Updates einrichten</a>
+                            <a href="/admin/anlagen-updates/geplant" class="{% if active=='anlagen-updates-geplant' %}active{% endif %}">Geplante Updates</a>
+                            <a href="/admin/anlagen-updates/laufend" class="{% if active=='anlagen-updates-laufend' %}active{% endif %}">Laufende Updates</a>
+                            <a href="/admin/anlagen-updates/durchgefuehrt" class="{% if active=='anlagen-updates-durchgefuehrt' %}active{% endif %}">Durchgeführte Updates</a>
+                        </div>
+                    </details>
                     <a href="/admin/api-doku" class="{% if active=='api-doku' %}active{% endif %}">API-Doku</a>
                     <a href="/wiki" class="{% if active=='wiki' %}active{% endif %}">Wiki</a>
                 </div>

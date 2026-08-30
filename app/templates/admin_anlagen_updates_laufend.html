@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}STARFACE WebApp — Laufende Updates{% endblock %}
+{% block styles %}{% endblock %}
+{% block content %}
+<div class="container">
+    {% if msg %}
+    <div class="msg ok" style="margin-bottom:16px">
+        <button type="button" class="btn-mini" onclick="this.closest('.msg').style.display='none'">OK</button>{{ msg }}</div>
+    {% endif %}
+
+    <h2 class="tbl-head">
+        Laufende Updates
+        <span class="muted">Angestoßene Updates, deren Erfolg noch nicht abschließend geprüft ist</span>
+    </h2>
+
+    <p class="muted" style="margin:2px 0 10px">
+        Die Nachprüfung startet 5 Minuten nach dem Anstoß (die Anlage arbeitet das Update ab und
+        startet neu), prüft dann die System-Version per <code>GetStats</code> und beendet sich sofort,
+        sobald die Zielversion bestätigt ist — spätestens nach 60 Minuten steht das Urteil
+        (erfolgreich / fehlgeschlagen / unbekannt) und der Eintrag wandert auf „Durchgeführte Updates“.
+    </p>
+
+    <div class="tbl-wrap" data-wrap="laufend">
+        <table id="tbl-laufend">
+            <thead>
+                <tr>
+                    <th>Anlage</th>
+                    <th>Version vorher</th>
+                    <th>Zielversion</th>
+                    <th>Angestoßen</th>
+                    <th>Prüfung</th>
+                    <th>Restzeit bis Urteil</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in rows %}
+                <tr>
+                    <td>{{ r.inst }}</td>
+                    <td>{% if r.vor and r.vor != "—" %}<span style="color:#ffb74d">v{{ r.vor }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+                    <td>{{ r.ziel }}</td>
+                    <td>{{ r.angestossen }}</td>
+                    <td><span style="color:#ffb74d">{{ r.phase }}</span>{% if r.detail %} <span class="muted" title="{{ r.detail }}">(Detail)</span>{% endif %}</td>
+                    <td>{{ r.rest }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" class="empty">Keine laufenden Updates.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

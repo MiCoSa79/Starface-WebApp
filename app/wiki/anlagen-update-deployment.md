@@ -15,11 +15,13 @@ updated: 2026-08-30
 ## Bedienung (WebApp)
 
 1. **Modul:** `Deployment-Modul.sfm` (v10) in der Anlage aktualisieren/importieren (Instanz + Token bleiben erhalten).
-2. **WebApp → Administration → Anlagen-Updates** (neuer Menüpunkt im Admin-Dropdown).
+2. **WebApp → Administration → Anlagen-Updates ▸** (F96: Untermenü mit 4 Punkten — Updates einrichten / Geplante Updates / Laufende Updates / Durchgeführte Updates).
 3. **Tabelle aller Anlagen** (F95): Spalten Checkbox / Anlage / IST-Version (frisch via `GetStats`) / Aktion; Filterfelder über der Tabelle (Name + IST-Version, Wildcards `*` = beliebig, `?` = genau 1 Zeichen).
 4. Zeilen-Button **„Updates abrufen“** = Einzelabruf; mehrere Anlagen per Checkbox anwählen → Button **„Updates für ausgewählte Anlagen abrufen“** → Tabelle zeigt NUR die **Schnittmenge** (Updates, die für ALLE gewählten Anlagen verfügbar sind). **Strenge Regel:** schlägt eine Anlage fehl, wird keine Schnittmenge berechnet, sondern eine Fehlerliste gezeigt.
 5. **Installieren** = sofort ausführen (mit Bestätigungs-Warnung) oder **Planen** (datetime-local, Europe/Berlin) — im Bulk wirkt beides auf alle gewählten Anlagen.
-6. „Geplante Updates“ unten: Status `planned → executed / error / missed / cancelled`, Abbrechen solange `planned`.
+6. **Jeder Anstoß** (Installieren ODER ausgeführter Plan) legt einen Eintrag in `anlagen_update_log` an — sichtbar unter **„Laufende Updates“** (Prüfung läuft) bzw. **„Durchgeführte Updates“** (mit Urteil).
+7. **Geplante Updates** (eigene Seite): Folge der Pläne nach Zeitpunkt (nächstes fälliges oben), Filter, **Abbrechen** solange `planned` (`planned → cancelled`), erledigte Einträge **löschbar** (never planned → nur abbrechen).
+8. **Erfolgsprüfung (F96):** RPC-„ok“ heißt nur „angestoßen“. Ein Update gilt erst als **erfolgreich**, wenn die IST-Version der Anlage per `GetStats` == Zielversion ist (früher Abbruch sofort beim Check); Prüfbeginn +5 Min nach Anstoß, dann alle 60 s, 60-Min-Timebox → `erfolgreich` / `fehlgeschlagen` (Anlage war erreichbar, Ziel nie erreicht — Detail nennt die letzte gesehene Version) / `unbekannt` (Anlage im gesamten Zeitraum nicht erreichbar — bewusst kein Fehlurteil, die PBX startet beim Update neu).
 
 ## Umgesetzte Bausteine (v10, 30.08.)
 
@@ -31,7 +33,8 @@ updated: 2026-08-30
 | RPC-Antwort | `GetAnlagenUpdates` liefert einen **JSON-String** (XML-RPC-String-Typ, z. B. `{"current":"10.0.1.7","count":1,"updates":[{...}]}`) mit description/changelog je Update — die WebApp parst die von xml.etree **aufgelöste** Antwort (`values[0]`); Regex über das rohe XML nur als Fallback (F93/F94: 500-Byte-Kappung → dann XML-Entities unaufgelöst → `json.loads` scheiterte → „Unerwartete Antwort“; Fehlermeldung zeigt bei Parsefehlern jetzt die Position: `→ Zeichen N: …`) |
 | Scheduler | Daemon-Thread (30-s-Tick) in der WebApp; führt fällige Pläne aus; **`missed`** statt stillem Nachholen, wenn > 5 min überfällig (WebApp war down) |
 | Zeitzone (Vorgabe Axel) | Planung in **Europe/Berlin** eingegeben, **immer UTC (ISO+00:00) gespeichert**, Scheduler vergleicht UTC, Anzeige zurück in Berlin — Sommer-/Winterzeit im Test abgesichert |
-| DB | `anlagen_update_plans` (id, installation_id, version, update_url, scheduled_at, status, result, created_at) |
+| DB | `anlagen_update_plans` (id, installation_id, version, update_url, scheduled_at, status, result, created_at **+ `ausgefuehrt_um`** F96-Migration) + **`anlagen_update_log`** (F96: quelle `direkt|plan`, plan_id, version_vor, version_nach, angestossen_um, status `pruefen/erfolgreich/fehlgeschlagen/unbekannt`, bestaetigt_um, version_zuletzt, zuletzt_um, detail) |
+| Erfolgsprüfung (F96) | `_verify_open_logs` im Scheduler-Tick: alle Logs mit `pruefen`; Bremse +5 Min (Env `ANLAGEN_UPDATE_CHECK_START_DELAY`), Takt 60 s (`ANLAGEN_UPDATE_CHECK_INTERVAL`), Abbruch bei Ist==Ziel (`GetStats`), Timebox 60 Min (`ANLAGEN_UPDATE_CHECK_TIMEOUT`) → `erfolgreich`/`fehlgeschlagen`/`unbekannt`; robuster Takt über `zuletzt_um`, alle Ableitungen aus `angestossen_um` (übersteht Container-Neustarts) |
 
 ## Technischer Weg (javap-verifiziert, SDK 10.0.2.5)
 

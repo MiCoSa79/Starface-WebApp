@@ -170,7 +170,10 @@ check("Nav-Quelle: active-Clause im Admin-Dropdown", "'anlagen-updates'" in base
 check("Nav-Quelle: active-Liste öffnet Dropdown",
       "''anlagen-updates''" in base_src or "'anlagen-updates'" in base_src and
       "details.drop" in base_src)
-check("Nav gerendert: Link aktiv", 'class="active">Anlagen-Updates' in r.text, "")
+check("Nav gerendert: Untermenü Anlagen-Updates aktiv",
+      '>Anlagen-Updates ▸<' in r.text and 'class="active">Updates einrichten' in r.text
+      and "Geplante Updates" in r.text and "Laufende Updates" in r.text
+      and "Durchgeführte Updates" in r.text)
 check("Dropdown öffnet bei aktiver Seite", "anlagen-updates" in r.text and "drop active" in r.text or
       "'anlagen-updates'" in r.text)
 check("Tabellen-Filter + globales admin.js geladen", 'data-filter="tbl-au-anlagen"' in r.text and
@@ -398,7 +401,8 @@ check("fetch-bulk ohne Auswahl: Hinweis", "Keine Anlage ausgewählt" in unquote(
 
 # --- 17. Bulk-Schnittmenge (?inst_ids=) ----------------------------------------
 r = c.get(f"/admin/anlagen-updates?inst_ids={id_mit},{id_b}")
-cut = r.text[r.text.find("Schnittmenge"):r.text.find("Geplante Updates")]
+_s = r.text.find("Schnittmenge")
+cut = r.text[_s:r.text.find("Geplante Updates", _s)]  # F96: Marker NACH der Schnittmenge (Nav enthält den Text jetzt vorher)
 check("Bulk: Kopf 'für 2 ausgewählte Anlagen'", "für 2 ausgewählte Anlagen" in r.text)
 check("Bulk: Anlagen gelistet", "MitDeployer" in r.text and "BetaAnlage" in r.text)
 check("Bulk: gemeinsames Update sichtbar", "10.0.3.0" in cut, cut[:150])
@@ -418,7 +422,8 @@ FAKE_UPDATES_FAIL.clear()
 
 # Alle ok, aber disjunkte Update-Listen -> leere Schnittmenge
 r = c.get(f"/admin/anlagen-updates?inst_ids={id_mit},{id_c}")
-cut = r.text[r.text.find("Schnittmenge"):r.text.find("Geplante Updates")]
+_s = r.text.find("Schnittmenge")
+cut = r.text[_s:r.text.find("Geplante Updates", _s)]  # F96: Marker NACH der Schnittmenge
 check("Bulk disjunkt: Leerhinweis",
       "Kein Update ist für alle 2 ausgewählten Anlagen verfügbar." in cut, cut[:150])
 check("Bulk disjunkt: kein Update in Schnittmenge",

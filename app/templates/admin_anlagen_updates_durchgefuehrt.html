@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}STARFACE WebApp — Durchgeführte Updates{% endblock %}
+{% block styles %}{% endblock %}
+{% block content %}
+<div class="container">
+    {% if msg %}
+    <div class="msg {{ 'ok' if 'FEHLER' not in msg else 'err' }}" style="margin-bottom:16px">
+        <button type="button" class="btn-mini" onclick="this.closest('.msg').style.display='none'">OK</button>{{ msg }}</div>
+    {% endif %}
+
+    <h2 class="tbl-head">
+        Durchgeführte Updates
+        <span class="muted">Abgeschlossene Updates — Erfolg anhand der bestätigten Zielversion (GetStats)</span>
+    </h2>
+
+    <div class="tbl-wrap" data-wrap="durch">
+        <div class="tbl-filters">
+            <input type="text" data-filter="tbl-durch" data-col="1" data-wildcard
+                   placeholder="Anlage filtern (* = beliebig, ? = genau 1 Zeichen)" aria-label="Durchgeführte Updates nach Anlage filtern" autocomplete="off">
+            <select data-col="4" aria-label="Nach Erfolg filtern"><option value="">Erfolg (alle)</option></select>
+            <span class="muted tbl-count" data-count="durch">{{ rows|length }} von {{ rows|length }}</span>
+        </div>
+        <table id="tbl-durch">
+            <thead>
+                <tr>
+                    <th>Anlage</th>
+                    <th>Version vorher</th>
+                    <th>Version nachher</th>
+                    <th>Update-Zeitpunkt</th>
+                    <th>Erfolg</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in rows %}
+                <tr>
+                    <td>{{ r.inst }}</td>
+                    <td>{% if r.vor and r.vor != "—" %}<span style="color:#ffb74d">v{{ r.vor }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+                    <td>{{ r.nach }}</td>
+                    <td>{{ r.um }}</td>
+                    <td>
+                        {% if r.status == 'erfolgreich' %}<span style="color:#81c784" title="{{ r.detail }}">erfolgreich</span>
+                        {% elif r.status == 'fehlgeschlagen' %}<span style="color:#e57373" title="{{ r.detail }}">fehlgeschlagen</span>
+                        {% else %}<span class="muted" title="{{ r.detail }}">unbekannt</span>{% endif %}
+                        {% if r.quelle == 'plan' %}<span class="muted"> (geplant)</span>{% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="5" class="empty">Noch keine durchgeführten Updates.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

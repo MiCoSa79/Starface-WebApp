@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}STARFACE WebApp — Geplante Updates{% endblock %}
+{% block styles %}{% endblock %}
+{% block content %}
+<div class="container">
+    {% if msg %}
+    <div class="msg {{ 'ok' if 'FEHLER' not in msg and 'nicht gefunden' not in msg and 'noch geplant' not in msg else 'err' }}" style="margin-bottom:16px">
+        <button type="button" class="btn-mini" onclick="this.closest('.msg').style.display='none'">OK</button>{{ msg }}</div>
+    {% endif %}
+
+    <h2 class="tbl-head">
+        Geplante Updates
+        <span class="muted">Anlagen-Updates mit festem Ausführungszeitpunkt — sortiert nach Zeitpunkt, das nächste fällige oben</span>
+    </h2>
+
+    <div class="tbl-wrap" data-wrap="geplant">
+        <div class="tbl-filters">
+            <input type="text" data-filter="tbl-geplant" data-col="1" data-wildcard
+                   placeholder="Anlage filtern (* = beliebig, ? = genau 1 Zeichen)" aria-label="Geplante Updates nach Anlage filtern" autocomplete="off">
+            <span class="muted tbl-count" data-count="geplant">{{ rows|length }} von {{ rows|length }}</span>
+        </div>
+        <table id="tbl-geplant">
+            <thead>
+                <tr>
+                    <th>Anlage</th>
+                    <th>IST-Version</th>
+                    <th>Update-Version</th>
+                    <th>Zeitpunkt</th>
+                    <th>Status</th>
+                    <th style="width:1%; text-align:right">Aktion</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in rows %}
+                <tr>
+                    <td>{{ r.inst }}</td>
+                    <td>{% if r.ist and r.ist != "—" %}<span style="color:#ffb74d">v{{ r.ist }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+                    <td>{{ r.version }}</td>
+                    <td>{{ r.zeit }}{% if r.erledigt %}<span class="muted"> · ausgeführt {{ r.erledigt }}</span>{% endif %}</td>
+                    <td>
+                        {% if r.status == 'planned' %}<span style="color:#ffb74d">geplant</span>
+                        {% elif r.status == 'executed' %}<span style="color:#81c784">ausgeführt</span>
+                        {% elif r.status == 'cancelled' %}<span class="muted">abgebrochen</span>
+                        {% elif r.status == 'missed' %}<span style="color:#e57373">verpasst</span>
+                        {% else %}<span style="color:#e57373">Fehler</span>{% endif %}
+                    </td>
+                    <td style="text-align:right; white-space:nowrap">
+                        {% if r.status == 'planned' %}
+                        <form method="post" action="/admin/anlagen-updates/geplant/abbrechen" style="margin:0; display:inline-flex">
+                            <input type="hidden" name="plan_id" value="{{ r.id }}">
+                            <button type="submit" class="btn-secondary btn-mini">Abbrechen</button>
+                        </form>
+                        {% else %}
+                        <form method="post" action="/admin/anlagen-updates/geplant/loeschen" style="margin:0; display:inline-flex">
+                            <input type="hidden" name="plan_id" value="{{ r.id }}">
+                            <button type="submit" class="btn-danger btn-mini">Löschen</button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" class="empty">Keine geplanten Updates — Updates auf der Seite „Updates einrichten“ planen.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

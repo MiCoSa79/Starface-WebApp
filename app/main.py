@@ -221,7 +221,31 @@ def init_db():
             result TEXT DEFAULT '',
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
         );
+        CREATE TABLE IF NOT EXISTS anlagen_update_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            installation_id INTEGER NOT NULL,
+            quelle TEXT NOT NULL DEFAULT 'direkt',
+            plan_id INTEGER,
+            version_vor TEXT DEFAULT '',
+            version_nach TEXT NOT NULL,
+            angestossen_um TEXT NOT NULL,
+            bestaetigt_um TEXT DEFAULT '',
+            status TEXT NOT NULL DEFAULT 'pruefen',
+            version_zuletzt TEXT DEFAULT '',
+            zuletzt_um TEXT DEFAULT '',
+            detail TEXT DEFAULT '',
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
     """)
+    # Migration (F96): ausgefuehrt_um an anlagen_update_plans (Zeitpunkt der Ausführung)
+    pcols = [r[1] for r in conn.execute("PRAGMA table_info(anlagen_update_plans)").fetchall()]
+    if "ausgefuehrt_um" not in pcols:
+        conn.execute("ALTER TABLE anlagen_update_plans ADD COLUMN ausgefuehrt_um TEXT DEFAULT ''")
+    # Migration (F96): Spalten an anlagen_update_log (Erreichbarkeits-Historie der Prüfung)
+    lcols = [r[1] for r in conn.execute("PRAGMA table_info(anlagen_update_log)").fetchall()]
+    for col, ddl in (("version_zuletzt", "TEXT DEFAULT ''"), ("zuletzt_um", "TEXT DEFAULT ''")):
+        if col not in lcols:
+            conn.execute(f"ALTER TABLE anlagen_update_log ADD COLUMN {col} {ddl}")
     # Migration (v0.0.34+): bestehende DBs um Modul-Versionierungs-Spalten erweitern
     cols = [r[1] for r in conn.execute("PRAGMA table_info(modules)").fetchall()]
     for col, ddl in (("file_hash", "TEXT DEFAULT ''"),
@@ -2568,6 +2592,27 @@ async def admin_anlagen_updates_execute(request: Request):
             if res.get("status") == "ok":
                 ok_cnt += 1
                 first_msg = first_msg or res.get("message", "ok")
+                # F96: Durchführungs-Log anlegen (Erfolgsprüfung ab +5 Min).
+                try:
+                    from datetime import datetime, timezone
+                    now_iso = datetime.now(timezone.utc).isoformat(timespec="seconds")
+                    try:
+                        ver_vor = _anlagen_version(dict(inst)) or "—"
+                    except Exception:
+                        ver_vor = "—"
+                    lc = _db()
+                    try:
+                        lc.execute(
+                            "INSERT INTO anlagen_update_log"
+                            " (installation_id, quelle, version_vor, version_nach,"
+                            "  angestossen_um, status)"
+                            " VALUES (?, 'direkt', ?, ?, ?, 'pruefen')",
+                            (inst["id"], ver_vor, version, now_iso))
+                        lc.commit()
+                    finally:
+                        lc.close()
+                except Exception:
+                    pass  # Log darf den Update-Anstoß nie brechen
             else:
                 errors.append(f"{inst['name']}: {res.get('message', 'Unbekannter Fehler')}")
         except Exception as e:  # Token-/Transportfehler
@@ -2671,6 +2716,174 @@ async def admin_anlagen_updates_cancel(request: Request):
         else "Plan nicht gefunden oder bereits ausgeführt."
     _log_event(inst_id or None, user["user_id"], "anlagen-update-cancel", msg)
     return _anlagen_updates_redirect(msg, inst_id)
+
+
+def _geplant_redirect(msg: str):
+    return RedirectResponse(
+        f"/admin/anlagen-updates/geplant?msg={quote(msg)}", status_code=303)
+
+
+@app.get("/admin/anlagen-updates/geplant", response_class=HTMLResponse)
+async def admin_anlagen_updates_geplant_page(request: Request):
+    """F96: Geplante Updates — Tabelle, sortiert nach Zeitpunkt (nächstes
+    fälliges oben), Filter auf Anlagen-Name, Abbrechen (planned) / Löschen
+    (erledigte Einträge entfernen)."""
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user or not user["is_admin"]:
+        return RedirectResponse("/")
+    try:
+        from timeutil import utc_iso_zu_lokal_anzeige
+    except ImportError:
+        from app.timeutil import utc_iso_zu_lokal_anzeige
+    conn = _db()
+    plans = conn.execute(
+        "SELECT p.*, i.name AS inst_name FROM anlagen_update_plans p"
+        " JOIN installations i ON i.id = p.installation_id"
+        " ORDER BY p.scheduled_at ASC").fetchall()
+    insts = {r["id"]: r for r in
+             conn.execute("SELECT * FROM installations").fetchall()}
+    conn.close()
+    rows = []
+    for p in plans:
+        inst = insts.get(p["installation_id"])
+        rows.append({
+            "id": p["id"], "inst": p["inst_name"],
+            "ist": _anlagen_version(inst) if inst else "—",
+            "version": p["version"],
+            "zeit": utc_iso_zu_lokal_anzeige(p["scheduled_at"]),
+            "status": p["status"],
+            "erledigt": (utc_iso_zu_lokal_anzeige(p["ausgefuehrt_um"])
+                         if p["ausgefuehrt_um"] else ""),
+        })
+    return TEMPLATES.TemplateResponse("admin_anlagen_updates_geplant.html", {
+        "request": request, "user": user, "active": "anlagen-updates-geplant",
+        "msg": request.query_params.get("msg", ""), "rows": rows})
+
+
+@app.get("/admin/anlagen-updates/laufend", response_class=HTMLResponse)
+async def admin_anlagen_updates_laufend_page(request: Request):
+    """F96: Laufende Updates — angestoßen, Erfolgsprüfung (GetStats-Vorher/
+    Nachher) noch nicht abgeschlossen. Restzeit bis zum Urteil anzeigen."""
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user or not user["is_admin"]:
+        return RedirectResponse("/")
+    try:
+        from timeutil import utc_iso_zu_lokal_anzeige
+        from anlagen_update_scheduler import (CHECK_START_DELAY, CHECK_TIMEOUT)
+    except ImportError:
+        from app.timeutil import utc_iso_zu_lokal_anzeige
+        from app.anlagen_update_scheduler import (CHECK_START_DELAY, CHECK_TIMEOUT)
+    now = datetime.now(timezone.utc)
+    conn = _db()
+    logs = conn.execute(
+        "SELECT l.*, i.name AS inst_name FROM anlagen_update_log l"
+        " JOIN installations i ON i.id = l.installation_id"
+        " WHERE l.status='pruefen' ORDER BY l.angestossen_um").fetchall()
+    conn.close()
+    rows = []
+    for lg in logs:
+        start = None
+        try:
+            start = datetime.fromisoformat(lg["angestossen_um"])
+        except ValueError:
+            pass
+        rest = ""
+        phase = ""
+        if start:
+            rest_s = max(0, int(CHECK_TIMEOUT - (now - start).total_seconds()))
+            rest = f"{rest_s // 60} min"
+            phase = ("Nachprüfung startet ab +5 min"
+                     if (now - start).total_seconds() < CHECK_START_DELAY
+                     else "Nachprüfung läuft (GetStats-Vergleich)")
+        rows.append({
+            "id": lg["id"], "inst": lg["inst_name"],
+            "vor": lg["version_vor"] or "—", "ziel": lg["version_nach"],
+            "angestossen": (utc_iso_zu_lokal_anzeige(lg["angestossen_um"])
+                            if start else lg["angestossen_um"]),
+            "phase": phase, "rest": rest, "detail": lg["detail"] or "",
+        })
+    return TEMPLATES.TemplateResponse("admin_anlagen_updates_laufend.html", {
+        "request": request, "user": user, "active": "anlagen-updates-laufend",
+        "msg": request.query_params.get("msg", ""), "rows": rows})
+
+
+@app.get("/admin/anlagen-updates/durchgefuehrt", response_class=HTMLResponse)
+async def admin_anlagen_updates_durchgefuehrt_page(request: Request):
+    """F96: Durchgeführte Updates — aus dem anlagen_update_log, Urteil der
+    GetStats-Nachprüfung; sortiert nach Urteilszeitpunkt, letztes oben."""
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user or not user["is_admin"]:
+        return RedirectResponse("/")
+    try:
+        from timeutil import utc_iso_zu_lokal_anzeige
+    except ImportError:
+        from app.timeutil import utc_iso_zu_lokal_anzeige
+    conn = _db()
+    logs = conn.execute(
+        "SELECT l.*, i.name AS inst_name FROM anlagen_update_log l"
+        " JOIN installations i ON i.id = l.installation_id"
+        " WHERE l.status IN ('erfolgreich','fehlgeschlagen','unbekannt')"
+        " ORDER BY l.bestaetigt_um DESC").fetchall()
+    conn.close()
+    rows = []
+    for lg in logs:
+        rows.append({
+            "id": lg["id"], "inst": lg["inst_name"],
+            "vor": lg["version_vor"] or "—", "nach": lg["version_nach"],
+            "um": (utc_iso_zu_lokal_anzeige(lg["bestaetigt_um"])
+                   if lg["bestaetigt_um"] else "—"),
+            "status": lg["status"], "detail": lg["detail"] or "",
+            "quelle": lg["quelle"],
+        })
+    return TEMPLATES.TemplateResponse("admin_anlagen_updates_durchgefuehrt.html", {
+        "request": request, "user": user, "active": "anlagen-updates-durchgefuehrt",
+        "msg": request.query_params.get("msg", ""), "rows": rows})
+
+
+@app.post("/admin/anlagen-updates/geplant/abbrechen")
+async def admin_anlagen_updates_geplant_abbrechen(request: Request):
+    """Bricht einen geplanten Plan ab (planned → cancelled), Seite Geplant."""
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user or not user["is_admin"]:
+        return RedirectResponse("/")
+    form = await request.form()
+    try:
+        plan_id = int(form.get("plan_id", "0"))
+    except ValueError:
+        plan_id = 0
+    conn = _db()
+    cur = conn.execute(
+        "UPDATE anlagen_update_plans SET status='cancelled',"
+        " result='Abgebrochen durch Admin' WHERE id=? AND status='planned'",
+        (plan_id,))
+    conn.commit()
+    conn.close()
+    msg = ("Plan abgebrochen." if cur.rowcount
+           else "Plan nicht gefunden oder bereits ausgeführt.")
+    return _geplant_redirect(msg)
+
+
+@app.post("/admin/anlagen-updates/geplant/loeschen")
+async def admin_anlagen_updates_geplant_loeschen(request: Request):
+    """Entfernt eine erledigte Plan-Zeile (planned muss erst abgebrochen
+    werden — Schutz vor versehentlichem Löschen offener Pläne)."""
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user or not user["is_admin"]:
+        return RedirectResponse("/")
+    form = await request.form()
+    try:
+        plan_id = int(form.get("plan_id", "0"))
+    except ValueError:
+        plan_id = 0
+    conn = _db()
+    cur = conn.execute(
+        "DELETE FROM anlagen_update_plans WHERE id=? AND status!='planned'",
+        (plan_id,))
+    conn.commit()
+    conn.close()
+    msg = ("Eintrag gelöscht." if cur.rowcount
+           else "Plan nicht gefunden oder noch geplant (erst abbrechen).")
+    return _geplant_redirect(msg)
 
 
 @app.get("/admin/modules/{module_id}/download")
