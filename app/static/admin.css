@@ -196,10 +196,15 @@ dialog.dlg::backdrop { background: rgba(0, 0, 0, .55); }
    die .dlg.wide-Regel selbst fehlte → Dialog fiel auf dialog.dlg max-width:420px
    (F79-„Instanz anlegen“) zurueck → auf dem PC zu schmal, die Aktionstabelle
    (Installieren + Planen-Datumsfeld) lief horizontal ueber (Axel-Screenshot 30.08.) */
-.dlg.wide { max-width: min(96vw, 1200px); }
 .dlg.wide table { width: 100%; }
-/* F102: Datumsauswahl kompakt — damit Installieren + Datum + Planen in EINE Zeile passen */
-.dlg.wide input[type="datetime-local"] { width: 145px; }
+/* F102c: breite Dialog-Variante mit Basis-Spezifität (dialog.dlg 0,1,1 schlägt sonst
+   .dlg.wide 0,1,0 → max-width:420 blieb in der echten App aktiv, Fixture war trügerisch).
+   width:max-content = inhaltsgenaue Breite (keine überbreiten Textspalten/Lücken). */
+dialog.dlg.wide { max-width: min(96vw, 1200px); width: max-content; }
+/* F102c: Datumsauswahl VOLL anzeigen — 145px schnitt „30.08.2026 17:30“ + Kalender-Icon ab
+   (Axel-Screenshot 30.08. 15:40); 170px = Format + Icon komplett; Dialog ist seither
+   inhaltsgenau (width:max-content), die Ueberbreite der Textspalten entfaellt automatisch */
+.dlg.wide input[type="datetime-local"] { width: 170px; }
 /* F102b: Aktionszelle nowrap (F75-Muster) — zwingt die inline-flex-Buttons in EINE Zeile
    und gibt der Spalte ihre Mindestbreite; Mobil (<=640) darf umbrechen statt zu scrollen */
 .dlg.wide .au-aktion { white-space: nowrap; text-align: right; }

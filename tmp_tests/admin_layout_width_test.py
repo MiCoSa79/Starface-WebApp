@@ -210,12 +210,12 @@ check("F101: Kiosk-Safe-Area-Padding gesetzt (beide Seiten)",
 # ── F102: Abruf-Dialog (Anlagen-Updates) auf dem PC breit — .dlg.wide war nie definiert ──
 _bulk = _tpl("app/templates/_au_bulk.html")
 _einz = _tpl("app/templates/_au_einzel.html")
-check("F102: .dlg.wide = breite Dialog-Variante definiert (min(96vw, 1200px))",
-      ".dlg.wide { max-width: min(96vw, 1200px); }" in _css,
-      ".dlg.wide-Regel fehlt in admin.css (420px-Fallback → zu schmal)")
-check("F102: Datumsauswahl kompakt — eine Reihe mit Installieren/Planen",
-      '.dlg.wide input[type="datetime-local"] { width: 145px; }' in _css,
-      ".dlg.wide-Datumsfeld-Kompaktregel fehlt")
+check("F102c: dialog.dlg.wide = breite Dialog-Variante (0,2,1 > Basis 0,1,1; width:max-content)",
+      "dialog.dlg.wide { max-width: min(96vw, 1200px); width: max-content; }" in _css,
+      "dialog.dlg.wide-Regel fehlt — .dlg.wide (0,1,0) verliert gegen dialog.dlg max-width:420 (0,1,1), Dialog bleibt schmal")
+check("F102c: Datumsauswahl VOLL sichtbar (170px — 145 schnitt Minuten+Icon ab)",
+      '.dlg.wide input[type="datetime-local"] { width: 170px; }' in _css,
+      ".dlg.wide-Datumsfeld-Kompaktregel fehlt/veraltet (145=abgeschnitten)")
 check("F102: Tabellen im .dlg.wide nutzen die volle Dialogbreite",
       ".dlg.wide table { width: 100%; }" in _css,
       ".dlg.wide table-Regel fehlt")

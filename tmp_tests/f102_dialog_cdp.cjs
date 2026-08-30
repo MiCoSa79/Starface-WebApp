@@ -57,22 +57,28 @@ function delay(ms) { return new Promise((r) => setTimeout(r, ms)); }
     const tbl = dlg.querySelector('table');
     const x = document.querySelector('.dlg-close-x');
     const inp = dlg.querySelector('input[type="datetime-local"]');
+    const versionTh = dlg.querySelector('thead th');
     const vw = document.documentElement.clientWidth || window.innerWidth;
     const dw = dlg.getBoundingClientRect().width;
-    const overflows = tbl.scrollWidth > dlg.clientWidth;
-    const tops = [...dlg.querySelectorAll('td form')].map((f) => Math.round(f.getBoundingClientRect().top));
-    const eineReihe = tops.length === 2 ? Math.abs(tops[0] - tops[1]) <= 2 : false;
-    return { vw, dw, ratio: +(dw / vw).toFixed(3),
+    const cw = dlg.clientWidth;
+    const overflows = dlg.scrollWidth > cw;
+    const tails = [...dlg.querySelectorAll('td form')].map((f) => Math.round(f.getBoundingClientRect().top));
+    const eineReihe = tails.length === 2 ? Math.abs(tails[0] - tails[1]) <= 2 : false;
+    const inputFull = inp ? inp.scrollWidth <= inp.clientWidth + 1 : false;
+    return { vw, dw, cw, ratio: +(dw / vw).toFixed(3),
              xSvg: !!(x && x.querySelector('svg path')), overflows,
-             eineReihe, infla: inp ? inp.getBoundingClientRect().width : -1, tops };
+             eineReihe, infla: inp ? inp.getBoundingClientRect().width : -1,
+             inputFull, tails,
+             vCol: versionTh ? versionTh.getBoundingClientRect().width : -1 };
   })()`);
 
   const checks = [
-    ['Dialog nutzt ~96% des Viewports (min(96vw,1200))', m.ratio > 0.92 && m.ratio < 0.99, `ratio=${m.ratio} (vw=${m.vw}, dlg=${m.dw})`],
-    ['Dialog nutzt max. 1200px (PC-Cap)', m.dw <= 1200 + 1, `dlg=${m.dw}px`],
-    ['Aktionstabelle läuft nicht mehr über', m.overflows === false, `scroll-width=${m.overflows ? '>' : '<='} client-width`],
-    ['Installieren + Datum + Planen in EINER Zeile', m.eineReihe === true, `tops=${JSON.stringify(m.tops)}`],
-    ['Datumsauswahl kompakt (<=150px)', m.infla > 0 && m.infla <= 150, `input=${m.infla}px`],
+    ['Dialog = Inhaltsbreite (max-content), max. 96vw', m.dw <= 0.96 * m.vw + 1 && m.dw >= m.cw - 2, `dlg=${m.dw}px (vw=${m.vw})`],
+    ['Dialog max. 1200px (PC-Cap)', m.dw <= 1200 + 1, `dlg=${m.dw}px`],
+    ['Dialog läuft nicht über (kein Scrollbalken)', m.overflows === false, `scroll ${m.overflows ? '>' : '<='} client`],
+    ['Installieren + Datum + Planen in EINER Zeile', m.eineReihe === true, `tops=${JSON.stringify(m.tails)}`],
+    ['Version-Spalte schmal (<=140px)', m.vCol > 0 && m.vCol <= 140, `Version=${m.vCol}px`],
+    ['Datumsfeld komplett sichtbar (30.08.2026 17:30)', m.inputFull === true, `input=${m.infla}px`],
     ['X-Schließen (SVG) im Kopf vorhanden', m.xSvg === true, `xSvg=${m.xSvg}`],
   ];
   let ok = 0;
@@ -81,7 +87,7 @@ function delay(ms) { return new Promise((r) => setTimeout(r, ms)); }
     console.log(`${pass ? 'OK ' : 'FAIL'} ${name} — ${detail}`);
     if (pass) ok++;
   }
-  console.log(ok === checks.length ? 'ALLE 4 CHECKS OK' : `NUR ${ok}/${checks.length}`);
+  console.log(ok === checks.length ? 'ALLE 7 CHECKS OK' : `NUR ${ok}/${checks.length}`);
   ws.close();
   process.exit(ok === checks.length ? 0 : 1);
 })().catch((e) => { console.error('FEHLER:', e.message); process.exit(2); });
