@@ -1,0 +1,63 @@
+    <p class="muted" style="margin:14px 0 4px">
+        ⚠ <strong>Eingriff in den laufenden Betrieb:</strong> Ein Anlagen-Update startet die DNF-Update-Pipeline der STARFACE,
+        beendet dabei alle Sitzungen und startet die Anlage neu — Telefonie, Voicemail und Fax sind in dieser Zeit
+        nicht verfügbar. Updates deshalb bewusst und außerhalb der Geschäftszeiten ausführen oder planen.
+    </p>
+    {% if bulk.alle_ok %}
+    <h2 class="tbl-head">Verfügbare Updates für {{ bulk.anlagen|length }} ausgewählte Anlagen
+        <span class="muted">— Schnittmenge: nur Updates, die bei allen ausgewählten Anlagen verfügbar sind</span>
+    </h2>
+    <p class="muted" style="margin:2px 0 8px">
+        {{ bulk.anlagen|map(attribute='name')|join(', ') }}
+    </p>
+    {% if bulk.schnittmenge %}
+    <div class="tbl-wrap" data-wrap="au-schnitt">
+        <table>
+            <thead>
+                <tr>
+                    <th>Version</th>
+                    <th>Datum</th>
+                    <th>Typ</th>
+                    <th style="width:1%; text-align:right">Aktion</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in bulk.schnittmenge %}
+                <tr>
+                    <td{% if u.url %} title="Update-URL: {{ u.url }}"{% endif %}>{{ u.version }}</td>
+                    <td>{{ u.date }}</td>
+                    <td>{{ u.type }}</td>
+                    <td style="text-align:right; white-space:nowrap">
+                        <form method="post" action="/admin/anlagen-updates/execute" style="margin:0; display:inline-flex; gap:6px">
+                            {% for a in bulk.anlagen %}<input type="hidden" name="installation_ids" value="{{ a.id }}">{% endfor %}
+                            <input type="hidden" name="version" value="{{ u.version }}">
+                            <input type="hidden" name="update_url" value="{{ u.url }}">
+                            <button type="submit" class="btn-primary">Installieren</button>
+                        </form>
+                        <form method="post" action="/admin/anlagen-updates/schedule" style="margin:0; display:inline-flex; gap:6px">
+                            {% for a in bulk.anlagen %}<input type="hidden" name="installation_ids" value="{{ a.id }}">{% endfor %}
+                            <input type="hidden" name="version" value="{{ u.version }}">
+                            <input type="hidden" name="update_url" value="{{ u.url }}">
+                            <input type="datetime-local" name="scheduled_for" min="{{ now_local }}" required
+                                   aria-label="Zeitpunkt für {{ u.version }} planen" title="Zeitpunkt für die Installation planen (Europe/Berlin)">
+                            <button type="submit" class="btn-secondary">Planen</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="empty">Kein Update ist für alle {{ bulk.anlagen|length }} ausgewählten Anlagen verfügbar.</p>
+    {% endif %}
+    {% else %}
+    <div class="msg err" style="margin:14px 0">
+        <button type="button" class="btn-mini" onclick="this.closest('.msg').style.display='none'">OK</button>
+        Keine Schnittmenge berechnet — der Abruf schlug für folgende Anlage(n) fehl (nie ein Update anstoßen, dessen
+        Verfügbarkeit ungeprüft ist):
+        <ul style="margin:6px 0 0; padding-left:20px">
+            {% for a in bulk.anlagen if not a.ok %}<li><strong>{{ a.name }}</strong>: {{ a.error }}</li>{% endfor %}
+        </ul>
+    </div>
+    {% endif %}

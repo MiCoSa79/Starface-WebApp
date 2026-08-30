@@ -2356,12 +2356,16 @@ def _anlagen_version(inst) -> str:
 
 
 def _anlagen_updates_redirect(msg: str, inst_id: int = 0,
-                              inst_ids: list | None = None) -> RedirectResponse:
+                              inst_ids: list | None = None,
+                              dlg: bool = False) -> RedirectResponse:
+    """F97: dlg=1 lässt die Seite das Abruf-Ergebnis im Dialog öffnen."""
     url = "/admin/anlagen-updates?msg=" + quote(msg)
     if inst_ids:
         url += "&inst_ids=" + ",".join(str(i) for i in sorted(set(inst_ids)))
     elif inst_id:
         url += f"&inst_id={inst_id}"
+    if dlg:
+        url += "&dlg=1"
     return RedirectResponse(url, status_code=303)
 
 
@@ -2491,6 +2495,7 @@ async def admin_anlagen_updates_page(request: Request):
          "fmt_local": utc_iso_zu_lokal_anzeige,
          "now_local": lokal_now_dt_local(),
          "active": "anlagen-updates",
+         "dlg": request.query_params.get("dlg") == "1",
          "version": os.environ.get("APP_VERSION", "dev"),
          "msg": request.query_params.get("msg", "")})
 
@@ -2512,7 +2517,7 @@ async def admin_anlagen_updates_fetch(request: Request):
         inst_id = 0
     if not inst_id:
         return _anlagen_updates_redirect("Keine Anlage ausgewählt.")
-    return _anlagen_updates_redirect("", inst_id)
+    return _anlagen_updates_redirect("", inst_id, dlg=True)
 
 
 @app.post("/admin/anlagen-updates/fetch-bulk")
@@ -2535,7 +2540,7 @@ async def admin_anlagen_updates_fetch_bulk(request: Request):
     if not ids:
         return _anlagen_updates_redirect(
             "Keine Anlage ausgewählt — bitte Checkboxen in der Tabelle aktivieren.")
-    return _anlagen_updates_redirect("", inst_ids=ids)
+    return _anlagen_updates_redirect("", inst_ids=ids, dlg=True)
 
 
 def _form_inst_ids(form) -> list:

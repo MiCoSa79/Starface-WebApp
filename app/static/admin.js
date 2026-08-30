@@ -192,3 +192,32 @@ function testConn(instId, name, adminRoute) {
     initTableFilters();
     initComboboxes();
     initNavDrops();
+    initAuSelectAll();
+    initAuDlg();
+
+    // F97 (v1.0.95): „Updates einrichten“ — „Alle auswählen“ wählt die
+    // SICHTBAREN (gefilterten) Checkboxen der Anlagen-Tabelle; ergänzend
+    // „Auswahl aufheben“. Das Ergebnis-Dialog (au-dlg) öffnet sich, wenn die
+    // Seite mit ?dlg=1 gerendert wurde (data-dlg="1"), und schließt per Button.
+    function initAuSelectAll() {
+        var all = document.getElementById('sel-all');
+        var none = document.getElementById('sel-none');
+        if (!all || !none) { return; }
+        var pick = function (on) {
+            var seen = 0;
+            document.querySelectorAll('input.au-cb').forEach(function (cb) {
+                var tr = cb.closest('tr');
+                if (tr && tr.offsetParent !== null) { cb.checked = on; seen++; }
+            });
+            return seen;
+        };
+        all.addEventListener('click', function () { pick(true); });
+        none.addEventListener('click', function () { pick(false); });
+    }
+    function initAuDlg() {
+        var dlg = document.getElementById('au-dlg');
+        if (!dlg) { return; }
+        var close = document.getElementById('au-dlg-close');
+        if (close) { close.addEventListener('click', function () { dlg.close(); }); }
+        if (dlg.getAttribute('data-dlg') === '1') { dlg.showModal(); }
+    }

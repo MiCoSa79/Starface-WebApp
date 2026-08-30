@@ -1,0 +1,58 @@
+    <p class="muted" style="margin:14px 0 4px">
+        ⚠ <strong>Eingriff in den laufenden Betrieb:</strong> Ein Anlagen-Update startet die DNF-Update-Pipeline der STARFACE,
+        beendet dabei alle Sitzungen und startet die Anlage neu — Telefonie, Voicemail und Fax sind in dieser Zeit
+        nicht verfügbar. Updates deshalb bewusst und außerhalb der Geschäftszeiten ausführen oder planen.
+    </p>
+
+    {% if updates_error %}
+    <div class="msg err">
+        <button type="button" class="btn-mini" onclick="this.closest('.msg').style.display='none'">OK</button>{{ updates_error }}</div>
+    {% else %}
+    <p class="empty">Bitte oben eine Anlage auswählen (Zeilen-Button „Updates abrufen“) oder über die Checkboxen
+        mehrere Anlagen wählen — danach erscheinen hier die verfügbaren Server-Updates.</p>
+    {% endif %}
+
+    <h2 class="tbl-head">Verfügbare Updates — {{ installations[0].name }}
+        {% if updates and updates.current %}<span class="muted">— installierte Version: {{ updates.current }}</span>{% endif %}
+    </h2>
+    {% if updates and updates.updates %}
+    <div class="tbl-wrap" data-wrap="au-verfuegbar">
+        <table>
+            <thead>
+                <tr>
+                    <th>Version</th>
+                    <th>Datum</th>
+                    <th>Typ</th>
+                    <th style="width:1%; text-align:right">Aktion</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in updates.updates %}
+                <tr>
+                    <td{% if u.url %} title="Update-URL: {{ u.url }}"{% endif %}>{{ u.version }}</td>
+                    <td>{{ u.date }}</td>
+                    <td>{{ u.type }}</td>
+                    <td style="text-align:right; white-space:nowrap">
+                        <form method="post" action="/admin/anlagen-updates/execute" style="margin:0; display:inline-flex; gap:6px">
+                            <input type="hidden" name="installation_id" value="{{ selected_id }}">
+                            <input type="hidden" name="version" value="{{ u.version }}">
+                            <input type="hidden" name="update_url" value="{{ u.url }}">
+                            <button type="submit" class="btn-primary">Installieren</button>
+                        </form>
+                        <form method="post" action="/admin/anlagen-updates/schedule" style="margin:0; display:inline-flex; gap:6px">
+                            <input type="hidden" name="installation_id" value="{{ selected_id }}">
+                            <input type="hidden" name="version" value="{{ u.version }}">
+                            <input type="hidden" name="update_url" value="{{ u.url }}">
+                            <input type="datetime-local" name="scheduled_for" min="{{ now_local }}" required
+                                   aria-label="Zeitpunkt für {{ u.version }} planen" title="Zeitpunkt für die Installation planen (Europe/Berlin)">
+                            <button type="submit" class="btn-secondary">Planen</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="empty">Keine verfügbaren Updates — die Anlage ist auf dem aktuellen Stand (Final-Kanal).</p>
+    {% endif %}
