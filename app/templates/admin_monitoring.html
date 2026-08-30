@@ -163,6 +163,78 @@
     <div id="err-slot"></div>
     {% endif %}
 
+    <!-- Geplante Updates (F111) -->
+    <h2>Geplante Updates</h2>
+    <div class="card">
+        <div class="tbl-wrap">
+        <table>
+            <tr>
+                <th>Anlage</th>
+                <th>URL</th>
+                <th>Version IST</th>
+                <th>Update auf</th>
+                <th>Datum und Uhrzeit</th>
+            </tr>
+            <tbody>
+            {% for u in geplante_updates %}
+            <tr>
+                <td><a class="inst-link" href="/installation/{{ u.id }}">{{ u.name }}</a></td>
+                <td class="codes">{{ u.url }}</td>
+                <td>{{ u.ist }}</td>
+                <td>{{ u.auf }}</td>
+                <td>{{ u.zeit }}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="5" style="border:0;padding:0;">
+                    <p class="okline">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                        Keine geplanten Updates.
+                    </p>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+
+    <!-- Aktuell laufende Updates (F111) -->
+    <h2>Aktuell laufende Updates</h2>
+    <div class="card">
+        <div class="tbl-wrap">
+        <table>
+            <tr>
+                <th>Anlage</th>
+                <th>URL</th>
+                <th>Version IST</th>
+                <th>Update auf</th>
+                <th>Startzeitpunkt</th>
+            </tr>
+            <tbody>
+            {% for u in laufende_updates %}
+            <tr>
+                <td><a class="inst-link" href="/installation/{{ u.id }}">{{ u.name }}</a></td>
+                <td class="codes">{{ u.url }}</td>
+                <td>{{ u.ist }}</td>
+                <td>{{ u.auf }}</td>
+                <td>{{ u.zeit }}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="5" style="border:0;padding:0;">
+                    <p class="okline">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                        Keine laufenden Updates.
+                    </p>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+
     <!-- Fehlerliste -->
     <h2>Anlagen mit Provider-Fehlern</h2>
     <div class="card">

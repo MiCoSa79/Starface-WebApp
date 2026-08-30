@@ -154,6 +154,12 @@ out = sched._run_due_plans(now=NOW)
 st = status_of(pid)
 check("Zukunft: planned", st[0] == "planned", str(st))
 check("Zukunft: KEIN RPC", len(RPC_CALLS) == rpc_before)
+# F110: partial unique index (planned) — den stehengebliebenen Plan aufräumen,
+# damit der nächste Test neu planen darf (kein zweiter planned-Plan je Anlage).
+conn = sqlite3.connect(DB)
+conn.execute("DELETE FROM anlagen_update_plans WHERE id=?", (pid,))
+conn.commit()
+conn.close()
 
 # --- 7: kaputter Zeitstempel -> übersprungen ---------------------------------------
 pid = insert_plan("nicht-parsebar")
@@ -162,6 +168,11 @@ out = sched._run_due_plans(now=NOW)
 st = status_of(pid)
 check("Kaputt: bleibt planned", st[0] == "planned", str(st))
 check("Kaputt: KEIN RPC", len(RPC_CALLS) == rpc_before)
+# F110: siehe Test 6 — Plan aufräumen
+conn = sqlite3.connect(DB)
+conn.execute("DELETE FROM anlagen_update_plans WHERE id=?", (pid,))
+conn.commit()
+conn.close()
 
 # --- 8: RPC-Fehler -> error ---------------------------------------------------------
 conn = sqlite3.connect(DB)

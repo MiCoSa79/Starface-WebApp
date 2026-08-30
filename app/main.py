@@ -1069,11 +1069,14 @@ async def index(request: Request):
     if user["is_admin"]:
         conn = _db()
         inst_rows = conn.execute("SELECT id, name FROM installations ORDER BY name").fetchall()
+        geplante_updates, laufende_updates = _startseiten_updates(conn)
         conn.close()
         id_by_name = {r["name"]: r["id"] for r in inst_rows}
         return TEMPLATES.TemplateResponse("admin_monitoring.html",
             {"request": request, "user": user, "active": "start",
              "summary": _admin_monitoring_summary(monitoring.status(), id_by_name),
+             "geplante_updates": geplante_updates,
+             "laufende_updates": laufende_updates,
              "version": os.environ.get("APP_VERSION", "dev")})
     return RedirectResponse("/anlagen")
 
@@ -2439,6 +2442,55 @@ def _anlagen_update_badge(b):
     if b.get("art") == "geplant":
         return {"art": "geplant", "text": f"Update geplant: {anzeige}"}
     return {"art": "laeuft", "text": f"Update läuft gerade (seit {anzeige})"}
+
+
+def _startseiten_updates(conn):
+    """F111: Geplante + laufende Anlagen-Updates für die Gesamt-Monitoring-Startseite.
+
+    Spalten je Tabelle: Anlagenname, URL, Version IST, Update auf, Zeit.
+    - geplant: anlagen_update_plans.status='planned' (scheduled_at; IST frisch via
+      GetStats — geplante Anlagen sind erreichbar, wenige Aufrufe pro Reload ok)
+    - laeuft:  anlagen_update_log.status='pruefen' (angestossen_um; IST = version_vor
+      aus dem Log, beim Anstoß gemessen — die Anlage kann währenddes Updates rebooten,
+      ein frischer GetStats würde fehlschlagen (F105-Muster))
+    """
+    try:
+        from timeutil import utc_iso_zu_lokal_anzeige
+    except ImportError:
+        from app.timeutil import utc_iso_zu_lokal_anzeige
+
+    plans = conn.execute(
+        "SELECT p.installation_id AS id, p.version, p.scheduled_at, i.name, i.url,"
+        " i.monitoring_instance_name, i.auth_id, i.auth_pass, i.client_secret,"
+        " i.is_starface10, i.oauth_access, i.oauth_refresh, i.oauth_expires,"
+        " i.deployer_instance_name, i.deployer_token"
+        " FROM anlagen_update_plans p JOIN installations i ON i.id = p.installation_id"
+        " WHERE p.status='planned' ORDER BY p.scheduled_at").fetchall()
+    logs = conn.execute(
+        "SELECT l.installation_id AS id, l.version_nach, l.angestossen_um,"
+        " l.version_vor, i.name, i.url"
+        " FROM anlagen_update_log l JOIN installations i ON i.id = l.installation_id"
+        " WHERE l.status='pruefen' ORDER BY l.angestossen_um").fetchall()
+
+    geplante = []
+    for r in plans:
+        d = dict(r)
+        geplante.append({
+            "id": d["id"], "name": d["name"], "url": d["url"],
+            "ist": _anlagen_version(d) if (d.get("monitoring_instance_name") or "").strip() else "—",
+            "auf": d["version"],
+            "zeit": utc_iso_zu_lokal_anzeige(d["scheduled_at"]),
+        })
+    laufende = []
+    for r in logs:
+        d = dict(r)
+        laufende.append({
+            "id": d["id"], "name": d["name"], "url": d["url"],
+            "ist": (d.get("version_vor") or "").strip() or "—",
+            "auf": d["version_nach"],
+            "zeit": utc_iso_zu_lokal_anzeige(d["angestossen_um"]),
+        })
+    return geplante, laufende
 
 
 @app.get("/admin/anlagen-updates", response_class=HTMLResponse)
@@ -4087,12 +4139,15 @@ async def admin_monitoring_page(request: Request):
 
     conn = _db()
     inst_rows = conn.execute("SELECT id, name FROM installations ORDER BY name").fetchall()
+    geplante_updates, laufende_updates = _startseiten_updates(conn)
     conn.close()
     id_by_name = {r["name"]: r["id"] for r in inst_rows}
 
     return TEMPLATES.TemplateResponse("admin_monitoring.html",
         {"request": request, "user": user, "active": "admin",
          "summary": _admin_monitoring_summary(monitoring.status(), id_by_name),
+         "geplante_updates": geplante_updates,
+         "laufende_updates": laufende_updates,
          "version": os.environ.get("APP_VERSION", "dev")})
 
 

@@ -9,7 +9,7 @@
 - Rechte: Seite + API nur für Admins; User -> / (Startseite); Gäste -> /
 - Grafana entfernt (v1.0.55) — kein Link/Button/Name mehr; Admin-Seite rein nativ
 """
-import os, sys, sqlite3, tempfile
+import os, sys, sqlite3, tempfile, re
 
 sys.path.insert(0, "app")
 
@@ -199,8 +199,15 @@ check("Nur bekannte Module: Fremdmodul X (ohne Paket) NICHT in Tabelle (Axel)",
       "Fremdmodul X" not in body and 'class="out-ist">4</td>' not in body)
 check("Anlage C Modul-Status ausgefallen -> Hinweis statt 'alle aktuell' (Axel)",
       "Modul-Status nicht verfügbar" in body and "Monitoring-Modul nicht installiert oder eingerichtet" in body)
-check("Kein 'alle aktuell'-Haken im HTML, wenn Modul-Status fehlt/flagged",
-      '<p class="okline">\n                        <svg' not in body)
+_mod_sec = re.search(r'id="outdated-rows".*?</tbody>', body, re.S)
+check("Kein 'alle Module aktuell'-Haken in der Modul-Sektion, wenn Status fehlt/flagged",
+      _mod_sec is not None and 'class="okline"' not in _mod_sec.group(0),
+      "okline in Modul-Sektion gefunden")
+# F111: okline+SVG kommt seit der Startseiten-Erweiterung legitimerweise auch in
+# den Update-Sektionen vor (Leerzustände, colspan=5) — der Haken-Schutz betrifft
+# nur die Modul-Sektion (id=outdated-rows…</tbody>, serverseitig gerendert) und
+# greift dort über deren Markup; der „alle Module aktuell“-Text steht im JS-Renderer
+# (p.innerHTML) IMMER im HTML und taugt nicht als Negativ-Marker.
 check("Ist-Version rot (out-ist)", "out-ist" in body and "color: #ff6b6b; font-weight: 600;" in body)
 check("JS-Renderer renderOutdated + Einbindung in Refresh",
       "function renderOutdated" in body and "renderOutdated(document.getElementById('outdated-rows'), s.items)" in body)
