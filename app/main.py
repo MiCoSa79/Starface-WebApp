@@ -2397,10 +2397,6 @@ async def admin_anlagen_updates_page(request: Request):
     conn = _db()
     installations = conn.execute(
         "SELECT * FROM installations ORDER BY name").fetchall()
-    plans = conn.execute(
-        "SELECT p.*, i.name AS inst_name FROM anlagen_update_plans p"
-        " JOIN installations i ON i.id = p.installation_id"
-        " ORDER BY p.scheduled_at DESC").fetchall()
     conn.close()
 
     # Tabelle: Ist-Version (frisch) + Deployment-Bereitschaft je Anlage
@@ -2491,7 +2487,6 @@ async def admin_anlagen_updates_page(request: Request):
          "updates": updates,
          "updates_error": updates_error,
          "bulk": bulk,
-         "plans": plans,
          "fmt_local": utc_iso_zu_lokal_anzeige,
          "now_local": lokal_now_dt_local(),
          "active": "anlagen-updates",
@@ -2696,33 +2691,6 @@ async def admin_anlagen_updates_schedule(request: Request):
         inst_ids=[i["id"] for i in insts])
 
 
-@app.post("/admin/anlagen-updates/cancel")
-async def admin_anlagen_updates_cancel(request: Request):
-    """Bricht einen geplanten, noch nicht ausgeführten Update-Plan ab."""
-    user = verify_session(request.cookies.get(SESSION_COOKIE))
-    if not user or not user["is_admin"]:
-        return RedirectResponse("/")
-    form = await request.form()
-    try:
-        plan_id = int(form.get("plan_id", "0"))
-    except ValueError:
-        plan_id = 0
-    conn = _db()
-    cur = conn.execute(
-        "UPDATE anlagen_update_plans SET status='cancelled',"
-        " result='Abgebrochen durch Admin' WHERE id=? AND status='planned'",
-        (plan_id,))
-    conn.commit()
-    row = conn.execute("SELECT installation_id FROM anlagen_update_plans WHERE id=?",
-                       (plan_id,)).fetchone()
-    conn.close()
-    inst_id = row["installation_id"] if row else 0
-    msg = "Plan abgebrochen." if cur.rowcount \
-        else "Plan nicht gefunden oder bereits ausgeführt."
-    _log_event(inst_id or None, user["user_id"], "anlagen-update-cancel", msg)
-    return _anlagen_updates_redirect(msg, inst_id)
-
-
 def _geplant_redirect(msg: str):
     return RedirectResponse(
         f"/admin/anlagen-updates/geplant?msg={quote(msg)}", status_code=303)
@@ -2847,7 +2815,8 @@ async def admin_anlagen_updates_durchgefuehrt_page(request: Request):
 
 @app.post("/admin/anlagen-updates/geplant/abbrechen")
 async def admin_anlagen_updates_geplant_abbrechen(request: Request):
-    """Bricht einen geplanten Plan ab (planned → cancelled), Seite Geplant."""
+    """F103: Bricht einen geplanten Plan ab — der Eintrag wird DIREKT
+    gelöscht (kein 'cancelled'-Zwischenstatus mehr, Axel 30.08.)."""
     user = verify_session(request.cookies.get(SESSION_COOKIE))
     if not user or not user["is_admin"]:
         return RedirectResponse("/")
@@ -2858,12 +2827,11 @@ async def admin_anlagen_updates_geplant_abbrechen(request: Request):
         plan_id = 0
     conn = _db()
     cur = conn.execute(
-        "UPDATE anlagen_update_plans SET status='cancelled',"
-        " result='Abgebrochen durch Admin' WHERE id=? AND status='planned'",
+        "DELETE FROM anlagen_update_plans WHERE id=? AND status='planned'",
         (plan_id,))
     conn.commit()
     conn.close()
-    msg = ("Plan abgebrochen." if cur.rowcount
+    msg = ("Plan abgebrochen und entfernt." if cur.rowcount
            else "Plan nicht gefunden oder bereits ausgeführt.")
     return _geplant_redirect(msg)
 

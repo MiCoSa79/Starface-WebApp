@@ -253,11 +253,11 @@ check("D7 Quelle geplant markiert", "(geplant)" in h)
 r = c.post("/admin/anlagen-updates/geplant/abbrechen", data={"plan_id": "2"},
            follow_redirects=False)
 conn = db()
-st_plan = conn.execute("SELECT status FROM anlagen_update_plans WHERE id=2").fetchone()["status"]
+gone = conn.execute("SELECT id FROM anlagen_update_plans WHERE id=2").fetchone()
 conn.close()
-check("D8 Abbrechen planned -> cancelled + Redirect /geplant",
+check("D8 Abbrechen planned -> DIREKT gelöscht (kein cancelled) + Redirect",
       r.status_code == 303 and "/anlagen-updates/geplant" in r.headers.get("location", "")
-      and st_plan == "cancelled", str(r.headers.get("location")))
+      and gone is None, f"location={r.headers.get('location')} gone={gone}")
 
 # POST löschen (executed-Plan Alpha -> id=3); planned nicht löschbar
 r = c.post("/admin/anlagen-updates/geplant/loeschen", data={"plan_id": "3"},

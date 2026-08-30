@@ -7,11 +7,6 @@
     {% if updates_error %}
     <div class="msg err">
         <button type="button" class="btn-mini" onclick="this.closest('.msg').style.display='none'">OK</button>{{ updates_error }}</div>
-    {% elif not dlg %}
-    {# F102: Auswahl-Hinweis nur in der Seiten-Ansicht — im Popup (dlg=1) wurde die
-       Anlage bereits gewählt, der Abruf läuft/ist da (Axel 30.08.) #}
-    <p class="empty">Bitte oben eine Anlage auswählen (Zeilen-Button „Updates abrufen“) oder über die Checkboxen
-        mehrere Anlagen wählen — danach erscheinen hier die verfügbaren Server-Updates.</p>
     {% endif %}
 
     <h2 class="tbl-head">Verfügbare Updates — {{ installations[0].name }}

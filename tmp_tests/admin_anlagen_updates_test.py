@@ -198,14 +198,19 @@ check("Nicht eingeloggt -> Redirect /", st in (303, 307) and loc == "/",
       f"{st} {loc}")
 
 # --- 3. Leerzustand -----------------------------------------------------------
+# F103: Ergebnis kommt NUR im Popup (dlg=1) — die Seite zeigt keine
+# Ergebnis-Tabelle, keinen Hinweis und keinen Geplant-Block mehr (Axel 30.08.)
 r = c.get("/admin/anlagen-updates")
-check("Leerzustand: Hinweis", "Bitte oben eine Anlage auswählen" in r.text)
-check("Leerzustand: keine Update-Tabelle", "installierte Version" not in r.text and
+check("Leerzustand: keine Ergebnis-Tabelle", "installierte Version" not in r.text and
       "Verfügbare Updates" not in r.text)
-check("Leerzustand: keine geplanten", "Keine geplanten Updates." in r.text)
+check("Leerzustand: kein Geplant-Block (eigene Seite)",
+      '<h2 class="tbl-head">Geplante Updates' not in r.text and
+      "Keine geplanten Updates." not in r.text)
+check("Leerzustand: kein Seiten-Hinweis mehr",
+      "Bitte oben eine Anlage auswählen" not in r.text)
 
-# --- 4. Auswahl: verfügbare Updates -------------------------------------------
-r = c.get(f"/admin/anlagen-updates?inst_id={id_mit}")
+# --- 4. Auswahl: verfügbare Updates (Ergebnis im Popup: dlg=1) ------------------
+r = c.get(f"/admin/anlagen-updates?inst_id={id_mit}&dlg=1")
 check("Verfügbare Updates: Version 1", "10.0.3.0" in r.text)
 check("Verfügbare Updates: Version 2", "10.0.2.8" in r.text)
 check("Verfügbare Updates: Datum", "2026-08-25" in r.text)
@@ -226,7 +231,7 @@ check("Keine 'Unerwartete Antwort' (volle Antwort > 500 Zeichen verarbeitet)",
 
 # --- 4a. Fallback-Weg: Antwort ohne values (nur rohes XML) ---------------------
 USE_VALUES = False
-r = c.get(f"/admin/anlagen-updates?inst_id={id_mit}")
+r = c.get(f"/admin/anlagen-updates?inst_id={id_mit}&dlg=1")
 check("Fallback raw-Weg: Version 1 sichtbar", "10.0.3.0" in r.text,
       r.text[r.text.find("Unerwartete") - 30:r.text.find("Unerwartete") + 200] if "Unerwartete" in r.text else "")
 check("Fallback raw-Weg: kein Fehlerbanner", "Unerwartete Antwort" not in r.text)
@@ -241,13 +246,13 @@ def broken_values(url, token, method, payload, instance_name=None):
     return {"raw": rpc_string("ok")}
 
 module_updates._xmlrpc = broken_values
-r = c.get(f"/admin/anlagen-updates?inst_id={id_mit}")
+r = c.get(f"/admin/anlagen-updates?inst_id={id_mit}&dlg=1")
 m = r.text[r.text.find("Unerwartete"):r.text.find("Unerwartete") + 160] if "Unerwartete" in r.text else ""
 check("Diagnose: Meldung zeigt Fehlerposition (Zeichen N)", "Zeichen" in m and "Unerwartete Antwort" in m, m)
 module_updates._xmlrpc = fake_xmlrpc
 
 # --- 5. Ohne Deployment-Instanz ------------------------------------------------
-r = c.get(f"/admin/anlagen-updates?inst_id={id_ohne}")
+r = c.get(f"/admin/anlagen-updates?inst_id={id_ohne}&dlg=1")
 check("Ohne Deployer: Hinweis", "Keine Deployment-Instanz konfiguriert" in r.text)
 check("Ohne Deployer: kein RPC", RPC_CALLS and all(x.get("method") != "GetAnlagenUpdates"
       for x in RPC_CALLS[-1:]) or True)
@@ -257,9 +262,11 @@ def token_fail(inst):
     raise RuntimeError("Token konnte nicht erneuert werden (Anlage nicht erreichbar)")
 
 app_main._get_token = token_fail
-r = c.get(f"/admin/anlagen-updates?inst_id={id_mit}")
+r = c.get(f"/admin/anlagen-updates?inst_id={id_mit}&dlg=1")
 check("Anlage unerreichbar: Fehler-Banner", "Anlage nicht erreichbar" in r.text)
-check("Anlage unerreichbar: Seite rendert", "Verfügbare Updates" in r.text and "Geplante Updates" in r.text)
+check("Anlage unerreichbar: Dialog rendert Kopf + KEIN Geplant-Block",
+      "Verfügbare Updates" in r.text
+      and '<h2 class="tbl-head">Geplante Updates' not in r.text)
 app_main._get_token = lambda inst: "tok-123"
 
 # --- 7. POST execute (Erfolg) ---------------------------------------------------
@@ -334,27 +341,12 @@ after = sqlite3.connect(DB).execute("SELECT COUNT(*) FROM anlagen_update_plans")
 check("Schedule ungültig: FEHLER", "Ungültiger Zeitpunkt" in unquote(loc), loc)
 check("Schedule ungültig: kein INSERT", after == before, f"{before}->{after}")
 
-# --- 13. POST cancel ---------------------------------------------------------------
-conn = sqlite3.connect(DB)
-conn.execute("INSERT INTO anlagen_update_plans (installation_id, version, update_url,"
-             " scheduled_at) VALUES (?,?,?,?)",
-             (id_mit, "10.0.3.0", "https://update.sub.example.de/stable/1.rpm",
-              "2026-12-31T23:00:00+00:00"))
-conn.commit()
-plan_id = conn.execute("SELECT id FROM anlagen_update_plans ORDER BY id DESC LIMIT 1").fetchone()[0]
-conn.close()
-r = c.post("/admin/anlagen-updates/cancel", data={"plan_id": str(plan_id)})
-st, loc = loc_of(r)
-st_db = sqlite3.connect(DB).execute(
-    "SELECT status, result FROM anlagen_update_plans WHERE id=?", (plan_id,)).fetchone()
-check("Cancel: Redirect 303/307 + Meldung", st in (303, 307) and "Plan abgebrochen." in unquote(loc), f"st={st} loc={loc}")
-check("Cancel: Status changed", st_db[0] == "cancelled", str(st_db))
-r = c.post("/admin/anlagen-updates/cancel", data={"plan_id": str(plan_id)})
-st, loc = loc_of(r)
-check("Cancel doppelt: Hinweis", "nicht gefunden oder bereits ausgeführt" in unquote(loc), loc)
+# --- 13. POST schedule ungültig (doppelt) ---------------------------------------
+# (Cancel-Route /cancel entfernt mit F103 — Abbruch = Löschen nur auf der
+#  Geplant-Seite, Deckung durch die f96-Suite D8)
 
-# --- 14. Zeitzonen-Anzeige geplanter Updates ----------------------------------------
-r = c.get(f"/admin/anlagen-updates?inst_id={id_mit}")
+# --- 14. Zeitzonen-Anzeige geplanter Updates (Seite Geplant, F103) --------------
+r = c.get("/admin/anlagen-updates/geplant")
 check("Plan-Anzeige Europe/Berlin", "31.08.2026, 22:00 Uhr" in r.text and "30.11.2026, 18:00 Uhr" in r.text)
 
 # --- 15. F95: Tabelle aller Anlagen + Filter-Felder + Zeilen-Button ------------
@@ -399,10 +391,10 @@ r = c.post("/admin/anlagen-updates/fetch-bulk", data={})
 st, loc = loc_of(r)
 check("fetch-bulk ohne Auswahl: Hinweis", "Keine Anlage ausgewählt" in unquote(loc), loc)
 
-# --- 17. Bulk-Schnittmenge (?inst_ids=) ----------------------------------------
-r = c.get(f"/admin/anlagen-updates?inst_ids={id_mit},{id_b}")
+# --- 17. Bulk-Schnittmenge (?inst_ids=&dlg=1, Dialog) ---------------------------
+r = c.get(f"/admin/anlagen-updates?inst_ids={id_mit},{id_b}&dlg=1")
 _s = r.text.find("Schnittmenge")
-cut = r.text[_s:r.text.find("Geplante Updates", _s)]  # F96: Marker NACH der Schnittmenge (Nav enthält den Text jetzt vorher)
+cut = r.text[_s:r.text.find("</dialog>", _s)]  # F103: Ergebnis nur im Dialog
 check("Bulk: Kopf 'für 2 ausgewählte Anlagen'", "für 2 ausgewählte Anlagen" in r.text)
 check("Bulk: Anlagen gelistet", "MitDeployer" in r.text and "BetaAnlage" in r.text)
 check("Bulk: gemeinsames Update sichtbar", "10.0.3.0" in cut, cut[:150])
@@ -413,7 +405,7 @@ check("Bulk: Planen für alle (datetime-local)",
 
 # Strenge Regel: ein Abruf schlägt fehl -> keine Schnittmenge (Axel-Freigabe)
 FAKE_UPDATES_FAIL.add("https://betaanlage.example")
-r = c.get(f"/admin/anlagen-updates?inst_ids={id_mit},{id_b}")
+r = c.get(f"/admin/anlagen-updates?inst_ids={id_mit},{id_b}&dlg=1")
 check("Bulk Teilfehler: keine Schnittmenge", "Keine Schnittmenge berechnet" in r.text)
 check("Bulk Teilfehler: Anlage + Grund genannt",
       "BetaAnlage" in r.text and "Unerwartete Antwort" in r.text)
@@ -421,9 +413,9 @@ check("Bulk Teilfehler: kein Installieren (keine blinde Aktion)", "Installieren"
 FAKE_UPDATES_FAIL.clear()
 
 # Alle ok, aber disjunkte Update-Listen -> leere Schnittmenge
-r = c.get(f"/admin/anlagen-updates?inst_ids={id_mit},{id_c}")
+r = c.get(f"/admin/anlagen-updates?inst_ids={id_mit},{id_c}&dlg=1")
 _s = r.text.find("Schnittmenge")
-cut = r.text[_s:r.text.find("Geplante Updates", _s)]  # F96: Marker NACH der Schnittmenge
+cut = r.text[_s:r.text.find("</dialog>", _s)]  # F103: Ergebnis nur im Dialog
 check("Bulk disjunkt: Leerhinweis",
       "Kein Update ist für alle 2 ausgewählten Anlagen verfügbar." in cut, cut[:150])
 check("Bulk disjunkt: kein Update in Schnittmenge",

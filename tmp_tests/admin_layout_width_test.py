@@ -233,9 +233,14 @@ check("F102: Popup-Kopf: X-Schließen (SVG) statt 'Schließen'-Button",
 check("F102: X-Schließen stylbar (admin.css dlg-close-x + Kopf-Flex)",
       ".dlg-close-x {" in _css and ".au-dlg-head {" in _css,
       "dlg-close-x/au-dlg-head CSS fehlt")
-check("F102: Einzel-Popup ohne Auswahl-Hinweis (elif not dlg)",
-      "elif not dlg" in _einz,
-      "_au_einzel: Auswahl-Text erscheint noch im Popup (kein dlg-Guard)")
+check("F103: Einzel-Partial ohne Seiten-Hinweis (Ergebnis NUR im Popup)",
+      "elif not dlg" not in _einz and "Bitte oben eine Anlage auswählen" not in _einz,
+      "_au_einzel: Seiten-Hinweis noch da — Seitenansicht existiert seit F103 nicht mehr")
+check("F103: Updates-Seite = nur Dialog (keine elif-Seitenansicht, kein Geplant-Block)",
+      "{% if (bulk or installations) and dlg %}" in _au
+      and "{% elif bulk %}" not in _au
+      and '<h2 class="tbl-head">Geplante Updates' not in _au,
+      "Seite rendert noch Ergebnis-/Geplant-Bereiche (soll nur das Popup)")
 
 if failed:
     print(f"FEHLGESCHLAGEN ({len(failed)}):")

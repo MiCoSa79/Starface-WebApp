@@ -78,53 +78,6 @@
         </div>
         {% if bulk %}{% include "_au_bulk.html" %}{% else %}{% include "_au_einzel.html" %}{% endif %}
     </dialog>
-    {% elif bulk %}
-    {% include "_au_bulk.html" %}
-    {% elif installations %}
-    {% include "_au_einzel.html" %}
-    {% else %}
-    <p class="empty">Bitte oben eine Anlage auswählen (Zeilen-Button „Updates abrufen“) oder über die Checkboxen
-        mehrere Anlagen wählen — danach erscheinen hier die verfügbaren Server-Updates.</p>
-    {% endif %}
-
-
-    <h2 class="tbl-head">Geplante Updates <span class="muted">— Ausführung durch den WebApp-Scheduler (Anzeige Europe/Berlin)</span></h2>
-    {% if plans %}
-    <div class="tbl-wrap" data-wrap="au-plaene">
-        <table>
-            <thead>
-                <tr>
-                    <th>Anlage</th>
-                    <th>Version</th>
-                    <th>Geplant für</th>
-                    <th>Status</th>
-                    <th style="width:1%; text-align:right">Aktion</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for p in plans %}
-                <tr>
-                    <td>{{ p.inst_name }}</td>
-                    <td>{{ p.version }}</td>
-                    <td>{{ fmt_local(p.scheduled_at) }}</td>
-                    <td>{{ p.status }}{% if p.result and (p.status == 'error' or p.status == 'missed') %} — {{ p.result }}{% endif %}</td>
-                    <td style="text-align:right; white-space:nowrap">
-                        {% if p.status == 'planned' %}
-                        <form method="post" action="/admin/anlagen-updates/cancel" style="margin:0; display:inline-flex; gap:6px">
-                            <input type="hidden" name="plan_id" value="{{ p.id }}">
-                            <button type="submit" class="btn-secondary">Abbrechen</button>
-                        </form>
-                        {% else %}
-                        —
-                        {% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    {% else %}
-    <p class="empty">Keine geplanten Updates.</p>
     {% endif %}
 </div>
 {% endblock %}
