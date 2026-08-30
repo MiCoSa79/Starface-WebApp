@@ -83,9 +83,14 @@ button { padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer;
 
 /* Fußzeile — ans Seitenende (F98/v1.0.96): vorher `position: fixed` klebte sie beim
    Scrollen ueber dem Inhalt (iPhone-Foto 30.08. — Footer mitten zwischen den
-   Abschnitten). Jetzt Sticky-Footer ueber body-Flex: kurze Seiten → unten im
-   Viewport, lange Seiten → unter dem letzten Inhalt, kein Overlay beim Scrollen. */
-.footer { margin-top: auto; text-align: center;
+   fluss) wurde entfernt: 6 Templates trugen lokale Inline-Regeln mit
+   position:fixed nach dem admin.css-Link (gleiche Spezifitaet, spaeter gewinnt)
+   → der F98-Sticky-Fix wirkte nie. F111-Nachtrag (v1.0.116, Axel: „am Ende des
+   Sichtbereiches fixiert“): JETZT bewusst position:fixed am Viewport-Unterrand +
+   .container-padding-bottom calc(72px + safe-area) als Platzhalter in allen
+   Templates (kein Overlay beim Scrollen). */
+.footer { position: fixed; bottom: 0; left: 0; right: 0; z-index: 50;
+          text-align: center;
           padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
           color: #555; font-size: 12px;
           background: #16213e; border-top: 1px solid #222; }

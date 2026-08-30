@@ -70,8 +70,8 @@ check("F1 base.html: keine lokale .footer fixed-Regel mehr",
       ".footer { position: fixed" not in BASE and "footer { position: fixed" not in BASE)
 check("F2 base.html: admin.css wird global geladen (Sticky-Basis vorhanden)",
       'href="/static/admin.css?=' in BASE or 'href="/static/admin.css?v=' in BASE)
-check("F3 admin.css: .footer mit margin-top auto (Sticky-Footer)",
-      re.search(r"\.footer\s*\{[^}]*margin-top:\s*auto", ADM_CSS) is not None)
+check("F3 admin.css: .footer position:fixed + bottom:0 (am Sichtbereich-Unterrand)",
+      re.search(r"\.footer\s*\{[^}]*position:\s*fixed[^}]*bottom:\s*0", ADM_CSS, re.S) is not None)
 check("F4 admin.css: body ist Flex-Column mit 100dvh-Minimum",
       re.search(r"body\s*\{[^}]*display:\s*flex", ADM_CSS) is not None
       and re.search(r"min-height:\s*100dvh", ADM_CSS) is not None)
@@ -226,9 +226,33 @@ check("4.1 Normaluser: GET / redirectet auf /anlagen",
       bool(r3.history) and "/anlagen" in r3.history[0].headers.get("location", ""),
       f"history={[h.headers.get('location') for h in r3.history]}")
 
+# ── 5) Footer-Semantik (F111-Nachtrag v1.0.116: fixiert am Viewport-Unterrand) ─
+base_html = open(os.path.join(REPO, "app/templates/base.html"), encoding="utf-8").read()
+admin_css = open(os.path.join(REPO, "app/static/admin.css"), encoding="utf-8").read()
+check("5.1 base.html: keine Inline-'.footer { position: fixed'-Regel mehr",
+      ".footer { position: fixed" not in base_html)
+check("5.2 admin.css .footer: position:fixed + bottom:0 (klebt am Sichtbereich)",
+      re.search(r"\.footer\s*\{[^}]*position:\s*fixed[^}]*bottom:\s*0",
+                admin_css, re.S) is not None)
+check("5.3 admin.css .footer: z-index: 50 (über Inhalt, unter Dialogen)",
+      "z-index: 50" in admin_css)
+_tpls = [os.path.join(REPO, "app/templates", t) for t in
+         ("base.html", "admin_monitoring.html", "installation_monitoring.html",
+          "blocklist.html", "api_doku.html", "modules.html", "monitoring.html",
+          "password.html", "wiki.html")]
+_miss = [os.path.basename(t) for t in _tpls
+         if "calc(72px + env(safe-area-inset-bottom, 0px))"
+         not in open(t, encoding="utf-8").read()]
+check("5.4 Container-Unterkante calc(72px+safe-area) in allen 9 Templates (kein Overlay)",
+      not _miss, f"fehlt in: {_miss or '-'}")
+_mon = open(os.path.join(REPO, "app/templates/admin_monitoring.html"),
+            encoding="utf-8").read()
+check("5.5 Kiosk: Footer im Vollbild weiterhin ausgeblendet",
+      "body.kiosk .header-wrap, body.kiosk .footer { display: none; }" in _mon)
+
 print()
 if FAILS:
     print(f"FEHLGESCHLAGEN: {len(FAILS)} Check(s) rot — {FAILS}")
     sys.exit(1)
-print(f"ALLE {sum(1 for _ in [1])} HAUPT-CHECKS OK (f111 Startseite + Footer)")
+print(f"ALLE {17 + 5} CHECKS OK (f111 Startseite + Footer-Semantik v1.0.116)")
 sys.exit(0)
