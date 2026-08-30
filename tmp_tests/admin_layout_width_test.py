@@ -210,15 +210,22 @@ check("F101: Kiosk-Safe-Area-Padding gesetzt (beide Seiten)",
 # ── F102: Abruf-Dialog (Anlagen-Updates) auf dem PC breit — .dlg.wide war nie definiert ──
 _bulk = _tpl("app/templates/_au_bulk.html")
 _einz = _tpl("app/templates/_au_einzel.html")
-check("F102: .dlg.wide = breite Dialog-Variante definiert (min(94vw, 960px))",
-      ".dlg.wide { max-width: min(94vw, 960px); }" in _css,
+check("F102: .dlg.wide = breite Dialog-Variante definiert (min(96vw, 1200px))",
+      ".dlg.wide { max-width: min(96vw, 1200px); }" in _css,
       ".dlg.wide-Regel fehlt in admin.css (420px-Fallback → zu schmal)")
+check("F102: Datumsauswahl kompakt — eine Reihe mit Installieren/Planen",
+      '.dlg.wide input[type="datetime-local"] { width: 145px; }' in _css,
+      ".dlg.wide-Datumsfeld-Kompaktregel fehlt")
 check("F102: Tabellen im .dlg.wide nutzen die volle Dialogbreite",
       ".dlg.wide table { width: 100%; }" in _css,
       ".dlg.wide table-Regel fehlt")
-check("F102: Abruf-Aktionszellen ohne nowrap (Umbruch statt Ueberlauf)",
-      "white-space:nowrap" not in _bulk and "white-space:nowrap" not in _einz,
-      "nowrap noch in _au_bulk/_au_einzel-Aktionszelle")
+check("F102: Aktionszellen nowrap (F75-Muster) — eine Zeile fuer Buttons+Datum",
+      '.dlg.wide .au-aktion { white-space: nowrap;' in _css
+      and 'class="au-aktion"' in _bulk and 'class="au-aktion"' in _einz,
+      ".au-aktion-Regel/Klasse fehlt (Buttons stapeln sich)")
+check("F102: Mobil-Umbruch der Aktionszelle (MQ <=640) — kein Dialog-Scroll",
+      "@media (max-width: 640px) {" in _css and ".au-aktion { white-space: normal; }" in _css,
+      "Mobil-nowrap-Aufhebung fehlt")
 _au = _tpl("app/templates/admin_anlagen_updates.html")
 check("F102: Popup-Kopf: X-Schließen (SVG) statt 'Schließen'-Button",
       'class="dlg-close-x"' in _au and ">Schließen<" not in _au and "au-dlg-close" in _au,

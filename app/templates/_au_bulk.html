@@ -18,7 +18,7 @@
                     <th>Version</th>
                     <th>Datum</th>
                     <th>Typ</th>
-                    <th style="width:1%; text-align:right">Aktion</th>
+                    <th class="au-aktion">Aktion</th>
                 </tr>
             </thead>
             <tbody>
@@ -27,7 +27,7 @@
                     <td{% if u.url %} title="Update-URL: {{ u.url }}"{% endif %}>{{ u.version }}</td>
                     <td>{{ u.date }}</td>
                     <td>{{ u.type }}</td>
-                    <td style="text-align:right">
+                    <td class="au-aktion">
                         <form method="post" action="/admin/anlagen-updates/execute" style="margin:0; display:inline-flex; gap:6px">
                             {% for a in bulk.anlagen %}<input type="hidden" name="installation_ids" value="{{ a.id }}">{% endfor %}
                             <input type="hidden" name="version" value="{{ u.version }}">

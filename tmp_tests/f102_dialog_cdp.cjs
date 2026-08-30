@@ -56,17 +56,23 @@ function delay(ms) { return new Promise((r) => setTimeout(r, ms)); }
     const dlg = document.getElementById('au-dlg');
     const tbl = dlg.querySelector('table');
     const x = document.querySelector('.dlg-close-x');
+    const inp = dlg.querySelector('input[type="datetime-local"]');
     const vw = document.documentElement.clientWidth || window.innerWidth;
     const dw = dlg.getBoundingClientRect().width;
     const overflows = tbl.scrollWidth > dlg.clientWidth;
+    const tops = [...dlg.querySelectorAll('td form')].map((f) => Math.round(f.getBoundingClientRect().top));
+    const eineReihe = tops.length === 2 ? Math.abs(tops[0] - tops[1]) <= 2 : false;
     return { vw, dw, ratio: +(dw / vw).toFixed(3),
-             xSvg: !!(x && x.querySelector('svg path')), overflows };
+             xSvg: !!(x && x.querySelector('svg path')), overflows,
+             eineReihe, infla: inp ? inp.getBoundingClientRect().width : -1, tops };
   })()`);
 
   const checks = [
-    ['Dialog nutzt ~94% des Viewports (min(94vw,960))', m.ratio > 0.90 && m.ratio < 0.99, `ratio=${m.ratio} (vw=${m.vw}, dlg=${m.dw})`],
-    ['Dialog deutlich breiter als der alte 420px-Fallback', m.dw > 700, `dlg=${m.dw}px`],
+    ['Dialog nutzt ~96% des Viewports (min(96vw,1200))', m.ratio > 0.92 && m.ratio < 0.99, `ratio=${m.ratio} (vw=${m.vw}, dlg=${m.dw})`],
+    ['Dialog nutzt max. 1200px (PC-Cap)', m.dw <= 1200 + 1, `dlg=${m.dw}px`],
     ['Aktionstabelle läuft nicht mehr über', m.overflows === false, `scroll-width=${m.overflows ? '>' : '<='} client-width`],
+    ['Installieren + Datum + Planen in EINER Zeile', m.eineReihe === true, `tops=${JSON.stringify(m.tops)}`],
+    ['Datumsauswahl kompakt (<=150px)', m.infla > 0 && m.infla <= 150, `input=${m.infla}px`],
     ['X-Schließen (SVG) im Kopf vorhanden', m.xSvg === true, `xSvg=${m.xSvg}`],
   ];
   let ok = 0;

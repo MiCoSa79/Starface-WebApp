@@ -196,8 +196,17 @@ dialog.dlg::backdrop { background: rgba(0, 0, 0, .55); }
    die .dlg.wide-Regel selbst fehlte → Dialog fiel auf dialog.dlg max-width:420px
    (F79-„Instanz anlegen“) zurueck → auf dem PC zu schmal, die Aktionstabelle
    (Installieren + Planen-Datumsfeld) lief horizontal ueber (Axel-Screenshot 30.08.) */
-.dlg.wide { max-width: min(94vw, 960px); }
+.dlg.wide { max-width: min(96vw, 1200px); }
 .dlg.wide table { width: 100%; }
+/* F102: Datumsauswahl kompakt — damit Installieren + Datum + Planen in EINE Zeile passen */
+.dlg.wide input[type="datetime-local"] { width: 145px; }
+/* F102b: Aktionszelle nowrap (F75-Muster) — zwingt die inline-flex-Buttons in EINE Zeile
+   und gibt der Spalte ihre Mindestbreite; Mobil (<=640) darf umbrechen statt zu scrollen */
+.dlg.wide .au-aktion { white-space: nowrap; text-align: right; }
+.dlg.wide th.au-aktion { width: 1%; }
+@media (max-width: 640px) {
+    .dlg.wide .au-aktion { white-space: normal; }
+}
 /* F102: Popup-Kopf — Titelleiste mit X-Schließen (SVG, kein Emoji; statt „Schließen“-Button) */
 .au-dlg-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
 .au-dlg-head h3 { margin: 0; }
