@@ -60,8 +60,9 @@ def _run_due_plans(now=None):
     conn = _db()
     try:
         due = conn.execute(
-            "SELECT p.*, i.name AS inst_name, i.url, i.deployer_instance_name,"
-            " i.deployer_token"
+            "SELECT p.*, i.name AS inst_name, i.url, i.auth_id, i.auth_pass,"
+            " i.client_secret, i.is_starface10, i.oauth_access, i.oauth_refresh,"
+            " i.oauth_expires, i.deployer_instance_name, i.deployer_token"
             " FROM anlagen_update_plans p"
             " JOIN installations i ON i.id = p.installation_id"
             " WHERE p.status='planned' ORDER BY p.scheduled_at"
@@ -116,6 +117,26 @@ def _run_due_plans(now=None):
                             c2.close()
                     else:
                         new_status, result = "error", r.get("message", "Unbekannter Fehler")
+        # F104: Fehlschläge nachvollziehbar machen — Log-Eintrag mit detail,
+        # damit "Durchgeführte Updates" nie wieder leer bleibt, wenn etwas
+        # schiefgeht (vorher bekam nur der ok-Pfad ein Log).
+        if new_status in ("error", "missed"):
+            try:
+                ver = _anlagen_version(dict(p)) or "—"
+            except Exception:
+                ver = "—"
+            c2 = _db()
+            try:
+                c2.execute(
+                    "INSERT INTO anlagen_update_log"
+                    " (installation_id, quelle, plan_id, version_vor,"
+                    "  version_nach, angestossen_um, status, detail)"
+                    " VALUES (?, 'plan', ?, ?, ?, ?, 'fehlgeschlagen', ?)",
+                    (p["installation_id"], p["id"], ver, p["version"],
+                     now.isoformat(timespec="seconds"), str(result)[:500]))
+                c2.commit()
+            finally:
+                c2.close()
         c = _db()
         try:
             c.execute(

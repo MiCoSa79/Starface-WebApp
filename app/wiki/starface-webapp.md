@@ -1,6 +1,6 @@
 ---
 title: STARFACE WebApp — Gesamtdokumentation & Versionshistorie
-description: Die WebApp selbst: Architektur, Betrieb, Routen, Konventionen und die vollständige Versionshistorie (v0.0.1–v1.0.103, aus Git-Tags).
+description: Die WebApp selbst: Architektur, Betrieb, Routen, Konventionen und die vollständige Versionshistorie (v0.0.1–v1.0.107, aus Git-Tags).
 updated: 2026-08-30
 ---
 
@@ -154,6 +154,7 @@ Quelle: `git for-each-ref refs/tags/v0.0.*` — Stichworte = Commit-Subject.
 
 | Version | Commit | Änderung |
 |---|---|---|
+| v1.0.107 | (30.08.) | fix(F104): **Geplante Updates liefen NIE — Root Cause + Sichtbarkeit + Fehler-Log** — Live-Befund (Testanlage IST v10.0.1.7): Status 'Fehler', „Laufende"/„Durchgeführte" leer, Anlage erreichbar, `result` = „Token-Fehler: 'auth_id'": der Scheduler-Query (`_run_due_plans`) lud aus `installations` nur url/deployer_* — `_get_token` greift auf auth_id/auth_pass/client_secret/is_starface10/oauth_* zu → KeyError bei JEDER geplanten Ausführung; in den Tests war `_get_token` gemockt → Blindstelle. Fix: Query um alle Token-Felder ergänzt; Fehlschläge (error/missed) legen jetzt einen `anlagen_update_log`-Eintrag `'fehlgeschlagen'` mit `detail=result` an (Listen nie wieder stumm leer); `result`-Text auf der Geplant-Seite sichtbar (grau unter dem Badge + Tooltip); neue Regressions-Tests `admin_anlagen_updates_f104_test.py` (echte `_get_token`-Kette, error-, missed-, Template-Pfad) — Bestands-Suite + E2E grün; Commit `31b626b`. |
 | v1.0.106 | (30.08.) | docs(F103b): **Historie-Einträge für v1.0.104 + v1.0.105 nachgezogen — Regelfix: JEDER Push bringt seine eigene Historie-Zeile im selben Commit mit** (Tag bestimmen, Zeile schreiben, committen, taggen, pushen — kein Push ohne Eintrag; F103a-Fehlerbild war der nachgelagerte Doku-Push, der wieder einen neuen Tag erzeugte); Commit `85ae0fc`. |
 | v1.0.105 | (30.08.) | docs(F103a-Folge): **Historie-Eintrag für v1.0.104 nachgetragen** — der Reparatur-Commit `b6acd77` (v1.0.104, „Versionshistorie vollständig 94–103“) konnte seine eigene Zeile nicht enthalten; Commit `b0ddff2`. |
 | v1.0.104 | (30.08.) | docs(F103a): **Versionshistorie repariert — die Tabelle hing bei v1.0.88** (nur die Stand-Zeile wurde gepflegt): v1.0.94–v1.0.103 (F96–F103) nachgetragen, v1.0.89–v1.0.93 richtig einsortiert, absteigende Sortierung wiederhergestellt (102 Zeilen v1.0.103 → v1.0.0); YAML-description auf „v0.0.1–v1.0.103“ erweitert; wiki_e2e 51/51; bewusster Doku-Tag (kein Funktionscode), Commit `b6acd77`. |

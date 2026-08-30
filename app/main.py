@@ -2725,6 +2725,7 @@ async def admin_anlagen_updates_geplant_page(request: Request):
             "version": p["version"],
             "zeit": utc_iso_zu_lokal_anzeige(p["scheduled_at"]),
             "status": p["status"],
+            "result": p["result"] if p["status"] in ("error", "missed") else "",
             "erledigt": (utc_iso_zu_lokal_anzeige(p["ausgefuehrt_um"])
                          if p["ausgefuehrt_um"] else ""),
         })
