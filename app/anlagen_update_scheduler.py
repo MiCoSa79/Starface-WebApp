@@ -60,9 +60,10 @@ def _run_due_plans(now=None):
     conn = _db()
     try:
         due = conn.execute(
-            "SELECT p.*, i.name AS inst_name, i.url, i.auth_id, i.auth_pass,"
-            " i.client_secret, i.is_starface10, i.oauth_access, i.oauth_refresh,"
-            " i.oauth_expires, i.deployer_instance_name, i.deployer_token"
+            "SELECT p.*, i.name AS inst_name, i.url, i.monitoring_instance_name,"
+            " i.auth_id, i.auth_pass, i.client_secret, i.is_starface10,"
+            " i.oauth_access, i.oauth_refresh, i.oauth_expires,"
+            " i.deployer_instance_name, i.deployer_token"
             " FROM anlagen_update_plans p"
             " JOIN installations i ON i.id = p.installation_id"
             " WHERE p.status='planned' ORDER BY p.scheduled_at"
@@ -178,8 +179,10 @@ def _verify_open_logs(now=None):
     conn = _db()
     try:
         rows = conn.execute(
-            "SELECT l.*, i.name AS inst_name, i.url, i.oauth_access, i.oauth_refresh,"
-            " i.oauth_expires, i.oauth_client"
+            "SELECT l.*, i.name AS inst_name, i.url, i.monitoring_instance_name,"
+            " i.auth_id, i.auth_pass, i.client_secret, i.is_starface10,"
+            " i.oauth_access, i.oauth_refresh, i.oauth_expires, i.oauth_client,"
+            " i.deployer_instance_name, i.deployer_token"
             " FROM anlagen_update_log l JOIN installations i ON i.id = l.installation_id"
             " WHERE l.status='pruefen' ORDER BY l.angestossen_um"
         ).fetchall()
