@@ -78,10 +78,21 @@ def rpc_string(s):
 def fake_xmlrpc(url, token, method, payload, instance_name=None):
     RPC_CALLS.append({"method": method, "payload": payload, "instance": instance_name})
     if method == "GetAnlagenUpdates":
+        # REALISTISCHES Modul-JSON (>500 Zeichen): die echte Antwort enthält
+        # description/changelog je Update — _extract_response kappte früher auf
+        # 500 Bytes → json.loads scheiterte ("Unerwartete Antwort").
         data = {"current": "10.0.2.5", "count": 2, "updates": [
             {"version": "10.0.3.0", "date": "2026-08-25", "type": "final",
+             "description": "Umfangreiche Korrekturen im Bereich Cloud-Telefonie, "
+                            "Update-Kanal-Verwaltung und Sicherheit.",
+             "changelog": "- Verbesserte Stabilität der Cloud-Anbindung\n"
+                            "- Fix: Wechsel des Update-Kanals greift sofort\n"
+                            "- Sicherheitsaktualisierungen im Update-Handler",
              "url": "https://update.sub.example.de/stable/starface-10.0.3.0.rpm"},
             {"version": "10.0.2.8", "date": "2026-08-10", "type": "final",
+             "description": "Kleinere Fehlerbehebungen und Verbesserungen.",
+             "changelog": "- Fix: Anruflisten unvollständig\n"
+                            "- Optimiertes Handling bei fehlgeschlagenen Updates",
              "url": "https://update.sub.example.de/stable/starface-10.0.2.8.rpm"}]}
         return {"raw": rpc_string(json.dumps(data))}
     if method == "ExecuteAnlagenUpdate":
@@ -174,6 +185,9 @@ check("GetAnlagenUpdates-RPC ausgeführt", rpc.get("method") == "GetAnlagenUpdat
 check("RPC über Deployer-Instanz", rpc.get("instance") == "Deployment-Modul", str(rpc))
 check("RPC-Payload mit updateToken", rpc.get("payload", {}).get("updateToken") == "tok-123",
       str(rpc.get("payload")))
+check("Keine 'Unerwartete Antwort' (volle Antwort > 500 Zeichen verarbeitet)",
+      "Unerwartete Antwort" not in r.text,
+      r.text[r.text.find("Unerwartete") - 50:r.text.find("Unerwartete") + 300] if "Unerwartete" in r.text else "")
 
 # --- 5. Ohne Deployment-Instanz ------------------------------------------------
 r = c.get(f"/admin/anlagen-updates?inst_id={id_ohne}")

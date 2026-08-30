@@ -76,11 +76,17 @@ def push_update(inst: dict, token: str, *, module_name: str, filename: str,
         return {"status": "error", "message": str(e)}
 
 
-def _extract_response(raw: str) -> str:
-    """Extrahiert den ersten <string>-Wert aus einer XML-RPC-Response (Antwort-Text)."""
+def _extract_response(raw: str, max_len: int = 500) -> str:
+    """Extrahiert den ersten <string>-Wert aus einer XML-RPC-Response (Antwort-Text).
+
+    max_len: Obergrenze für die Rückgabe. Kurze Modul-Meldungen (ping/push/
+    execute) bleiben bei 500 — die Anlagen-Updates-Liste (GetAnlagenUpdates)
+    übergibt explizit ein großes Limit, sonst würde das JSON mitten im Objekt
+    abgeschnitten und json.loads schlüge fehl ("Unerwartete Antwort").
+    """
     import re
     m = re.search(r"<string>(.*?)</string>", raw or "", re.DOTALL)
-    return m.group(1)[:500] if m else (raw or "")[:200]
+    return m.group(1)[:max_len] if m else (raw or "")[:min(max_len, 200)]
 
 
 def ping_channel(inst: dict, token: str, *, filename: str,
@@ -180,7 +186,9 @@ def get_anlagen_updates(inst: dict, token: str, *,
         res = _xmlrpc(inst["url"], token, "GetAnlagenUpdates", payload,
                       instance_name=inst_name)
         raw = res.get("raw", "")
-        response = _extract_response(raw)
+        # Volle Antwort: die Update-Liste (mit description/changelog je Update)
+        # ist deutlich größer als die 500-Byte-Kappung für kurze Meldungen.
+        response = _extract_response(raw, max_len=1_000_000)
         try:
             data = json.loads(response)
         except (ValueError, TypeError):
