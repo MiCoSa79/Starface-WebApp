@@ -16,9 +16,10 @@ updated: 2026-08-30
 
 1. **Modul:** `Deployment-Modul.sfm` (v10) in der Anlage aktualisieren/importieren (Instanz + Token bleiben erhalten).
 2. **WebApp → Administration → Anlagen-Updates** (neuer Menüpunkt im Admin-Dropdown).
-3. Anlage wählen → Tabelle „Verfügbare Updates“ (Version/Datum/Typ, installierte Version oben).
-4. **Installieren** = sofort ausführen (mit Bestätigungs-Warnung) oder **Planen** (datetime-local, Europe/Berlin).
-5. „Geplante Updates“ unten: Status `planned → executed / error / missed / cancelled`, Abbrechen solange `planned`.
+3. **Tabelle aller Anlagen** (F95): Spalten Checkbox / Anlage / IST-Version (frisch via `GetStats`) / Aktion; Filterfelder über der Tabelle (Name + IST-Version, Wildcards `*` = beliebig, `?` = genau 1 Zeichen).
+4. Zeilen-Button **„Updates abrufen“** = Einzelabruf; mehrere Anlagen per Checkbox anwählen → Button **„Updates für ausgewählte Anlagen abrufen“** → Tabelle zeigt NUR die **Schnittmenge** (Updates, die für ALLE gewählten Anlagen verfügbar sind). **Strenge Regel:** schlägt eine Anlage fehl, wird keine Schnittmenge berechnet, sondern eine Fehlerliste gezeigt.
+5. **Installieren** = sofort ausführen (mit Bestätigungs-Warnung) oder **Planen** (datetime-local, Europe/Berlin) — im Bulk wirkt beides auf alle gewählten Anlagen.
+6. „Geplante Updates“ unten: Status `planned → executed / error / missed / cancelled`, Abbrechen solange `planned`.
 
 ## Umgesetzte Bausteine (v10, 30.08.)
 

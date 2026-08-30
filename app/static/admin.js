@@ -85,6 +85,17 @@ function testConn(instId, name, adminRoute) {
     }
 
     /* ── Tabellen: Filter (ab 3 Zeichen, Dropdowns aus Spaltenwerten) + Einklappen ── */
+    function wildcardToRegExp(q) {
+        // F95: Wildcard-Filter für Tabellen-Spalten (data-wildcard):
+        //   *  = beliebige Zeichen   ?  = genau ein Zeichen
+        let re = '';
+        for (const ch of q) {
+            if (ch === '*') re += '.*';
+            else if (ch === '?') re += '.';
+            else re += ch.replace(/[.+^${}()|[\]\\]/g, '\\$&');
+        }
+        return new RegExp(re);
+    }
     function initTableFilters() {
         document.querySelectorAll('.tbl-wrap').forEach(wrap => {
             const first = wrap.querySelector('.tbl-filters input, .tbl-filters select');
@@ -119,7 +130,9 @@ function testConn(instId, name, adminRoute) {
                     if (!q) return true;
                     if (ctl.dataset.minlen && q.length < parseInt(ctl.dataset.minlen, 10)) return true;
                     const cell = r.cells[col].textContent.trim().toLowerCase();
-                    return ctl.tagName === 'SELECT' ? cell === q : cell.includes(q);
+                    if (ctl.tagName === 'SELECT') return cell === q;
+                    if (ctl.dataset.wildcard !== undefined) return wildcardToRegExp(q).test(cell);
+                    return cell.includes(q);
                 });
             }
             function apply() {

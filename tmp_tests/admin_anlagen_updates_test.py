@@ -68,6 +68,9 @@ def check(name, cond, detail=""):
 
 
 RPC_CALLS = []
+GETSTATS_FAIL_URLS = set()  # F95: URLs, bei denen der GetStats-Fake einen Fehler wirft
+FAKE_UPDATES_FAIL = set()  # F95: URLs, bei denen GetAnlagenUpdates fehlschlägt
+FAKE_UPDATES = {}          # F95: url -> updates-Liste (Schnittmengen-Tests)
 
 
 def rpc_string(s):
@@ -79,14 +82,16 @@ def rpc_string(s):
 USE_VALUES = True
 
 
-def fake_xmlrpc(url, token, method, payload, instance_name=None):
+def fake_xmlrpc(url, token, method, payload=None, instance_name=None):
     RPC_CALLS.append({"method": method, "payload": payload, "instance": instance_name})
     if method == "GetAnlagenUpdates":
+        if url in FAKE_UPDATES_FAIL:
+            return {"raw": rpc_string("SERVER: unerreichbar"), "values": [], "members": {}}
         # REALISTISCHES Modul-JSON (>500 Zeichen): die echte Antwort enthält
         # description/changelog je Update. Der Mock liefert BEIDE Wege, die
         # _xmlrpc auch tut: "values" = von xml.etree AUFGELÖSTER String und
         # "raw" = das rohe XML (Regex-Fallback). USE_VALUES schaltet um.
-        data = {"current": "10.0.2.5", "count": 2, "updates": [
+        _updates = [
             {"version": "10.0.3.0", "date": "2026-08-25", "type": "final",
              "description": "Umfangreiche Korrekturen im Bereich Cloud-Telefonie, "
                             "Update-Kanal-Verwaltung und Sicherheit.",
@@ -98,7 +103,9 @@ def fake_xmlrpc(url, token, method, payload, instance_name=None):
              "description": "Kleinere Fehlerbehebungen und Verbesserungen.",
              "changelog": "- Fix: Anruflisten unvollständig\n"
                             "- Optimiertes Handling bei fehlgeschlagenen Updates",
-             "url": "https://update.sub.example.de/stable/starface-10.0.2.8.rpm"}]}
+             "url": "https://update.sub.example.de/stable/starface-10.0.2.8.rpm"}]
+        data = {"current": "10.0.2.5", "count": 2,
+                "updates": FAKE_UPDATES.get(url, _updates)}
         data_str = json.dumps(data)
         values = [] if not USE_VALUES else [data_str]
         return {"raw": rpc_string(data_str), "values": values, "members": {}}
@@ -108,6 +115,11 @@ def fake_xmlrpc(url, token, method, payload, instance_name=None):
         return {"raw": rpc_string(
             "OK: Update auf %s angestossen (Anlage startet den Update-Prozess)"
             % payload["version"])}
+    if method == "GetStats":  # F95: Ist-Version für die Anlagen-Tabelle
+        if url in GETSTATS_FAIL_URLS:
+            raise RuntimeError("Transportfehler (Test)")
+        return {"raw": rpc_string("ok"),
+                "members": {"systemVersion": "10.0.1.7"}, "values": []}
     raise AssertionError("unerwarteter RPC: " + method)
 
 
@@ -121,10 +133,12 @@ def loc_of(r):
 
 
 module_updates._xmlrpc = fake_xmlrpc
+import monitoring
+monitoring._xmlrpc = fake_xmlrpc  # F95: _anlagen_version (GetStats) nutzt monitoring._xmlrpc
 app_main._get_token = lambda inst: "tok-123"
 
 
-def add_anlage(name, dep_inst, dep_token=""):
+def add_anlage(name, dep_inst, dep_token="", monitoring="TelefonieMonitoring"):
     r = c.post("/admin/installations", data={
         "name": name, "url": f"https://{name.lower()}.example",
         "auth_id": "", "auth_pass": "", "client_secret": "",
@@ -135,7 +149,7 @@ def add_anlage(name, dep_inst, dep_token=""):
     r = c.post(f"/admin/installations/{iid}", data={
         "name": name, "url": f"https://{name.lower()}.example",
         "auth_id": "", "auth_pass": "", "client_secret": "",
-        "module_instance_name": "", "monitoring_instance_name": "TelefonieMonitoring",
+        "module_instance_name": "", "monitoring_instance_name": monitoring,
         "deployer_instance_name": dep_inst, "deployer_token": dep_token,
         "is_starface10": "1"})
     assert r.status_code in (200, 303), f"Edit {name}: {r.status_code}"
@@ -159,8 +173,19 @@ check("Nav-Quelle: active-Liste öffnet Dropdown",
 check("Nav gerendert: Link aktiv", 'class="active">Anlagen-Updates' in r.text, "")
 check("Dropdown öffnet bei aktiver Seite", "anlagen-updates" in r.text and "drop active" in r.text or
       "'anlagen-updates'" in r.text)
-check("Combobox + globales admin.js geladen", 'data-cb="au-anlage"' in r.text and
-      'admin.js?v=' in r.text)
+check("Tabellen-Filter + globales admin.js geladen", 'data-filter="tbl-au-anlagen"' in r.text and
+      'data-wildcard' in r.text and 'admin.js?v=' in r.text)
+
+# --- 1b. Helper _anlagen_version (F95): Ist-Version via GetStats --------------
+_helper = app_main._anlagen_version
+v = _helper({"url": "https://a.example", "monitoring_instance_name": "TelefonieMonitoring"})
+check("Helper: Version via GetStats", v == "10.0.1.7", v)
+v = _helper({"url": "https://a.example", "monitoring_instance_name": ""})
+check("Helper: ohne Monitoring-Instanz → —", v == "—", v)
+GETSTATS_FAIL_URLS.add("https://fail.example")
+v = _helper({"url": "https://fail.example", "monitoring_instance_name": "TelefonieMonitoring"})
+check("Helper: RPC-Fehler → —", v == "—", v)
+GETSTATS_FAIL_URLS.clear()
 
 # --- 2. Guard ---------------------------------------------------------------
 c2 = TestClient(app_main.app)
@@ -186,7 +211,7 @@ check("Button Installieren", '>Installieren</button>' in r.text)
 check("Planen-Input (datetime-local)", 'type="datetime-local" name="scheduled_for"' in r.text)
 check("Planen-Button", '>Planen</button>' in r.text)
 check("Anlagen-Name im Kopf", "MitDeployer" in r.text)
-rpc = RPC_CALLS[0] if RPC_CALLS else {}
+rpc = next((x for x in RPC_CALLS if x.get("method") == "GetAnlagenUpdates"), {})
 check("GetAnlagenUpdates-RPC ausgeführt", rpc.get("method") == "GetAnlagenUpdates",
       str(rpc))
 check("RPC über Deployer-Instanz", rpc.get("instance") == "Deployment-Modul", str(rpc))
@@ -257,7 +282,7 @@ r = c.post("/admin/anlagen-updates/execute", data={
     "installation_id": str(id_token), "version": "10.0.3.0",
     "update_url": "https://update.sub.example.de/stable/starface-10.0.3.0.rpm"})
 st, loc = loc_of(r)
-check("Execute-Fehler: FEHLER-Meldung", "FEHLER: ERROR: updateToken falsch" in unquote(loc), loc)
+check("Execute-Fehler: FEHLER-Meldung", "FEHLER: FalscherToken: ERROR: updateToken falsch" in unquote(loc), loc)
 
 # --- 9. POST schedule SOMMERZEIT (UTC+2) -----------------------------------------
 r = c.post("/admin/anlagen-updates/schedule", data={
@@ -328,6 +353,109 @@ check("Cancel doppelt: Hinweis", "nicht gefunden oder bereits ausgeführt" in un
 # --- 14. Zeitzonen-Anzeige geplanter Updates ----------------------------------------
 r = c.get(f"/admin/anlagen-updates?inst_id={id_mit}")
 check("Plan-Anzeige Europe/Berlin", "31.08.2026, 22:00 Uhr" in r.text and "30.11.2026, 18:00 Uhr" in r.text)
+
+# --- 15. F95: Tabelle aller Anlagen + Filter-Felder + Zeilen-Button ------------
+id_b = add_anlage("BetaAnlage", "Deployment-Modul", dep_token="tok-123")
+id_c = add_anlage("GammaAnlage", "Deployment-Modul", dep_token="tok-123")
+id_mon = add_anlage("OhneMonitoringV", "Deployment-Modul", monitoring="")
+FAKE_UPDATES["https://betaanlage.example"] = [
+    {"version": "10.0.3.0", "date": "2026-08-25", "type": "final",
+     "description": "Korrekturen.", "url": "https://update.sub.example.de/stable/starface-10.0.3.0.rpm"}]
+FAKE_UPDATES["https://gammaanlage.example"] = [
+    {"version": "10.0.2.9", "date": "2026-08-05", "type": "final",
+     "description": "Wartung.", "url": "https://update.sub.example.de/stable/starface-10.0.2.9.rpm"}]
+
+r = c.get("/admin/anlagen-updates")
+check("Tabelle tbl-au-anlagen gerendert", 'id="tbl-au-anlagen"' in r.text)
+check("Tabelle: alle 6 Anlagen aufgelistet",
+      all(n in r.text for n in ("MitDeployer", "OhneDeployer", "FalscherToken",
+                                "BetaAnlage", "GammaAnlage", "OhneMonitoringV")))
+check("Tabelle: Zähler-Kopf", "6 Anlage(n) konfiguriert" in r.text)
+check("IST-Version in Tabelle (GetStats)", "v10.0.1.7" in r.text)
+check("IST-Version '—' ohne Monitoring-Instanz", '<span class="muted">—</span>' in r.text)
+check("Filter Name: data-wildcard", 'data-filter="tbl-au-anlagen" data-col="1" data-wildcard' in r.text)
+check("Filter IST-Version: data-wildcard", 'data-col="2" data-wildcard' in r.text)
+check("Bulk-Formular + Checkboxen", 'id="bulk-au-anlagen"' in r.text
+      and 'form="bulk-au-anlagen"' in r.text and 'name="installation_ids"' in r.text)
+check("Bulk-Button oberhalb der Tabelle",
+      r.text.find("abrufen</button>") > 0
+      and r.text.find("abrufen</button>") < r.text.find('id="tbl-au-anlagen"'))
+check("Zeilen-Button 'Updates abrufen'", 'action="/admin/anlagen-updates/fetch"' in r.text)
+check("Hinweis ohne Deployment-Modul", "— kein Deployment-Modul" in r.text)
+
+# --- 16. POST fetch / fetch-bulk ----------------------------------------------
+r = c.post("/admin/anlagen-updates/fetch", data={"installation_id": str(id_mit)})
+st, loc = loc_of(r)
+check("fetch (Zeile): Redirect auf inst_id", f"inst_id={id_mit}" in loc, loc)
+r = c.post("/admin/anlagen-updates/fetch-bulk",
+           data={"installation_ids": [str(id_mit), str(id_b)]})
+st, loc = loc_of(r)
+check("fetch-bulk: Redirect auf sortierte inst_ids",
+      f"inst_ids={min(id_mit, id_b)},{max(id_mit, id_b)}" in loc, loc)
+r = c.post("/admin/anlagen-updates/fetch-bulk", data={})
+st, loc = loc_of(r)
+check("fetch-bulk ohne Auswahl: Hinweis", "Keine Anlage ausgewählt" in unquote(loc), loc)
+
+# --- 17. Bulk-Schnittmenge (?inst_ids=) ----------------------------------------
+r = c.get(f"/admin/anlagen-updates?inst_ids={id_mit},{id_b}")
+cut = r.text[r.text.find("Schnittmenge"):r.text.find("Geplante Updates")]
+check("Bulk: Kopf 'für 2 ausgewählte Anlagen'", "für 2 ausgewählte Anlagen" in r.text)
+check("Bulk: Anlagen gelistet", "MitDeployer" in r.text and "BetaAnlage" in r.text)
+check("Bulk: gemeinsames Update sichtbar", "10.0.3.0" in cut, cut[:150])
+check("Bulk: nicht-gemeinsames Update fehlt", "10.0.2.8" not in cut, cut[:150])
+check("Bulk: Installieren für alle", 'name="installation_ids"' in cut and "Installieren" in cut)
+check("Bulk: Planen für alle (datetime-local)",
+      'type="datetime-local" name="scheduled_for"' in cut)
+
+# Strenge Regel: ein Abruf schlägt fehl -> keine Schnittmenge (Axel-Freigabe)
+FAKE_UPDATES_FAIL.add("https://betaanlage.example")
+r = c.get(f"/admin/anlagen-updates?inst_ids={id_mit},{id_b}")
+check("Bulk Teilfehler: keine Schnittmenge", "Keine Schnittmenge berechnet" in r.text)
+check("Bulk Teilfehler: Anlage + Grund genannt",
+      "BetaAnlage" in r.text and "Unerwartete Antwort" in r.text)
+check("Bulk Teilfehler: kein Installieren (keine blinde Aktion)", "Installieren" not in r.text)
+FAKE_UPDATES_FAIL.clear()
+
+# Alle ok, aber disjunkte Update-Listen -> leere Schnittmenge
+r = c.get(f"/admin/anlagen-updates?inst_ids={id_mit},{id_c}")
+cut = r.text[r.text.find("Schnittmenge"):r.text.find("Geplante Updates")]
+check("Bulk disjunkt: Leerhinweis",
+      "Kein Update ist für alle 2 ausgewählten Anlagen verfügbar." in cut, cut[:150])
+check("Bulk disjunkt: kein Update in Schnittmenge",
+      "10.0.3.0" not in cut and "10.0.2.9" not in cut, cut[:150])
+
+# --- 18. execute/schedule mit mehreren Anlagen (Bulk) --------------------------
+RPC_CALLS.clear()
+r = c.post("/admin/anlagen-updates/execute", data={
+    "installation_ids": [str(id_mit), str(id_b)], "version": "10.0.3.0",
+    "update_url": "https://update.sub.example.de/stable/starface-10.0.3.0.rpm"})
+st, loc = loc_of(r)
+n_exec = sum(1 for x in RPC_CALLS if x["method"] == "ExecuteAnlagenUpdate")
+check("execute bulk: 2 RPCs", n_exec == 2, n_exec)
+check("execute bulk: Meldung 2 ok",
+      "Update 10.0.3.0 für 2 Anlage(n): 2 ok" in unquote(loc), loc)
+RPC_CALLS.clear()
+r = c.post("/admin/anlagen-updates/execute", data={
+    "installation_ids": [str(id_mit), str(id_token)], "version": "10.0.3.0",
+    "update_url": "https://update.sub.example.de/stable/starface-10.0.3.0.rpm"})
+st, loc = loc_of(r)
+check("execute bulk Teilfehler: Meldung mit Namen",
+      "Update 10.0.3.0 für 2 Anlage(n): 1 ok" in unquote(loc)
+      and "FalscherToken: ERROR: updateToken falsch" in unquote(loc), loc)
+vorher = sqlite3.connect(DB).execute(
+    "SELECT COUNT(*) FROM anlagen_update_plans"
+    " WHERE version='10.0.3.0' AND scheduled_at='2026-08-31T20:00:00+00:00'").fetchone()[0]
+r = c.post("/admin/anlagen-updates/schedule", data={
+    "installation_ids": [str(id_mit), str(id_b)], "version": "10.0.3.0",
+    "update_url": "https://update.sub.example.de/stable/starface-10.0.3.0.rpm",
+    "scheduled_for": "2026-08-31T22:00"})
+st, loc = loc_of(r)
+n_plans = sqlite3.connect(DB).execute(
+    "SELECT COUNT(*) FROM anlagen_update_plans"
+    " WHERE version='10.0.3.0' AND scheduled_at='2026-08-31T20:00:00+00:00'").fetchone()[0]
+check("schedule bulk: 2 Plan-Zeilen", n_plans == vorher + 2, f"{vorher}->{n_plans}")
+check("schedule bulk: Meldung",
+      "Update 10.0.3.0 für 2 Anlage(n) geplant" in unquote(loc), loc)
 
 print()
 if FAIL:

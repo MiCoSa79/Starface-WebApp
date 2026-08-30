@@ -4,41 +4,132 @@
 {% block content %}
 <div class="container">
     {% if msg %}
-    <div class="msg {{ 'ok' if 'FEHLER' not in msg else 'err' }}">
+    <div class="msg {{ 'ok' if 'FEHLER' not in msg and 'Unbekannte' not in msg and 'Keine ' not in msg else 'err' }}" style="margin-bottom:16px">
         <button type="button" class="btn-mini" onclick="this.closest('.msg').style.display='none'">OK</button>{{ msg }}</div>
     {% endif %}
 
     <h2 class="tbl-head">
         Anlagen-Updates
-        <span class="muted">Verfügbare STARFACE-Server-Updates abfragen, anstoßen oder planen</span>
+        <span class="muted">Verfügbare STARFACE-Server-Updates je Anlage abfragen, anstoßen oder planen</span>
     </h2>
 
     <div class="card">
+        <form id="bulk-au-anlagen" method="post" action="/admin/anlagen-updates/fetch-bulk"></form>
         <div class="form-row">
-            <label class="sr-only" for="au-anlage">Anlage wählen</label>
-            <div class="cb" data-cb="au-anlage">
-                <button type="button" class="cb-trigger" role="combobox" aria-expanded="false" aria-haspopup="listbox" aria-controls="cb-pop-au" aria-label="Anlage wählen">
-                    <span class="cb-value">— Anlage wählen —</span>
-                    <svg class="cb-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
-                </button>
-                <div class="cb-pop" id="cb-pop-au" hidden>
-                    <input type="text" class="cb-search" placeholder="Anlage suchen (ab 3 Zeichen)" autocomplete="off">
-                    <ul class="cb-list" role="listbox"></ul>
-                </div>
-            </div>
-            <select id="au-anlage" class="cb-native" autocomplete="off" tabindex="-1" aria-hidden="true">
-                <option value="" selected>— Anlage wählen —</option>
-                {% for inst in all_installations %}
-                <option value="{{ inst.id }}" {% if selected_id == inst.id %}selected{% endif %}>{{ inst.name }} ({{ inst.url }})</option>
-                {% endfor %}
-            </select>
-            <span class="muted">{{ all_installations|length }} Anlage(n) konfiguriert</span>
+            <button type="submit" class="btn-primary" form="bulk-au-anlagen">Updates für ausgewählte Anlagen abrufen</button>
+            <span class="muted">{{ rows|length }} Anlage(n) konfiguriert — Checkboxen auswählen für die Gemeinschafts-Schnittmenge</span>
         </div>
     </div>
 
-    {% if not installations %}
-    <p class="empty">Bitte oben eine Anlage auswählen — danach erscheinen hier ihre verfügbaren Server-Updates.</p>
+    <div class="tbl-wrap" data-wrap="au-anlagen">
+        <div class="tbl-filters">
+            <input type="text" data-filter="tbl-au-anlagen" data-col="1" data-wildcard
+                   placeholder="Name filtern (* = beliebig, ? = genau 1 Zeichen)" aria-label="Anlagen nach Name filtern" autocomplete="off">
+            <input type="text" data-col="2" data-wildcard
+                   placeholder="IST-Version filtern, z. B. 10.0.?.0" aria-label="Anlagen nach IST-Version filtern" autocomplete="off">
+            <span class="muted tbl-count" data-count="au-anlagen">{{ rows|length }} von {{ rows|length }}</span>
+        </div>
+        <table id="tbl-au-anlagen">
+            <thead>
+                <tr>
+                    <th style="width:44px">Auswahl</th>
+                    <th>Anlage</th>
+                    <th>IST-Version</th>
+                    <th style="width:1%; text-align:right">Aktion</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in rows %}
+                <tr>
+                    <td>
+                        <input type="checkbox" class="au-cb" form="bulk-au-anlagen" name="installation_ids"
+                               value="{{ r.id }}" aria-label="{{ r.name }} auswählen">
+                    </td>
+                    <td>{{ r.name }} <span class="muted">({{ r.url }})</span></td>
+                    <td>{% if r.ist_version and r.ist_version != "—" %}<span style="color:#ffb74d">v{{ r.ist_version }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+                    <td style="text-align:right; white-space:nowrap">
+                        {% if r.dep_ready %}
+                        <form method="post" action="/admin/anlagen-updates/fetch" style="margin:0; display:inline-flex">
+                            <input type="hidden" name="installation_id" value="{{ r.id }}">
+                            <button type="submit" class="btn-secondary btn-mini">Updates abrufen</button>
+                        </form>
+                        {% else %}
+                        <span class="muted" title="Deployment-Modul-Instanz unter «Anlage bearbeiten» hinterlegen">— kein Deployment-Modul</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4" class="empty">Keine Anlagen konfiguriert.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if bulk %}
+    <p class="muted" style="margin:14px 0 4px">
+        ⚠ <strong>Eingriff in den laufenden Betrieb:</strong> Ein Anlagen-Update startet die DNF-Update-Pipeline der STARFACE,
+        beendet dabei alle Sitzungen und startet die Anlage neu — Telefonie, Voicemail und Fax sind in dieser Zeit
+        nicht verfügbar. Updates deshalb bewusst und außerhalb der Geschäftszeiten ausführen oder planen.
+    </p>
+    {% if bulk.alle_ok %}
+    <h2 class="tbl-head">Verfügbare Updates für {{ bulk.anlagen|length }} ausgewählte Anlagen
+        <span class="muted">— Schnittmenge: nur Updates, die bei allen ausgewählten Anlagen verfügbar sind</span>
+    </h2>
+    <p class="muted" style="margin:2px 0 8px">
+        {{ bulk.anlagen|map(attribute='name')|join(', ') }}
+    </p>
+    {% if bulk.schnittmenge %}
+    <div class="tbl-wrap" data-wrap="au-schnitt">
+        <table>
+            <thead>
+                <tr>
+                    <th>Version</th>
+                    <th>Datum</th>
+                    <th>Typ</th>
+                    <th style="width:1%; text-align:right">Aktion</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in bulk.schnittmenge %}
+                <tr>
+                    <td{% if u.url %} title="Update-URL: {{ u.url }}"{% endif %}>{{ u.version }}</td>
+                    <td>{{ u.date }}</td>
+                    <td>{{ u.type }}</td>
+                    <td style="text-align:right; white-space:nowrap">
+                        <form method="post" action="/admin/anlagen-updates/execute" style="margin:0; display:inline-flex; gap:6px">
+                            {% for a in bulk.anlagen %}<input type="hidden" name="installation_ids" value="{{ a.id }}">{% endfor %}
+                            <input type="hidden" name="version" value="{{ u.version }}">
+                            <input type="hidden" name="update_url" value="{{ u.url }}">
+                            <button type="submit" class="btn-primary">Installieren</button>
+                        </form>
+                        <form method="post" action="/admin/anlagen-updates/schedule" style="margin:0; display:inline-flex; gap:6px">
+                            {% for a in bulk.anlagen %}<input type="hidden" name="installation_ids" value="{{ a.id }}">{% endfor %}
+                            <input type="hidden" name="version" value="{{ u.version }}">
+                            <input type="hidden" name="update_url" value="{{ u.url }}">
+                            <input type="datetime-local" name="scheduled_for" min="{{ now_local }}" required
+                                   aria-label="Zeitpunkt für {{ u.version }} planen" title="Zeitpunkt für die Installation planen (Europe/Berlin)">
+                            <button type="submit" class="btn-secondary">Planen</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
     {% else %}
+    <p class="empty">Kein Update ist für alle {{ bulk.anlagen|length }} ausgewählten Anlagen verfügbar.</p>
+    {% endif %}
+    {% else %}
+    <div class="msg err" style="margin:14px 0">
+        <button type="button" class="btn-mini" onclick="this.closest('.msg').style.display='none'">OK</button>
+        Keine Schnittmenge berechnet — der Abruf schlug für folgende Anlage(n) fehl (nie ein Update anstoßen, dessen
+        Verfügbarkeit ungeprüft ist):
+        <ul style="margin:6px 0 0; padding-left:20px">
+            {% for a in bulk.anlagen if not a.ok %}<li><strong>{{ a.name }}</strong>: {{ a.error }}</li>{% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+    {% elif installations %}
     <p class="muted" style="margin:14px 0 4px">
         ⚠ <strong>Eingriff in den laufenden Betrieb:</strong> Ein Anlagen-Update startet die DNF-Update-Pipeline der STARFACE,
         beendet dabei alle Sitzungen und startet die Anlage neu — Telefonie, Voicemail und Fax sind in dieser Zeit
@@ -50,7 +141,7 @@
         <button type="button" class="btn-mini" onclick="this.closest('.msg').style.display='none'">OK</button>{{ updates_error }}</div>
     {% endif %}
 
-    <h2 class="tbl-head">Verfügbare Updates
+    <h2 class="tbl-head">Verfügbare Updates — {{ installations[0].name }}
         {% if updates and updates.current %}<span class="muted">— installierte Version: {{ updates.current }}</span>{% endif %}
     </h2>
     {% if updates and updates.updates %}
@@ -94,6 +185,9 @@
     {% else %}
     <p class="empty">Keine verfügbaren Updates — die Anlage ist auf dem aktuellen Stand (Final-Kanal).</p>
     {% endif %}
+    {% else %}
+    <p class="empty">Bitte oben eine Anlage auswählen (Zeilen-Button „Updates abrufen“) oder über die Checkboxen
+        mehrere Anlagen wählen — danach erscheinen hier die verfügbaren Server-Updates.</p>
     {% endif %}
 
     <h2 class="tbl-head">Geplante Updates <span class="muted">— Ausführung durch den WebApp-Scheduler (Anzeige Europe/Berlin)</span></h2>
@@ -135,10 +229,4 @@
     <p class="empty">Keine geplanten Updates.</p>
     {% endif %}
 </div>
-<script>
-document.getElementById('au-anlage').addEventListener('change', function () {
-    if (this.value) location.href = '/admin/anlagen-updates?inst_id=' + this.value;
-    else location.href = '/admin/anlagen-updates';
-});
-</script>
 {% endblock %}

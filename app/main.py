@@ -2304,21 +2304,58 @@ async def admin_updates_standard_push(request: Request):
 
 # ── Anlagen-Updates (dm-v10): verfügbare Server-Updates abfragen, anstoßen,
 # ── planen (Zeitzonen-Pflicht: Eingabe Europe/Berlin → Speicherung UTC) ──────
-def _anlagen_updates_redirect(msg: str, inst_id: int = 0) -> RedirectResponse:
+def _anlagen_version(inst) -> str:
+    """Frische STARFACE-Server-Version einer Anlage via GetStats (F95).
+
+    Liefert die Versionsnummer oder „—“ (keine Monitoring-Instanz, Token-/
+    Transportfehler). Muster: Detailseite-Stammdaten (F71) — diese Stelle
+    wurde auf den Helper umgestellt (DRY, eine Wahrheit für Ist-Versionen).
+    """
+    try:
+        row = dict(inst)
+    except Exception:
+        row = inst
+    inst_name = str(row.get("monitoring_instance_name") or "").strip()
+    if not inst_name:
+        return "—"
+    try:
+        from monitoring import _xmlrpc
+    except ImportError:
+        from app.monitoring import _xmlrpc
+    try:
+        token = _get_token(row)
+        _raw = _xmlrpc(row["url"], token, "GetStats", instance_name=inst_name)
+        v = str(((_raw or {}).get("members") or {}).get("systemVersion") or "").strip()
+        return v or "—"
+    except Exception:
+        return "—"
+
+
+def _anlagen_updates_redirect(msg: str, inst_id: int = 0,
+                              inst_ids: list | None = None) -> RedirectResponse:
     url = "/admin/anlagen-updates?msg=" + quote(msg)
-    if inst_id:
+    if inst_ids:
+        url += "&inst_ids=" + ",".join(str(i) for i in sorted(set(inst_ids)))
+    elif inst_id:
         url += f"&inst_id={inst_id}"
     return RedirectResponse(url, status_code=303)
 
 
 @app.get("/admin/anlagen-updates", response_class=HTMLResponse)
 async def admin_anlagen_updates_page(request: Request):
-    """Admin-Seite: Anlagen-Updates (dm-v10).
+    """Admin-Seite: Anlagen-Updates (dm-v10, F95).
 
-    Oben eine Such-Combobox über alle Anlagen; ohne Auswahl (Leerzustand)
-    nur ein Hinweis. Mit ?inst_id= werden die verfügbaren STARFACE-Server-
-    Updates der Anlage FRISCH abgefragt (GetAnlagenUpdates, Read-only) und
-    zusammen mit allen geplanten Updates (anlagen_update_plans) angezeigt.
+    Oben eine Tabelle mit ALLEN Anlagen (Ist-Version via GetStats, Checkbox,
+    Zeilen-Button „Updates abrufen“) + Wildcard-Filter (Name/IST-Version).
+    - ?inst_id=N    → verfügbare Updates dieser Anlage frisch abgefragt.
+    - ?inst_ids=1,2 → Bulk: für ALLE gewählten Anlagen abrufen und die
+                      SCHNITTMENGE anzeigen (nur Updates, die überall
+                      verfügbar sind). Strenge Regel: schlägt eine Anlage
+                      fehl, wird keine Schnittmenge berechnet (nie blind ein
+                      Update anstoßen, dessen Verfügbarkeit ungeprüft ist)
+                      — die Fehlermeldung listet die Anlagen.
+    GetAnlagenUpdates ist Read-only; geplante Updates (anlagen_update_plans)
+    werden immer mit angezeigt.
     """
     user = verify_session(request.cookies.get(SESSION_COOKIE))
     if not user or not user["is_admin"]:
@@ -2337,42 +2374,161 @@ async def admin_anlagen_updates_page(request: Request):
         " JOIN installations i ON i.id = p.installation_id"
         " ORDER BY p.scheduled_at DESC").fetchall()
     conn.close()
+
+    # Tabelle: Ist-Version (frisch) + Deployment-Bereitschaft je Anlage
+    rows = []
+    for inst in installations:
+        rows.append({
+            "id": inst["id"], "name": inst["name"], "url": inst["url"],
+            "ist_version": _anlagen_version(inst),
+            "dep_ready": bool(inst["deployer_instance_name"]),
+        })
+
     try:
         selected_id = int(request.query_params.get("inst_id", "0"))
     except (TypeError, ValueError):
         selected_id = 0
     selected = next((i for i in installations if i["id"] == selected_id), None)
+
+    bulk_ids = []
+    for part in request.query_params.get("inst_ids", "").split(","):
+        part = part.strip()
+        if part.isdigit():
+            bulk_ids.append(int(part))
+    bulk_ids = sorted(set(bulk_ids))
+
     updates = None
     updates_error = ""
-    if selected:
-        if not selected["deployer_instance_name"]:
-            updates_error = ("Keine Deployment-Instanz konfiguriert — unter Anlage "
-                             "bearbeiten den Instanznamen des Deployment-Moduls "
-                             "hinterlegen.")
+    bulk = None
+
+    def fetch_one(inst):
+        """Frischer GetAnlagenUpdates-Abruf für EINE Anlage → (ok, data|error)."""
+        if not inst["deployer_instance_name"]:
+            return False, ("Keine Deployment-Instanz konfiguriert — unter Anlage "
+                           "bearbeiten den Instanznamen des Deployment-Moduls "
+                           "hinterlegen.")
+        try:
+            token = _get_token(inst)
+            res = get_anlagen_updates(inst, token)
+            if res.get("status") == "ok":
+                return True, res.get("data")
+            return False, res.get("message", "Unbekannter Fehler")
+        except Exception as e:  # Token-/Transportfehler → Banner statt Abbruch
+            return False, str(e)
+
+    if bulk_ids:
+        anlagen = []
+        for iid in bulk_ids:
+            inst = next((i for i in installations if i["id"] == iid), None)
+            if not inst:
+                anlagen.append({"id": iid, "name": f"Anlage {iid}",
+                                "ok": False, "error": "Unbekannte Anlage."})
+                continue
+            ok, data_or_err = fetch_one(inst)
+            if ok:
+                anlagen.append({"id": iid, "name": inst["name"], "ok": True,
+                                "updates": (data_or_err or {}).get("updates") or []})
+            else:
+                anlagen.append({"id": iid, "name": inst["name"], "ok": False,
+                                "error": data_or_err})
+        # Strenge Regel (F95, Axel-Freigabe): Schnittmenge nur, wenn ALLE
+        # ausgewählten Anlagen erfolgreich abgerufen wurden.
+        if all(a["ok"] for a in anlagen):
+            def upd_key(u):
+                return (str(u.get("version") or ""), str(u.get("type") or ""))
+            first_updates = anlagen[0]["updates"]
+            schnitt = [u for u in first_updates
+                       if all(any(upd_key(x) == upd_key(u) for x in a["updates"])
+                              for a in anlagen[1:])]
+            bulk = {"mode": "bulk", "anlagen": anlagen, "alle_ok": True,
+                    "schnittmenge": schnitt}
         else:
-            try:
-                token = _get_token(selected)
-                res = get_anlagen_updates(selected, token)
-                if res.get("status") == "ok":
-                    updates = res.get("data")
-                else:
-                    updates_error = res.get("message", "Unbekannter Fehler")
-            except Exception as e:  # Token-/Transportfehler → Banner statt Abbruch
-                updates_error = str(e)
+            bulk = {"mode": "bulk", "anlagen": anlagen, "alle_ok": False,
+                    "schnittmenge": []}
+    elif selected:
+        ok, data_or_err = fetch_one(selected)
+        if ok:
+            updates = data_or_err
+        else:
+            updates_error = data_or_err
+
     return TEMPLATES.TemplateResponse(
         "admin_anlagen_updates.html",
         {"request": request, "user": user,
          "installations": [selected] if selected else [],
          "all_installations": installations,
+         "rows": rows,
          "selected_id": selected_id,
+         "bulk_ids": bulk_ids,
          "updates": updates,
          "updates_error": updates_error,
+         "bulk": bulk,
          "plans": plans,
          "fmt_local": utc_iso_zu_lokal_anzeige,
          "now_local": lokal_now_dt_local(),
          "active": "anlagen-updates",
          "version": os.environ.get("APP_VERSION", "dev"),
          "msg": request.query_params.get("msg", "")})
+
+
+@app.post("/admin/anlagen-updates/fetch")
+async def admin_anlagen_updates_fetch(request: Request):
+    """Zeilen-Button „Updates abrufen“: fragt die Updates EINER Anlage ab.
+
+    Nur ein Redirect auf ?inst_id=N — der Abruf passiert in der GET-Route
+    (frisch, GetAnlagenUpdates Read-only).
+    """
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user or not user["is_admin"]:
+        return RedirectResponse("/")
+    form = await request.form()
+    try:
+        inst_id = int(form.get("installation_id", "0"))
+    except (TypeError, ValueError):
+        inst_id = 0
+    if not inst_id:
+        return _anlagen_updates_redirect("Keine Anlage ausgewählt.")
+    return _anlagen_updates_redirect("", inst_id)
+
+
+@app.post("/admin/anlagen-updates/fetch-bulk")
+async def admin_anlagen_updates_fetch_bulk(request: Request):
+    """Bulk-Button: fragt die Updates für ALLE ausgewählten Anlagen ab.
+
+    Redirect auf ?inst_ids=1,2,3 (kommagetrennt, sortiert) — die Schnitt-
+    mengen-Berechnung passiert in der GET-Route. Ohne Auswahl Hinweis.
+    """
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user or not user["is_admin"]:
+        return RedirectResponse("/")
+    form = await request.form()
+    ids = []
+    for part in form.getlist("installation_ids"):
+        part = str(part).strip()
+        if part.isdigit():
+            ids.append(int(part))
+    ids = sorted(set(ids))
+    if not ids:
+        return _anlagen_updates_redirect(
+            "Keine Anlage ausgewählt — bitte Checkboxen in der Tabelle aktivieren.")
+    return _anlagen_updates_redirect("", inst_ids=ids)
+
+
+def _form_inst_ids(form) -> list:
+    """Installations-IDs aus dem Formular: getlist (Bulk, F95) oder singulär."""
+    ids = []
+    for part in form.getlist("installation_ids"):
+        part = str(part).strip()
+        if part.isdigit():
+            ids.append(int(part))
+    if not ids:
+        try:
+            raw = int(form.get("installation_id", "0"))
+        except (TypeError, ValueError):
+            raw = 0
+        if raw:
+            ids.append(raw)
+    return sorted(set(ids))
 
 
 @app.post("/admin/anlagen-updates/execute")
@@ -2390,28 +2546,44 @@ async def admin_anlagen_updates_execute(request: Request):
     except ImportError:
         from app.module_updates import execute_anlagen_update
     form = await request.form()
-    try:
-        inst_id = int(form.get("installation_id", "0"))
-    except ValueError:
-        inst_id = 0
+    ids = _form_inst_ids(form)
+    if not ids:
+        return _anlagen_updates_redirect("Keine Anlage ausgewählt.")
     version = form.get("version", "")
     update_url = form.get("update_url", "")
     conn = _db()
-    inst = conn.execute("SELECT * FROM installations WHERE id=?",
-                        (inst_id,)).fetchone()
+    insts = [r for r in (conn.execute("SELECT * FROM installations WHERE id=?",
+                                      (i,)).fetchone() for i in ids) if r]
     conn.close()
-    if not inst:
-        return _anlagen_updates_redirect("Unbekannte Anlage.", inst_id)
-    try:
-        token = _get_token(inst)
-        res = execute_anlagen_update(inst, token, version=version,
-                                     update_url=update_url)
-        msg = res.get("message", "ok") if res.get("status") == "ok" \
-            else "FEHLER: " + res.get("message", "Unbekannter Fehler")
-    except Exception as e:  # Token-/Transportfehler
-        msg = "FEHLER: " + str(e)
-    _log_event(inst_id, user["user_id"], "anlagen-update-execute", f"{version}: {msg}")
-    return _anlagen_updates_redirect(msg, inst_id)
+    if not insts:
+        return _anlagen_updates_redirect("Unbekannte Anlage.", ids[0])
+    ok_cnt = 0
+    errors = []
+    first_msg = ""
+    for inst in insts:
+        try:
+            token = _get_token(inst)
+            res = execute_anlagen_update(inst, token, version=version,
+                                         update_url=update_url)
+            if res.get("status") == "ok":
+                ok_cnt += 1
+                first_msg = first_msg or res.get("message", "ok")
+            else:
+                errors.append(f"{inst['name']}: {res.get('message', 'Unbekannter Fehler')}")
+        except Exception as e:  # Token-/Transportfehler
+            errors.append(f"{inst['name']}: {e}")
+        _log_event(inst["id"], user["user_id"], "anlagen-update-execute",
+                   f"{version}: ok" if ok_cnt == len(insts)
+                   else f"{version}: " + ("; ".join(errors) if errors else "noch offen"))
+    if len(insts) == 1:
+        msg = first_msg if ok_cnt else (
+            "FEHLER: " + errors[0] if errors else "FEHLER: Unbekannter Fehler")
+        return _anlagen_updates_redirect(msg, insts[0]["id"])
+    parts = [f"Update {version} für {len(insts)} Anlage(n): {ok_cnt} ok"]
+    if errors:
+        parts.append("Fehler: " + "; ".join(errors))
+    return _anlagen_updates_redirect("; ".join(parts),
+                                     inst_ids=[i["id"] for i in insts])
 
 
 @app.post("/admin/anlagen-updates/schedule")
@@ -2431,37 +2603,47 @@ async def admin_anlagen_updates_schedule(request: Request):
     except ImportError:
         from app.timeutil import lokal_naive_zu_utc_iso, utc_iso_zu_lokal_anzeige
     form = await request.form()
-    try:
-        inst_id = int(form.get("installation_id", "0"))
-    except ValueError:
-        inst_id = 0
+    ids = _form_inst_ids(form)
+    if not ids:
+        return _anlagen_updates_redirect("Keine Anlage ausgewählt.")
     version = form.get("version", "")
     update_url = form.get("update_url", "")
     scheduled_local = form.get("scheduled_for", "")
     utc_iso = lokal_naive_zu_utc_iso(scheduled_local)
+    target = ids if len(ids) > 1 else None
+    single_id = ids[0] if len(ids) == 1 else 0
+
+    def back(msg):
+        return _anlagen_updates_redirect(msg, single_id, inst_ids=target)
+
     if not utc_iso:
-        return _anlagen_updates_redirect("FEHLER: Ungültiger Zeitpunkt.", inst_id)
+        return back("FEHLER: Ungültiger Zeitpunkt.")
     if datetime.fromisoformat(utc_iso) < datetime.now(timezone.utc):
-        return _anlagen_updates_redirect(
-            "FEHLER: Zeitpunkt liegt in der Vergangenheit.", inst_id)
+        return back("FEHLER: Zeitpunkt liegt in der Vergangenheit.")
     conn = _db()
-    inst = conn.execute("SELECT * FROM installations WHERE id=?",
-                        (inst_id,)).fetchone()
-    if not inst:
+    insts = [r for r in (conn.execute("SELECT * FROM installations WHERE id=?",
+                                      (i,)).fetchone() for i in ids) if r]
+    if not insts:
         conn.close()
-        return _anlagen_updates_redirect("Unbekannte Anlage.", inst_id)
-    conn.execute(
-        "INSERT INTO anlagen_update_plans"
-        " (installation_id, version, update_url, scheduled_at)"
-        " VALUES (?,?,?,?)",
-        (inst_id, version, update_url, utc_iso))
+        return back("Unbekannte Anlage.")
+    for inst in insts:
+        conn.execute(
+            "INSERT INTO anlagen_update_plans"
+            " (installation_id, version, update_url, scheduled_at)"
+            " VALUES (?,?,?,?)",
+            (inst["id"], version, update_url, utc_iso))
     conn.commit()
     conn.close()
     display = utc_iso_zu_lokal_anzeige(utc_iso)
-    _log_event(inst_id, user["user_id"], "anlagen-update-schedule",
-               f"{version} für {display}")
+    for inst in insts:
+        _log_event(inst["id"], user["user_id"], "anlagen-update-schedule",
+                   f"{version} für {display}")
+    if len(insts) == 1:
+        return _anlagen_updates_redirect(
+            f"Update {version} geplant für {display}.", insts[0]["id"])
     return _anlagen_updates_redirect(
-        f"Update {version} geplant für {display}.", inst_id)
+        f"Update {version} für {len(insts)} Anlage(n) geplant für {display}.",
+        inst_ids=[i["id"] for i in insts])
 
 
 @app.post("/admin/anlagen-updates/cancel")
@@ -3226,19 +3408,12 @@ async def installation_detail_page(request: Request, inst_id: int):
                     "title": "Blocklist der Anlage bearbeiten (CallBlocker-Modul)",
                 }
     # Stammdaten (F71): Anlagen-Version (GetStats, frisch) + Deployment-Modul-Status aus
-    # demselben Modul-Status-Lauf (kein zweiter GetModuleStatus-Aufruf).
+    # demselben Modul-Status-Lauf (kein zweiter GetModuleStatus-Aufruf). F95:
+    # Version via gemeinsamen Helper (eine Wahrheit für Ist-Versionen).
     pbx_version = None
     if inst.get("monitoring_instance_name"):
-        try:
-            from monitoring import _xmlrpc
-        except ImportError:
-            from app.monitoring import _xmlrpc
-        try:
-            token = _get_token(inst)
-            _raw = _xmlrpc(inst["url"], token, "GetStats",
-                           instance_name=inst.get("monitoring_instance_name"))
-            pbx_version = str(((_raw or {}).get("members") or {}).get("systemVersion") or "").strip() or None
-        except Exception:
+        pbx_version = _anlagen_version(inst)
+        if pbx_version == "—":
             pbx_version = None
     dep_state = None
     dep_can_create = False
