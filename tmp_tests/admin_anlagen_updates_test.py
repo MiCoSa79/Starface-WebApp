@@ -74,13 +74,18 @@ def rpc_string(s):
     return ("<methodResponse><params><param><value><string>"
             + s + "</string></value></param></params></methodResponse>")
 
+# Hauptweg: values[] wie von _xmlrpc (xml.etree-aufgelöst). Section 4a schaltet
+# auf raw-only (Regex-Fallback) — deckt beide Antwortwege des echten Stacks ab.
+USE_VALUES = True
+
 
 def fake_xmlrpc(url, token, method, payload, instance_name=None):
     RPC_CALLS.append({"method": method, "payload": payload, "instance": instance_name})
     if method == "GetAnlagenUpdates":
         # REALISTISCHES Modul-JSON (>500 Zeichen): die echte Antwort enthält
-        # description/changelog je Update — _extract_response kappte früher auf
-        # 500 Bytes → json.loads scheiterte ("Unerwartete Antwort").
+        # description/changelog je Update. Der Mock liefert BEIDE Wege, die
+        # _xmlrpc auch tut: "values" = von xml.etree AUFGELÖSTER String und
+        # "raw" = das rohe XML (Regex-Fallback). USE_VALUES schaltet um.
         data = {"current": "10.0.2.5", "count": 2, "updates": [
             {"version": "10.0.3.0", "date": "2026-08-25", "type": "final",
              "description": "Umfangreiche Korrekturen im Bereich Cloud-Telefonie, "
@@ -94,7 +99,9 @@ def fake_xmlrpc(url, token, method, payload, instance_name=None):
              "changelog": "- Fix: Anruflisten unvollständig\n"
                             "- Optimiertes Handling bei fehlgeschlagenen Updates",
              "url": "https://update.sub.example.de/stable/starface-10.0.2.8.rpm"}]}
-        return {"raw": rpc_string(json.dumps(data))}
+        data_str = json.dumps(data)
+        values = [] if not USE_VALUES else [data_str]
+        return {"raw": rpc_string(data_str), "values": values, "members": {}}
     if method == "ExecuteAnlagenUpdate":
         if payload.get("updateToken") == "wrong":
             return {"raw": rpc_string("ERROR: updateToken falsch")}
@@ -188,6 +195,28 @@ check("RPC-Payload mit updateToken", rpc.get("payload", {}).get("updateToken") =
 check("Keine 'Unerwartete Antwort' (volle Antwort > 500 Zeichen verarbeitet)",
       "Unerwartete Antwort" not in r.text,
       r.text[r.text.find("Unerwartete") - 50:r.text.find("Unerwartete") + 300] if "Unerwartete" in r.text else "")
+
+# --- 4a. Fallback-Weg: Antwort ohne values (nur rohes XML) ---------------------
+USE_VALUES = False
+r = c.get(f"/admin/anlagen-updates?inst_id={id_mit}")
+check("Fallback raw-Weg: Version 1 sichtbar", "10.0.3.0" in r.text,
+      r.text[r.text.find("Unerwartete") - 30:r.text.find("Unerwartete") + 200] if "Unerwartete" in r.text else "")
+check("Fallback raw-Weg: kein Fehlerbanner", "Unerwartete Antwort" not in r.text)
+USE_VALUES = True
+
+# --- 4b. Diagnose: kaputtes JSON zeigt die Fehlerposition ----------------------
+def broken_values(url, token, method, payload, instance_name=None):
+    RPC_CALLS.append({"method": method, "payload": payload, "instance": instance_name})
+    if method == "GetAnlagenUpdates":
+        return {"raw": rpc_string('{"current":"10.0.1.7","updates":[{"x":01}'),
+                "values": ['{"current":"10.0.1.7","updates":[{"x":01}'], "members": {}}
+    return {"raw": rpc_string("ok")}
+
+module_updates._xmlrpc = broken_values
+r = c.get(f"/admin/anlagen-updates?inst_id={id_mit}")
+m = r.text[r.text.find("Unerwartete"):r.text.find("Unerwartete") + 160] if "Unerwartete" in r.text else ""
+check("Diagnose: Meldung zeigt Fehlerposition (Zeichen N)", "Zeichen" in m and "Unerwartete Antwort" in m, m)
+module_updates._xmlrpc = fake_xmlrpc
 
 # --- 5. Ohne Deployment-Instanz ------------------------------------------------
 r = c.get(f"/admin/anlagen-updates?inst_id={id_ohne}")

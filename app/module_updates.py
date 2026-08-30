@@ -185,16 +185,27 @@ def get_anlagen_updates(inst: dict, token: str, *,
     try:
         res = _xmlrpc(inst["url"], token, "GetAnlagenUpdates", payload,
                       instance_name=inst_name)
+        # Bevorzugt die von xml.etree AUFGELÖSTE Antwort (values[0]): STARFACE
+        # XML-escaped Sonderzeichen (& < > …) — ein Regex über das rohe r.text
+        # lieferte sie unaufgelöst mit (F93-Folge: „Unerwartete Antwort“ auf
+        # der echten Cloud-Anlage). Fallback: Regex mit großem Limit.
+        values = res.get("values") or []
         raw = res.get("raw", "")
-        # Volle Antwort: die Update-Liste (mit description/changelog je Update)
-        # ist deutlich größer als die 500-Byte-Kappung für kurze Meldungen.
-        response = _extract_response(raw, max_len=1_000_000)
+        if values:
+            response = str(values[0])
+        else:
+            response = _extract_response(res.get("raw", ""), max_len=1_000_000)
         try:
             data = json.loads(response)
-        except (ValueError, TypeError):
+        except (ValueError, TypeError) as e:
+            pos = getattr(e, "pos", None)
+            where = ""
+            if isinstance(e, json.JSONDecodeError) and pos is not None:
+                where = (f" → Zeichen {pos}: "
+                         f"…{response[max(0, pos - 40):pos + 40]!r}…")
             return {"status": "error",
-                    "message": f"Unerwartete Antwort: {response[:200]}",
-                    "raw": raw[:200]}
+                    "message": f"Unerwartete Antwort{where}: {response[:200]}",
+                    "raw": (res.get("raw") or "")[:200]}
         if isinstance(data, dict) and "error" in data:
             return {"status": "error", "message": str(data["error"]),
                     "raw": raw[:200]}
