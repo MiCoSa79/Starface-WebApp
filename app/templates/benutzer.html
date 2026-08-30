@@ -64,7 +64,8 @@
                     </form>
                 </td>
                 <td>{% if u.otp_confirmed %}✅{% else %}{% if u.otp_secret %}⏳{% else %}—{% endif %}{% endif %}</td>
-                <td>
+                <td style="text-align:right; white-space:nowrap;">
+                    <span class="actions-inline">
                     <a href="/admin/users/{{ u.id }}/totp-setup" class="btn-secondary">2FA einrichten</a>
                     <a href="/admin/users/{{ u.id }}/passkeys" class="btn-secondary">Passkeys</a>
                     <a href="/password?uid={{ u.id }}" class="btn-secondary">Passwort zurücksetzen</a>
@@ -74,6 +75,7 @@
                         <button type="submit" class="btn-danger">Löschen</button>
                     </form>
                     {% endif %}
+                    </span>
                 </td>
             </tr>
             {% endfor %}

@@ -46,6 +46,10 @@ button { padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer;
 .btn-danger:hover { background: #a30000; }
 .btn-mini { padding: 4px 10px; font-size: 12px; }
 .btn-back { margin-bottom: 16px; }
+/* F100: Aktions-Zellen app-weit einheitlich (anlagen.html-Muster) —
+   enge Screens: Buttons wickeln sauber um statt zu stapeln/ueberzulaufen */
+.actions-inline { display: inline-flex; gap: 6px; align-items: center;
+                  flex-wrap: wrap; justify-content: flex-end; }
 .form-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
 /* URL-Eingabefelder: Desktop min. 380px breit; Mobile darf flex-basis NICHT
    als Hoehe greifen (column-Flexbox) → wird in der Media-Query ueberschrieben */
@@ -110,6 +114,11 @@ button { padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer;
     .url-field { flex: 1 1 auto; min-height: 44px; }
     .btn-primary, .btn-secondary, .btn-danger { width: 100%; min-height: 44px; padding: 14px 12px; }
     .container table button, .container table a.btn-secondary, .container table a.btn-danger { width: auto; min-height: auto; padding: 8px 12px; font-size: 13px; }
+    /* F100: Formular-Zeilen-Buttons (form-row) mobil KOMPAKT statt Vollbreite —
+       einzelnstehende Hauptbuttons (z.B. Login, ein form ohne form-row) behalten
+       die Vollbreite; Ursache war align-items:stretch der column-form-row,
+       nicht width:100% (iPhone: /benutzer „Benutzer anlegen“ war Kartengross) */
+    .form-row .btn-primary, .form-row .btn-secondary, .form-row .btn-danger { width: auto; min-height: auto; padding: 8px 14px; align-self: flex-start; }
     .codes { font-size: 14px; }
 }
     .header-wrap { position: sticky; top: 0; left: 0; right: 0;

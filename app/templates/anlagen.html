@@ -2,11 +2,11 @@
 {% block title %}STARFACE WebApp — Anlagen{% endblock %}
 {% block styles %}
 <style>
-    .actions-inline { display:inline-flex; gap:6px; align-items:center; flex-wrap:wrap; justify-content:flex-end; }
     /* F99: KEINE a/button-Regel hier — die globalen .btn-* (admin.css:
        8x14, inline-flex, justify-content:center) gelten, sonst kollidierte
        die lokale Spezifitaet (0,1,1) mit .btn-secondary (0,1,0) →
-       unterschiedliche Groessen + linksbuendige Icons (iPhone-Foto 30.08.). */
+       unterschiedliche Groessen + linksbuendige Icons (iPhone-Foto 30.08.).
+       .actions-inline selbst ist seit F100 global in admin.css. */
     .actions-inline a.detail-dl { display:inline-flex; align-items:center; justify-content:center;
                  width:34px; height:34px; padding:0; box-sizing:border-box;
                  border:1px solid rgba(255,255,255,.28); border-radius:7px; color:#8ab4f8; text-decoration:none;

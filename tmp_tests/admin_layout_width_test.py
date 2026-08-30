@@ -158,9 +158,9 @@ check("F99: anlagen.html ohne .actions-inline a/button-Kollision",
       ".actions-inline a, .actions-inline button" not in _anl
       and ".actions-inline a.detail-dl" in _anl,
       "kollidierende Regel steht noch im anlagen.html-<style>")
-check("F99: .actions-inline spiegelt .btn-Basis (wrap + rechts)",
-      "flex-wrap:wrap" in _anl and "justify-content:flex-end" in _anl,
-      "anlagen.html .actions-inline-Regel unvollstaendig")
+check("F99: .actions-inline spiegelt .btn-Basis (wrap + rechts, jetzt global)",
+      "flex-wrap: wrap" in _css and "justify-content" in _css and ".actions-inline" in _css,
+      "globale .actions-inline-Regel unvollstaendig")
 check("F99: Container-Bodenabstand inkl. iPhone-Safe-Area",
       "padding-bottom: calc(32px + env(safe-area-inset-bottom, 0px))" in _css,
       "admin.css .container-padding-bottom fehlt")
@@ -168,6 +168,16 @@ check("F99: Mobile-Vollbreiten-MQ nimmt Link-Buttons in Tabellenzellen aus (a <b
       "container table a.btn-secondary" in _css and "container table a.btn-danger" in _css
       and "container table button" in _css,
       "admin.css Zellen-Ausnahme nur fuer <button>, nicht fuer a.btn-*?")
+r = c.get("/benutzer")
+check("F100: Benutzer-Aktionszelle im actions-inline-Muster (anlagen.html)",
+      r.status_code == 200 and '<span class="actions-inline">' in r.text and "white-space:nowrap" in r.text,
+      f"status={r.status_code}")
+check("F100: .actions-inline global in admin.css",
+      ".actions-inline {" in _css and "flex-wrap: wrap" in _css,
+      "globale actions-inline-Regel fehlt")
+check("F100: form-row-Buttons mobil kompakt (align-self:flex-start)",
+      ".form-row .btn-primary" in _css and "align-self: flex-start" in _css,
+      "form-row-Kompaktregel fehlt")
 
 if failed:
     print(f"FEHLGESCHLAGEN ({len(failed)}):")
