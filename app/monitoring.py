@@ -429,6 +429,24 @@ def query_system_history(installation: str, minutes: int = 60,
     return res
 
 
+def _update_laeuft(installation_id: int) -> bool:
+    """True, solange für die Anlage ein Update in der Prüfphase läuft.
+
+    F105: anlagen_update_log.status='pruefen' existiert vom Anstoß bis zur
+    Verifikation (erfolgreich/fehlgeschlagen/unbekannt) — in diesem Zeitfenster
+    arbeitet die Anlage das Update ab und startet neu; der Sammler pollt sie
+    deshalb nicht (RPCs würden nur irreführende Fehler liefern).
+    """
+    conn = _db()
+    try:
+        return conn.execute(
+            "SELECT 1 FROM anlagen_update_log"
+            " WHERE installation_id=? AND status='pruefen' LIMIT 1",
+            (installation_id,)).fetchone() is not None
+    finally:
+        conn.close()
+
+
 def collect_installations() -> int:
     """Ein Poll über alle Installationen mit gesetzter Modul-Instanz."""
     conn = _db()
@@ -441,6 +459,14 @@ def collect_installations() -> int:
     errors = []  # (name, exception, ts) — letzter Fehler gewinnt, sonst Reset
     for inst in rows:
         name = inst["name"]
+        # F105: Solange für die Anlage ein Update in der Prüfphase läuft
+        # (anlagen_update_log.status='pruefen'), pollt der Sammler bewusst
+        # nicht: Die Anlage arbeitet das Update ab und startet neu — RPCs
+        # würden nur irreführende Fehler liefern (z. B. "Kein gültiger Token
+        # verfügbar", während die Anlage im Reboot hängt).
+        if _update_laeuft(inst["id"]):
+            print(f"[Monitoring] {name}: Update läuft — Poll pausiert")
+            continue
         vals = _state["last_values"].setdefault(name, {})
         try:
             token = _get_token(inst)

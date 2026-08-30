@@ -72,6 +72,7 @@ def _run_due_plans(now=None):
 
     out = []
     for p in due:
+        ver = None  # F105: IST-Version aus dem GetStats-Vorabruf (vor dem Anstoß)
         due_dt = _utc_zu_dt(p["scheduled_at"])
         if due_dt is None or due_dt > now:
             continue  # nicht fällig / kaputter Zeitstempel
@@ -89,40 +90,51 @@ def _run_due_plans(now=None):
                 if not token:
                     new_status, result = "error", "Kein gültiges OAuth-Token der Anlage."
                 else:
-                    r = execute_anlagen_update(
-                        dict(p), token, version=p["version"], update_url=p["update_url"])
-                    if r.get("status") == "ok":
-                        new_status, result = "executed", r.get("message", "ok")
-                        # F96: Durchführungs-Log anlegen — die Erfolgsprüfung
-                        # (GetStats-Vorher/Nachher) startet ab +5 Min.
-                        try:
-                            ver = _anlagen_version(dict(p)) or "—"
-                        except Exception:
-                            ver = "—"
-                        c2 = _db()
-                        try:
-                            c2.execute(
-                                "INSERT INTO anlagen_update_log"
-                                " (installation_id, quelle, plan_id, version_vor,"
-                                "  version_nach, angestossen_um, status)"
-                                " VALUES (?, 'plan', ?, ?, ?, ?, 'pruefen')",
-                                (p["installation_id"], p["id"], ver, p["version"],
-                                 now.isoformat(timespec="seconds")))
-                            c2.execute(
-                                "UPDATE anlagen_update_plans SET ausgefuehrt_um=?"
-                                " WHERE id=?",
-                                (now.isoformat(timespec="seconds"), p["id"]))
-                            c2.commit()
-                        finally:
-                            c2.close()
+                    # F105: IST-Version VOR dem Anstoß abfragen — nach dem
+                    # ExecuteAnlagenUpdate-RPC startet die Anlage sofort den
+                    # Update-Prozess (Download/Reboot); GetStats danach
+                    # schlüge fehl und "Version vorher" bliebe immer "—".
+                    # Bonus: Anlage nicht erreichbar → kein Update "ins Blaue",
+                    # sondern ein sauberer Fehler im Plan.
+                    try:
+                        ver = _anlagen_version(dict(p)) or "—"
+                    except Exception as exc:
+                        new_status, result = (
+                            "error", f"Anlage vor Update nicht erreichbar"
+                                     f" (GetStats fehlgeschlagen: {exc})")
                     else:
-                        new_status, result = "error", r.get("message", "Unbekannter Fehler")
+                        r = execute_anlagen_update(
+                            dict(p), token, version=p["version"], update_url=p["update_url"])
+                        if r.get("status") == "ok":
+                            new_status, result = "executed", r.get("message", "ok")
+                            # F96: Durchführungs-Log anlegen — die Erfolgsprüfung
+                            # (GetStats-Vorher/Nachher) startet ab +5 Min.
+                            c2 = _db()
+                            try:
+                                c2.execute(
+                                    "INSERT INTO anlagen_update_log"
+                                    " (installation_id, quelle, plan_id, version_vor,"
+                                    "  version_nach, angestossen_um, status)"
+                                    " VALUES (?, 'plan', ?, ?, ?, ?, 'pruefen')",
+                                    (p["installation_id"], p["id"], ver, p["version"],
+                                     now.isoformat(timespec="seconds")))
+                                c2.execute(
+                                    "UPDATE anlagen_update_plans SET ausgefuehrt_um=?"
+                                    " WHERE id=?",
+                                    (now.isoformat(timespec="seconds"), p["id"]))
+                                c2.commit()
+                            finally:
+                                c2.close()
+                        else:
+                            new_status, result = "error", r.get("message", "Unbekannter Fehler")
         # F104: Fehlschläge nachvollziehbar machen — Log-Eintrag mit detail,
         # damit "Durchgeführte Updates" nie wieder leer bleibt, wenn etwas
         # schiefgeht (vorher bekam nur der ok-Pfad ein Log).
         if new_status in ("error", "missed"):
+            # F105: ver aus dem GetStats-Vorabruf wiederverwenden; nur wenn
+            # keiner gesetzt ist (Token-/Missed-Pfad), frisch abfragen.
             try:
-                ver = _anlagen_version(dict(p)) or "—"
+                ver = ver or (_anlagen_version(dict(p)) or "—")
             except Exception:
                 ver = "—"
             c2 = _db()
