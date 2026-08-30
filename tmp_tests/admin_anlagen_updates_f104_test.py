@@ -7,11 +7,14 @@ JEDER geplanten Ausführung. In den Tests war _get_token gemockt → Blindstelle
 
 Geprüft:
 1. ROOT: echte _get_token-Kette (Installation MIT Auth-Feldern + gültigem
-   OAuth-Cache) → Plan wird 'executed' (ohne Fix: 'error'/'auth_id')
-2. RPC-Fehler (ERROR-Antwort vom Deployer) → Plan 'error' UND Log
+   OAuth-Cache) → Plan wird ausgeführt; F108: Plan-Zeile danach GELÖSCHT
+   („Geplante Updates" zeigt nur noch status='planned'), Historie = Log 'pruefen'
+2. RPC-Fehler (ERROR-Antwort vom Deployer) → Plan-Zeile weg + Log
    'fehlgeschlagen' mit detail=result (vorher: keinerlei Spur)
-3. überfällig (> GRACE) → 'missed' + Log 'fehlgeschlagen'
-4. Template: Geplant-Seite zeigt bei error den result-Text sichtbar
+3. überfällig (> GRACE) → Plan weg + Log 'fehlgeschlagen'
+4. F108: Fehlermeldungen (Trigger-Fehlschlag) erscheinen sichtbar in
+   „Durchgeführte Updates" (Trigger ✗ + Zeit, Prüfung —, Meldung als Detail),
+   Altlast-Pläne tauchen auf „Geplant" nicht mehr auf
 
 Aufruf: .venv/bin/python tmp_tests/admin_anlagen_updates_f104_test.py
 """
@@ -126,9 +129,8 @@ def log_of(plan_id):
 sched._get_token = app_main._get_token  # ECHT (kein Mock!) → beweist Query-Felder
 pid = insert_plan(B, (NOW - timedelta(seconds=60)).isoformat())
 out = sched._run_due_plans(now=NOW)
-st, res = plan_of(pid)
-check("ROOT: echtes _get_token ohne 'auth_id'-Kettenfehler",
-      st == "executed" and "Token-Fehler" not in res, f"{st} — {res}")
+st = plan_of(pid)
+check("ROOT: Plan-Zeile nach Trigger GELÖSCHT (F108)", st is None, str(st))
 check("ROOT: Log 'pruefen' angelegt (ok-Pfad unverändert)",
       log_of(pid) is not None and log_of(pid)[0] == "pruefen")
 
@@ -136,9 +138,9 @@ check("ROOT: Log 'pruefen' angelegt (ok-Pfad unverändert)",
 sched._get_token = lambda inst: "tok-123"  # Token ok — Fehler liegt im RPC
 pid2 = insert_plan(B, (NOW - timedelta(seconds=30)).isoformat(), version="10.0.9.9")
 out2 = sched._run_due_plans(now=NOW)
-st2, res2 = plan_of(pid2)
+st2 = plan_of(pid2)
 lg2 = log_of(pid2)
-check("RPC-Fehler: Plan error", st2 == "error", f"{st2} — {res2}")
+check("RPC-Fehler: Plan-Zeile GELÖSCHT", st2 is None, str(st2))
 check("RPC-Fehler: Log fehlgeschlagen mit detail",
       lg2 is not None and lg2[0] == "fehlgeschlagen"
       and "Update-Liste" in (lg2[1] or ""), str(lg2))
@@ -146,21 +148,29 @@ check("RPC-Fehler: Log fehlgeschlagen mit detail",
 # --- 3: überfällig > GRACE -> missed + Log fehlgeschlagen ------------------------
 pid3 = insert_plan(B, (NOW - timedelta(seconds=600)).isoformat())
 out3 = sched._run_due_plans(now=NOW)
-st3, res3 = plan_of(pid3)
+st3 = plan_of(pid3)
 lg3 = log_of(pid3)
-check("Überfällig: missed", st3 == "missed", f"{st3} — {res3}")
+check("Überfällig: Plan-Zeile GELÖSCHT", st3 is None, str(st3))
 check("Überfällig: Log fehlgeschlagen mit 'Scheduler war'",
       lg3 is not None and lg3[0] == "fehlgeschlagen"
       and "Scheduler war" in (lg3[1] or ""), str(lg3))
 
-# --- 4: Template — result-Text auf der Geplant-Seite sichtbar --------------------
+# --- 4: F108 — Fehlermeldung wandert in die Durchgeführt-Ansicht (sichtbar) ----
 conn = sqlite3.connect(DB)
+# Altlast-Plan (status=error, aus der Zeit vor F108): auf „Geplant" verschwinden
 conn.execute(
     "INSERT INTO anlagen_update_plans (installation_id, version, update_url,"
     " scheduled_at, status, result)"
     " VALUES (?,?,?,?,?,?)",
     (A, "10.0.2.5", "https://update.sub.example.de/x.rpm",
      (NOW - timedelta(seconds=60)).isoformat(), "error",
+     "Token-Fehler: 'auth_id' (behoben) — Sichtbarkeits-Check"))
+# Das zugehörige Log (F104-Schreibpfad): Trigger-Fehlschlag, keine Prüfung
+conn.execute(
+    "INSERT INTO anlagen_update_log (installation_id, quelle, version_vor,"
+    " version_nach, angestossen_um, status, detail)"
+    " VALUES (?, 'direkt', '10.0.1.7', '10.0.2.5', ?, 'fehlgeschlagen', ?)",
+    (A, (NOW - timedelta(seconds=120)).isoformat(),
      "Token-Fehler: 'auth_id' (behoben) — Sichtbarkeits-Check"))
 conn.commit()
 conn.close()
@@ -176,9 +186,15 @@ with TestClient(app_main.app) as client:
                     follow_redirects=False)
     g = client.get("/admin/anlagen-updates/geplant")
     html = g.text
-    check("Template: Status 'Fehler' gerendert", "Fehler" in html)
-    check("Template: result-Text sichtbar (kein stummer Fehler)",
-          "auth_id" in html and "Sichtbarkeits-Check" in html)
+    check("F108: Geplant-Seite zeigt nur geplante (error-Altplan unsichtbar)",
+          "Geplante Updates" in html and "Sichtbarkeits-Check" not in html)
+    d = client.get("/admin/anlagen-updates/durchgefuehrt")
+    dh = d.text
+    check("F108: Fehlermeldung in Durchgeführt sichtbar (nicht stumm)",
+          "fehlgeschlagen" in dh and "auth_id" in dh and "Sichtbarkeits-Check" in dh)
+    check("F108: Trigger-Fehlschlag ohne Prüfung (Zelle —) mit Meldung",
+          "✗ fehlgeschlagen" in dh and "Token-Fehler:" in dh
+          and "auth_id" in dh and "—" in dh)
 
 print("=" * 40)
 if FAIL:

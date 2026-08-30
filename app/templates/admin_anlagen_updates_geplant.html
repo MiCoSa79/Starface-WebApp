@@ -36,27 +36,13 @@
                     <td>{{ r.inst }}</td>
                     <td>{% if r.ist and r.ist != "—" %}<span style="color:#ffb74d">v{{ r.ist }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
                     <td>{{ r.version }}</td>
-                    <td>{{ r.zeit }}{% if r.erledigt %}<span class="muted"> · ausgeführt {{ r.erledigt }}</span>{% endif %}</td>
-                    <td>
-                        {% if r.status == 'planned' %}<span style="color:#ffb74d">geplant</span>
-                        {% elif r.status == 'executed' %}<span style="color:#81c784">ausgeführt</span>
-                        {% elif r.status == 'cancelled' %}<span class="muted">abgebrochen</span>
-                        {% elif r.status == 'missed' %}<span style="color:#e57373" title="{{ r.result }}">verpasst</span>
-                        {% else %}<span style="color:#e57373" title="{{ r.result }}">Fehler</span>{% endif %}
-                        {% if r.status in ('error','missed') and r.result %}<span style="display:block;color:#9e9e9e;font-size:11px;line-height:1.35;margin-top:2px;max-width:320px">{{ r.result }}</span>{% endif %}
-                    </td>
+                    <td>{{ r.zeit }}</td>
+                    <td><span style="color:#ffb74d">geplant</span></td>
                     <td style="text-align:right; white-space:nowrap">
-                        {% if r.status == 'planned' %}
                         <form method="post" action="/admin/anlagen-updates/geplant/abbrechen" style="margin:0; display:inline-flex">
                             <input type="hidden" name="plan_id" value="{{ r.id }}">
                             <button type="submit" class="btn-secondary btn-mini">Abbrechen</button>
                         </form>
-                        {% else %}
-                        <form method="post" action="/admin/anlagen-updates/geplant/loeschen" style="margin:0; display:inline-flex">
-                            <input type="hidden" name="plan_id" value="{{ r.id }}">
-                            <button type="submit" class="btn-danger btn-mini">Löschen</button>
-                        </form>
-                        {% endif %}
                     </td>
                 </tr>
                 {% else %}

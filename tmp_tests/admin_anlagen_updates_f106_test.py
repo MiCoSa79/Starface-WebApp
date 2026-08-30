@@ -182,8 +182,8 @@ try:
 finally:
     c.close()
 
-check("F106b/1 Plan ausgeführt (Anstoß ok)",
-      plan["status"] == "executed", f"status={plan['status']!r}")
+check("F106b/1 Plan-Zeile GELÖSCHT (F108 — Geplant zeigt nur planned)",
+      plan is None, f"plan={plan!r}")
 check("F106b/2 version_vor aus ECHTER Kette (10.0.1.9 statt '—')",
       log["status"] == "pruefen" and log["version_vor"] == "10.0.1.9",
       f"status={log['status']!r}, version_vor={log['version_vor']!r}")

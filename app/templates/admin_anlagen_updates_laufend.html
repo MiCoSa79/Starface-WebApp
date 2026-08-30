@@ -27,7 +27,7 @@
                     <th>Anlage</th>
                     <th>Version vorher</th>
                     <th>Zielversion</th>
-                    <th>Angestoßen</th>
+                    <th>Trigger</th>
                     <th>Prüfung</th>
                     <th>Restzeit bis Urteil</th>
                 </tr>
@@ -38,7 +38,7 @@
                     <td>{{ r.inst }}</td>
                     <td>{% if r.vor and r.vor != "—" %}<span style="color:#ffb74d">v{{ r.vor }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
                     <td>{{ r.ziel }}</td>
-                    <td>{{ r.angestossen }}</td>
+                    <td><span style="color:#81c784">✓ erfolgreich</span> · {{ r.trig }}{% if r.quelle == 'plan' %} <span class="muted">(geplant)</span>{% endif %}</td>
                     <td><span style="color:#ffb74d">{{ r.phase }}</span>{% if r.detail %} <span class="muted" title="{{ r.detail }}">(Detail)</span>{% endif %}</td>
                     <td>{{ r.rest }}</td>
                 </tr>

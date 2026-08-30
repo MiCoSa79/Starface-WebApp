@@ -9,11 +9,11 @@ gültiger Token verfügbar" auf der Startseite — der Sammler pollte mitten im
 Update und verbuchte den Reboot als Token-Fehler.
 
 Geprüft:
-- F105a/1: _anlagen_version wirft (Anlage im Reboot) → Plan 'error'
-  "Anlage vor Update nicht erreichbar" UND ExecuteAnlagenUpdate wird NICHT
-  aufgerufen (vorher: Update wurde trotzdem gefeuert, version_vor "—")
+- F105a/1: _anlagen_version wirft (Anlage im Reboot) → Plan-Zeile GELÖSCHT (F108),
+  Fehler-Log 'fehlgeschlagen' mit Pre-Check-Meldung (kein stummer Fehler), und
+  ExecuteAnlagenUpdate wird NICHT aufgerufen (vorher: Update trotzdem gefeuert)
 - F105a/2: Erfolgsfall → anlagen_update_log.version_vor == IST-Version aus dem
-  Pre-Check (GetStats VOR Execute; vorher "—")
+  Pre-Check (GetStats VOR Execute; vorher "—"); Plan-Zeile ebenfalls gelöscht
 - F105b/1: Anlage mit anlagen_update_log.status='pruefen' → Sammler macht
   KEINEN RPC (Token/GetStats unangetastet), kein last_error
 - F105b/2: Alt-Fehler (last_error) wird durch den Skip-Zyklus gelöscht
@@ -142,9 +142,9 @@ p1 = c.execute("SELECT status, result FROM anlagen_update_plans WHERE id=?",
 lg1 = c.execute(
     "SELECT status, detail, version_vor, version_nach FROM anlagen_update_log"
     " WHERE plan_id=?", (plan1,)).fetchone()
-check("F105a/1 Plan = error", p1["status"] == "error")
-check("F105a/1 result = 'Anlage vor Update nicht erreichbar'",
-      "Anlage vor Update nicht erreichbar" in p1["result"])
+check("F105a/1 Plan-Zeile GELÖSCHT (F108)", p1 is None)
+check("F105a/1 Meldung liegt im Log (Kein stummer Fehler)",
+      lg1 is not None and "nicht erreichbar" in lg1["detail"])
 check("F105a/1 ExecuteNICHT gerufen", exec_calls["n"] == 0)
 check("F105a/1 Fehler-Log vorhanden", lg1 is not None and lg1["status"] == "fehlgeschlagen")
 check("F105a/1 Log-detail = Pre-Check-Meldung",
@@ -165,7 +165,7 @@ p2 = c.execute("SELECT status FROM anlagen_update_plans WHERE id=?",
 lg2 = c.execute(
     "SELECT status, version_vor FROM anlagen_update_log WHERE plan_id=?",
     (plan2,)).fetchone()
-check("F105a/2 Plan = executed", p2["status"] == "executed")
+check("F105a/2 Plan-Zeile GELÖSCHT (F108)", p2 is None)
 check("F105a/2 execute gerufen", exec_calls["n"] == 1)
 check("F105a/2 Reihenfolge GetStats VOR Execute",
       order == ["stats", "execute"])

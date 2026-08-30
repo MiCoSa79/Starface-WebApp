@@ -100,6 +100,14 @@ def status_of(pid):
         "SELECT status, result FROM anlagen_update_plans WHERE id=?", (pid,)).fetchone()
 
 
+def log_of(pid):
+    # F108: Plan wird nach dem Ausführungsversuch GELÖSCHT — die Historie liegt
+    # im anlagen_update_log (quelle='plan') mit plan_id-Referenz.
+    return sqlite3.connect(DB).execute(
+        "SELECT status, detail FROM anlagen_update_log"
+        " WHERE plan_id=? ORDER BY id DESC LIMIT 1", (pid,)).fetchone()
+
+
 # --- 1-3: Zeitzonen-Helfer ------------------------------------------------------
 check("timeutil Sommerzeit 22:00 Berlin -> 20:00 UTC",
       timeutil.lokal_naive_zu_utc_iso("2026-08-31T22:00") == "2026-08-31T20:00:00+00:00")
@@ -124,14 +132,19 @@ check("Fällig: RPC mit version+updateUrl+updateToken",
           "updateUrl": "https://update.sub.example.de/stable/starface-10.0.3.0.rpm",
           "updateToken": "tok-123"}, str(called))
 st = status_of(pid)
-check("Fällig: DB-Status executed", st[0] == "executed", str(st))
+check("Fällig: Plan-Zeile GELÖSCHT", st is None, str(st))
+lg = log_of(pid)
+check("Fällig: Log pruefen (quelle=plan)", lg is not None and lg[0] == "pruefen", str(lg))
 
 # --- 5: überfällig (> GRACE 300 s) -> missed, KEIN RPC ---------------------------
 pid = insert_plan((NOW - timedelta(seconds=600)).isoformat())
 rpc_before = len(RPC_CALLS)
 out = sched._run_due_plans(now=NOW)
 st = status_of(pid)
-check("Überfällig: missed", st[0] == "missed" and "nicht erreichbar" in (st[1] or ""), str(st))
+lg = log_of(pid)
+check("Überfällig: Plan-Zeile GELÖSCHT", st is None, str(st))
+check("Überfällig: Log fehlgeschlagen mit Hinweis",
+      lg is not None and lg[0] == "fehlgeschlagen" and "nicht erreichbar" in (lg[1] or ""), str(lg))
 check("Überfällig: KEIN RPC", len(RPC_CALLS) == rpc_before)
 
 # --- 6: zukünftiger Plan -> bleibt planned ----------------------------------------
@@ -161,8 +174,11 @@ pid = conn.execute("SELECT id FROM anlagen_update_plans ORDER BY id DESC LIMIT 1
 conn.close()
 out = sched._run_due_plans(now=NOW)
 st = status_of(pid)
-check("RPC-Fehler: error + Meldung", st[0] == "error" and "nicht in der Update-Liste" in (st[1] or ""),
-      str(st))
+lg = log_of(pid)
+check("RPC-Fehler: Plan-Zeile GELÖSCHT", st is None, str(st))
+check("RPC-Fehler: Log fehlgeschlagen mit Meldung",
+      lg is not None and lg[0] == "fehlgeschlagen" and "nicht in der Update-Liste" in (lg[1] or ""),
+      str(lg))
 
 # --- 9: Token-Fehler (Exception) ------------------------------------------------------
 conn = sqlite3.connect(DB)
@@ -180,7 +196,10 @@ def token_fail(inst):
 sched._get_token = token_fail
 sched._run_due_plans(now=NOW)
 st = status_of(pid)
-check("Token-Fehler: error", st[0] == "error" and "Token-Fehler" in (st[1] or ""), str(st))
+lg = log_of(pid)
+check("Token-Fehler: Plan-Zeile GELÖSCHT", st is None, str(st))
+check("Token-Fehler: Log fehlgeschlagen mit Token-Hinweis",
+      lg is not None and lg[0] == "fehlgeschlagen" and "Token-Fehler" in (lg[1] or ""), str(lg))
 sched._get_token = lambda inst: "tok-123"
 
 # --- 10: leeres Token -----------------------------------------------------------------
@@ -199,8 +218,11 @@ def token_leer(inst):
 sched._get_token = token_leer
 sched._run_due_plans(now=NOW)
 st = status_of(pid)
-check("Leeres Token: error", st[0] == "error" and "Kein gültiges OAuth-Token" in (st[1] or ""),
-      str(st))
+lg = log_of(pid)
+check("Leeres Token: Plan-Zeile GELÖSCHT", st is None, str(st))
+check("Leeres Token: Log fehlgeschlagen",
+      lg is not None and lg[0] == "fehlgeschlagen" and "Kein gültiges OAuth-Token" in (lg[1] or ""),
+      str(lg))
 
 print()
 if FAIL:

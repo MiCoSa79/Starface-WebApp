@@ -184,8 +184,10 @@ plan = conn.execute("SELECT status, ausgefuehrt_um FROM anlagen_update_plans"
 log = conn.execute("SELECT quelle, plan_id, version_vor, version_nach, status"
                    " FROM anlagen_update_log WHERE plan_id=?", (plan_id,)).fetchone()
 conn.close()
-check("C1 Plan -> executed + ausgefuehrt_um", out == [(plan_id, "executed", "Update läuft auf der Anlage")]
-      and plan["status"] == "executed" and bool(plan["ausgefuehrt_um"]), str(out))
+check("C1 Trigger ok: Log pruefen + Plan-Zeile GELÖSCHT (aus Geplant entfernt)",
+      out == [(plan_id, "executed", "Update läuft auf der Anlage")]
+      and plan is None and log["status"] == "pruefen",
+      str(out) + " plan=" + str(plan))
 check("C2 Log-Zeile (quelle=plan, pruefen)", log
       and log["quelle"] == "plan" and log["plan_id"] == plan_id
       and log["version_vor"] == "10.0.1.7" and log["version_nach"] == ZIEL
@@ -202,20 +204,25 @@ conn.execute("INSERT INTO anlagen_update_plans (installation_id, version,"
              " update_url, scheduled_at, status)"
              " VALUES (2, '10.0.2.5', 'u2', '2026-09-01T08:00:00+00:00', 'planned')")
 conn.execute("INSERT INTO anlagen_update_plans (installation_id, version,"
+             " update_url, scheduled_at, status)"
+             " VALUES (1, '10.0.2.5', 'u3', '2026-09-01T06:00:00+00:00', 'planned')")
+# F108-Altbestand: erledigter Plan — wird von der Seite NICHT mehr angezeigt
+conn.execute("INSERT INTO anlagen_update_plans (installation_id, version,"
              " update_url, scheduled_at, status, ausgefuehrt_um)"
-             " VALUES (1, '10.0.2.5', 'u3', '2026-09-01T06:00:00+00:00', 'executed',"
-             " '2026-09-01T06:02:00+00:00')")
+             " VALUES (2, '10.0.2.5', 'u4', '2026-09-01T09:00:00+00:00', 'executed',"
+             " '2026-09-01T09:02:00+00:00')")
 conn.commit()
 conn.close()
 
 r = c.get("/admin/anlagen-updates/geplant")
 h = r.text
-check("D1 Seite Geplant rendert", r.status_code == 200 and "Geplante Updates" in h
-      and ">Beta<" in h and ">Alpha<" in h)
+check("D1 Seite Geplant rendert (nur geplante — Altbestand unsichtbar)",
+      r.status_code == 200 and "Geplante Updates" in h
+      and h.count(">Alpha<") == 1 and h.count(">Beta<") == 1, h[:1500])
 check("D2 Sortierung ASC (nächstes fälliges oben)", h.index(">Alpha<") < h.index(">Beta<"))
-check("D3 Abbrechen (planned) + Löschen (erledigt)",
-      "geplant/abbrechen" in h and "geplant/loeschen" in h
-      and ">Abbrechen<" in h and ">Löschen<" in h)
+check("D3 Nur Abbrechen — kein Löschen-Formular mehr (F108)",
+      "geplant/abbrechen" in h and ">Abbrechen<" in h
+      and "geplant/loeschen" not in h and ">Löschen<" not in h)
 
 # Laufend: frischer Log (1 Min alt) -> Phase „startet ab +5 min" + Restzeit
 lid = insert_log(60, inst=1)
@@ -236,6 +243,12 @@ conn.execute("INSERT INTO anlagen_update_log (installation_id, quelle, plan_id, 
              " VALUES (2, 'plan', 1, '10.0.1.7', '10.0.2.5',"
              " '2026-08-30T08:30:00+00:00', 'fehlgeschlagen', '2026-08-30T09:00:00+00:00',"
              " 'Zielversion 10.0.2.5 bis 30.08. 09:00 nicht erreicht')")
+# F108: trigger-Fehlschlag = fehlgeschlagen ohne bestaetigt_um (keine Prüfung)
+conn.execute("INSERT INTO anlagen_update_log (installation_id, quelle, version_vor,"
+             " version_nach, angestossen_um, status, detail)"
+             " VALUES (1, 'direkt', '10.0.1.7', '10.0.3.0',"
+             " '2026-08-30T08:00:00+00:00', 'fehlgeschlagen',"
+             " 'Token-Fehler: OAuth-Token abgelaufen')")
 conn.commit()
 conn.close()
 
@@ -243,11 +256,30 @@ r = c.get("/admin/anlagen-updates/durchgefuehrt")
 h = r.text
 check("D5 Seite Durchgeführt rendert", r.status_code == 200
       and "Durchgeführte Updates" in h and ">erfolgreich<" in h and ">fehlgeschlagen<" in h)
-# Zwei Einträge: Alpha (erfolgreich) und Beta (fehlgeschlagen), DESC -> Alpha zuerst:
-# Die Zeile enthält beide Namen; Reihenfolge im tbody prüfen.
-tbody = h[h.index("<tbody>"):h.index("</tbody>")]
-check("D6 Sortierung DESC (letztes oben)", tbody.index("Alpha") < tbody.index("Beta"), tbody[:200])
-check("D7 Quelle geplant markiert", "(geplant)" in h)
+# Drei D-Einträge + 5 abgeschlossene B-Logs (älter) — daher INHALTS-basiert prüfen
+tb = h[h.index("<tbody>"):h.index("</tbody>")]
+zeilen = [z for z in tb.split("<tr>")[1:] if "<td>" in z]
+
+
+def zeile_mit(marker):
+    return next((z for z in zeilen if marker in z), "")
+
+
+zok = zeile_mit("Zielversion 10.0.3.0 bestätigt")
+zb = zeile_mit(">Beta<")
+zf = zeile_mit("Token-Fehler: OAuth-Token abgelaufen")
+check("D6 F108-Zustände vorhanden (Erfolg / Prüf-Fehler / Trigger-Fehler)",
+      bool(zok) and bool(zb) and bool(zf))
+check("D7 Quelle geplant markiert (Trigger-Zelle)", "(geplant)" in zb
+      and "(geplant)" not in zok)
+check("D7b Erfolg: Trigger ok + Prüfung ok + Gesamt ok + Detail sichtbar",
+      "✓ erfolgreich" in zok and "Zielversion 10.0.3.0 bestätigt" in zok)
+check("D7c Prüf-Fehlschlag: Trigger ok, Prüfung ✗, Gesamt fehlgeschlagen + Meldung",
+      "✓ erfolgreich" in zb and "✗" in zb and "fehlgeschlagen ·" in zb
+      and "nicht erreicht" in zb)
+check("D7d Trigger-Fehlschlag: Trigger ✗, Prüfung —, Fehlermeldung sichtbar",
+      "✗ fehlgeschlagen" in zf and "Token-Fehler: OAuth-Token abgelaufen" in zf
+      and "—" in zf)
 
 # POST abbrechen (planned-Plan Beta -> id=2 in dieser DB: id=1 hat C verbraucht)
 r = c.post("/admin/anlagen-updates/geplant/abbrechen", data={"plan_id": "2"},
@@ -259,25 +291,20 @@ check("D8 Abbrechen planned -> DIREKT gelöscht (kein cancelled) + Redirect",
       r.status_code == 303 and "/anlagen-updates/geplant" in r.headers.get("location", "")
       and gone is None, f"location={r.headers.get('location')} gone={gone}")
 
-# POST löschen (executed-Plan Alpha -> id=3); planned nicht löschbar
-r = c.post("/admin/anlagen-updates/geplant/loeschen", data={"plan_id": "3"},
-           follow_redirects=False)
-conn = db()
-gone = conn.execute("SELECT id FROM anlagen_update_plans WHERE id=3").fetchone()
-conn.close()
-check("D9 Löschen erledigter Eintrag", r.status_code == 303 and gone is None,
-      str(r.headers.get("location")))
-# planned nicht löschbar: frischer planned-Plan (id=4)
-conn = db()
-conn.execute("INSERT INTO anlagen_update_plans (installation_id, version,"
-             " update_url, scheduled_at, status)"
-             " VALUES (2, '10.0.2.5', 'u4', '2026-09-02T08:00:00+00:00', 'planned')")
-conn.commit()
-conn.close()
+# POST löschen (executed-Altbestand -> id=4); planned nicht löschbar (F108:
+# Route bleibt aus Rückwärtskompatibilität, die Seite bietet kein Löschen mehr)
 r = c.post("/admin/anlagen-updates/geplant/loeschen", data={"plan_id": "4"},
            follow_redirects=False)
 conn = db()
-still = conn.execute("SELECT id FROM anlagen_update_plans WHERE id=4").fetchone()
+gone = conn.execute("SELECT id FROM anlagen_update_plans WHERE id=4").fetchone()
+conn.close()
+check("D9 Löschen erledigter Eintrag (Route kompatibel)", r.status_code == 303 and gone is None,
+      str(r.headers.get("location")))
+# planned nicht löschbar: geplanter Alpha-Plan (id=3)
+r = c.post("/admin/anlagen-updates/geplant/loeschen", data={"plan_id": "3"},
+           follow_redirects=False)
+conn = db()
+still = conn.execute("SELECT id FROM anlagen_update_plans WHERE id=3").fetchone()
 conn.close()
 check("D10 planned nicht löschbar (erst abbrechen)", still is not None
       and "noch%20geplant" in r.headers.get("location", ""), r.headers.get("location"))

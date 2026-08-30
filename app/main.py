@@ -241,6 +241,10 @@ def init_db():
     pcols = [r[1] for r in conn.execute("PRAGMA table_info(anlagen_update_plans)").fetchall()]
     if "ausgefuehrt_um" not in pcols:
         conn.execute("ALTER TABLE anlagen_update_plans ADD COLUMN ausgefuehrt_um TEXT DEFAULT ''")
+    # Migration (F108): erledigte/fehlgeschlagene Pläne sind im anlagen_update_log
+    # dokumentiert — "Geplante Updates" zeigt nur noch status='planned'; der
+    # Altbestand (executed/error/missed/cancelled) wird einmalig entfernt.
+    conn.execute("DELETE FROM anlagen_update_plans WHERE status != 'planned'")
     # Migration (F96): Spalten an anlagen_update_log (Erreichbarkeits-Historie der Prüfung)
     lcols = [r[1] for r in conn.execute("PRAGMA table_info(anlagen_update_log)").fetchall()]
     for col, ddl in (("version_zuletzt", "TEXT DEFAULT ''"), ("zuletzt_um", "TEXT DEFAULT ''")):
@@ -2712,6 +2716,7 @@ async def admin_anlagen_updates_geplant_page(request: Request):
     plans = conn.execute(
         "SELECT p.*, i.name AS inst_name FROM anlagen_update_plans p"
         " JOIN installations i ON i.id = p.installation_id"
+        " WHERE p.status='planned'"
         " ORDER BY p.scheduled_at ASC").fetchall()
     insts = {r["id"]: r for r in
              conn.execute("SELECT * FROM installations").fetchall()}
@@ -2772,8 +2777,9 @@ async def admin_anlagen_updates_laufend_page(request: Request):
         rows.append({
             "id": lg["id"], "inst": lg["inst_name"],
             "vor": lg["version_vor"] or "—", "ziel": lg["version_nach"],
-            "angestossen": (utc_iso_zu_lokal_anzeige(lg["angestossen_um"])
-                            if start else lg["angestossen_um"]),
+            "trig": (utc_iso_zu_lokal_anzeige(lg["angestossen_um"])
+                     if start else lg["angestossen_um"]),
+            "quelle": lg["quelle"],
             "phase": phase, "rest": rest, "detail": lg["detail"] or "",
         })
     return TEMPLATES.TemplateResponse("admin_anlagen_updates_laufend.html", {
@@ -2801,11 +2807,24 @@ async def admin_anlagen_updates_durchgefuehrt_page(request: Request):
     conn.close()
     rows = []
     for lg in logs:
+        best = lg["bestaetigt_um"]
+        # F108-Ableitung: bestaetigt_um != '' → die Prüfung hat stattgefunden,
+        # der Trigger war also erfolgreich. Ohne bestaetigt_um ist das ein
+        # reiner Trigger-Fehlschlag (fehlgeschlagen-Log aus error/missed).
+        trig_status, trig_um = "fehlgeschlagen", "—"
+        prf_status, prf_um = "—", "—"
+        ang = lg["angestossen_um"]
+        if ang:
+            trig_um = utc_iso_zu_lokal_anzeige(ang)
+        if best:
+            trig_status = "erfolgreich"
+            prf_status = lg["status"]
+            prf_um = utc_iso_zu_lokal_anzeige(best)
         rows.append({
             "id": lg["id"], "inst": lg["inst_name"],
             "vor": lg["version_vor"] or "—", "nach": lg["version_nach"],
-            "um": (utc_iso_zu_lokal_anzeige(lg["bestaetigt_um"])
-                   if lg["bestaetigt_um"] else "—"),
+            "trig_status": trig_status, "trig_um": trig_um,
+            "prf_status": prf_status, "prf_um": prf_um,
             "status": lg["status"], "detail": lg["detail"] or "",
             "quelle": lg["quelle"],
         })

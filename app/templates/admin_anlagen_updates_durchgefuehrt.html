@@ -26,8 +26,9 @@
                     <th>Anlage</th>
                     <th>Version vorher</th>
                     <th>Version nachher</th>
-                    <th>Update-Zeitpunkt</th>
-                    <th>Erfolg</th>
+                    <th>Trigger</th>
+                    <th>Prüfung</th>
+                    <th>Gesamt</th>
                 </tr>
             </thead>
             <tbody>
@@ -36,16 +37,17 @@
                     <td>{{ r.inst }}</td>
                     <td>{% if r.vor and r.vor != "—" %}<span style="color:#ffb74d">v{{ r.vor }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
                     <td>{{ r.nach }}</td>
-                    <td>{{ r.um }}</td>
+                    <td>{% if r.trig_status == 'erfolgreich' %}<span style="color:#81c784">✓ erfolgreich</span>{% else %}<span style="color:#e57373">✗ fehlgeschlagen</span>{% endif %}<span class="muted"> · {{ r.trig_um }}</span>{% if r.quelle == 'plan' %} <span class="muted">(geplant)</span>{% endif %}</td>
+                    <td>{% if r.prf_status == "—" %}<span class="muted">—</span>{% else %}{% if r.prf_status == 'erfolgreich' %}<span style="color:#81c784">✓</span>{% elif r.prf_status == 'fehlgeschlagen' %}<span style="color:#e57373">✗</span>{% else %}<span class="muted">?</span>{% endif %} <span class="muted">{{ r.prf_status }} · {{ r.prf_um }}</span>{% endif %}</td>
                     <td>
-                        {% if r.status == 'erfolgreich' %}<span style="color:#81c784" title="{{ r.detail }}">erfolgreich</span>
-                        {% elif r.status == 'fehlgeschlagen' %}<span style="color:#e57373" title="{{ r.detail }}">fehlgeschlagen</span>
-                        {% else %}<span class="muted" title="{{ r.detail }}">unbekannt</span>{% endif %}
-                        {% if r.quelle == 'plan' %}<span class="muted"> (geplant)</span>{% endif %}
+                        {% if r.status == 'erfolgreich' %}<span style="color:#81c784">erfolgreich</span>
+                        {% elif r.status == 'fehlgeschlagen' %}<span style="color:#e57373">fehlgeschlagen</span>
+                        {% else %}<span class="muted">unbekannt</span>{% endif %}
+                        {% if r.detail %}<span style="display:block;color:#9e9e9e;font-size:11px;line-height:1.35;margin-top:2px;max-width:320px">{{ r.detail }}</span>{% endif %}
                     </td>
                 </tr>
                 {% else %}
-                <tr><td colspan="5" class="empty">Noch keine durchgeführten Updates.</td></tr>
+                <tr><td colspan="6" class="empty">Noch keine durchgeführten Updates.</td></tr>
                 {% endfor %}
             </tbody>
         </table>

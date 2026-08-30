@@ -119,10 +119,8 @@ def _run_due_plans(now=None):
                                     " VALUES (?, 'plan', ?, ?, ?, ?, 'pruefen')",
                                     (p["installation_id"], p["id"], ver, p["version"],
                                      now.isoformat(timespec="seconds")))
-                                c2.execute(
-                                    "UPDATE anlagen_update_plans SET ausgefuehrt_um=?"
-                                    " WHERE id=?",
-                                    (now.isoformat(timespec="seconds"), p["id"]))
+                                # F108: Plan-Zeile wird NACH dem Versuch gelöscht
+                                # (kein ausgefuehrt_um-Update mehr nötig).
                                 c2.commit()
                             finally:
                                 c2.close()
@@ -152,9 +150,12 @@ def _run_due_plans(now=None):
                 c2.close()
         c = _db()
         try:
-            c.execute(
-                "UPDATE anlagen_update_plans SET status=?, result=? WHERE id=? AND status='planned'",
-                (new_status, str(result)[:500], p["id"]))
+            # F108: Der Plan ist ein reiner Aufschieber — nach dem
+            # Ausführungsversuch (erfolgreich getriggert / fehlgeschlagen /
+            # verpasst) wird er GELÖSCHT. Die Historie liegt vollständig im
+            # anlagen_update_log (quelle='plan'), "Geplante Updates" zeigt
+            # damit nur noch status='planned'.
+            c.execute("DELETE FROM anlagen_update_plans WHERE id=?", (p["id"],))
             c.commit()
         finally:
             c.close()
