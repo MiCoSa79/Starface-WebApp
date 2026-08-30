@@ -3,11 +3,6 @@
 {% block styles %}{% endblock %}
 {% block content %}
 <div class="container">
-    {% if msg %}
-    <div class="msg {{ 'ok' if 'FEHLER' not in msg and 'Unbekannte' not in msg and 'Keine ' not in msg else 'err' }}">
-        <button type="button" class="btn-mini" onclick="this.closest('.msg').style.display='none'">OK</button>{{ msg }}</div>
-    {% endif %}
-
     <h2 class="tbl-head">
         Updates nach Modul
         <span class="muted">Alle Anlagen, die das Modul installiert haben und nicht aktuell sind</span>
@@ -37,10 +32,18 @@
     </div>
 
     {% if not module_name %}
+    {% if msg %}
+    <div class="msg {{ 'ok' if 'FEHLER' not in msg and 'Unbekannte' not in msg and 'Keine ' not in msg else 'err' }}" style="margin-bottom:16px">
+        <button type="button" class="btn-mini" onclick="this.closest('.msg').style.display='none'">OK</button>{{ msg }}</div>
+    {% endif %}
     <p class="empty">Bitte oben ein Modul auswählen — danach erscheinen alle Anlagen, die das Modul installiert haben und nicht aktuell sind.</p>
     {% elif module_info is none %}
     <p class="empty">Unbekanntes Modul „{{ module_name }}“ — bitte ein Modul aus dem Sortiment wählen.</p>
     {% elif not rows %}
+    {% if msg %}
+    <div class="msg {{ 'ok' if 'FEHLER' not in msg and 'Unbekannte' not in msg and 'Keine ' not in msg else 'err' }}" style="margin-bottom:16px">
+        <button type="button" class="btn-mini" onclick="this.closest('.msg').style.display='none'">OK</button>{{ msg }}</div>
+    {% endif %}
     <p class="empty">Keine Anlage mit nicht aktuellem „{{ module_name }}“ — das Modul ist auf allen Anlagen aktuell oder nicht installiert.</p>
     {% else %}
     {% if errors %}
@@ -58,6 +61,11 @@
             <button type="submit" class="btn-primary">Update auf allen ausgewählten Anlagen anstoßen ({{ rows|length }})</button>
         </form>
     </div>
+
+    {% if msg %}
+    <div class="msg {{ 'ok' if 'FEHLER' not in msg and 'Unbekannte' not in msg and 'Keine ' not in msg else 'err' }}" style="margin-bottom:16px">
+        <button type="button" class="btn-mini" onclick="this.closest('.msg').style.display='none'">OK</button>{{ msg }}</div>
+    {% endif %}
 
     <div class="tbl-wrap" data-wrap="upd-modul">
     <table>

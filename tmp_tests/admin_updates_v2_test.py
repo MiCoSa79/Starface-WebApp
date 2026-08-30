@@ -208,6 +208,25 @@ check("Bulk: Argumente korrekt (Modul/Datei/Version, KEIN is_install)",
       all(p[1] == mod_a and p[2] == expect[mod_a]["file"]
           and str(p[3]) == str(expect[mod_a]["version"]) and p[4] is False for p in pushes))
 
+# Banner-Position: Seite nachfolgen und Platzierung prüfen
+r2 = c.get(loc)
+_i_bulk = r2.text.index("Update auf allen ausgewählten Anlagen anstoßen")
+_i_bnr = r2.text.index('class="msg ')
+_i_tbl = r2.text.index("Aktuellste Version")
+_i_hd = r2.text.index("Updates nach Modul")
+check("V2: Banner sitzt zwischen Bulk-Button und Tabelle",
+      _i_bulk < _i_bnr < _i_tbl, f"bulk={_i_bulk} banner={_i_bnr} tabelle={_i_tbl}")
+check("V2: Banner steht nicht mehr ganz oben (nach dem Titel)",
+      _i_bnr > _i_hd, f"banner={_i_bnr} titel={_i_hd}")
+# Banner-Fallbacks ohne Zeilen
+r2b = c.get(f"/admin/updates/modul?module={mod_b}&msg=Keine Anlage: Test")
+check("V2: Banner auch im Fallback 'Keine Anlage' sichtbar",
+      'class="msg ' in r2b.text and r2b.text.index('class="msg ') < r2b.text.index("Keine Anlage"),
+      r2b.text[:500].replace("\n", " "))
+r2c = c.get("/admin/updates/modul?msg=Test ohne Modul")
+check("V2: Banner im Leerzustand (ohne Modul) sichtbar",
+      'class="msg ' in r2c.text, r2c.text[:400].replace("\n", " "))
+
 r = c.post("/admin/updates/push-module",
            data={"module_name": mod_a, "installation_ids": []}, follow_redirects=False)
 check("Bulk: ohne Auswahl -> 'Keine Anlage ausgewählt.'",

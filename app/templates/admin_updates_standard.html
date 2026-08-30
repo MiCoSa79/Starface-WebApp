@@ -3,7 +3,7 @@
 {% block styles %}{% endblock %}
 {% block content %}
 <div class="container">
-    {% if msg %}
+    {% if msg and not groups %}
     <div class="msg {{ 'ok' if 'FEHLER' not in msg and 'kein Deployment' not in msg and 'Keine ' not in msg else 'err' }}">
         <button type="button" class="btn-mini" onclick="this.closest('.msg').style.display='none'">OK</button>{{ msg }}</div>
     {% endif %}
@@ -31,6 +31,11 @@
             <button type="button" class="btn-secondary" id="sel-none">Auswahl aufheben</button>
         </form>
     </div>
+
+    {% if msg %}
+    <div class="msg {{ 'ok' if 'FEHLER' not in msg and 'kein Deployment' not in msg and 'Keine ' not in msg else 'err' }}" style="margin-bottom:16px">
+        <button type="button" class="btn-mini" onclick="this.closest('.msg').style.display='none'">OK</button>{{ msg }}</div>
+    {% endif %}
 
     <div class="tbl-wrap" data-wrap="upd-std">
     <table>

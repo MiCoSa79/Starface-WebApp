@@ -34,7 +34,7 @@
 {% endblock %}
 {% block content %}
 <div class="container">
-    {% if msg %}
+    {% if msg and not installations %}
     <div class="msg {{ 'ok' if 'FEHLER' not in msg and 'Unbekannte' not in msg and 'nicht verfügbar' not in msg and 'Keine ' not in msg else 'err' }}">
         <button type="button" class="btn-mini" onclick="this.closest('.msg').style.display='none'">OK</button>{{ msg }}</div>
     {% endif %}
@@ -97,6 +97,11 @@
             <button type="submit" class="btn-secondary tooltip-btn" data-tip="Nur installierte Module werden aktualisiert, es werden keine neuen Module installiert.">Module aktualisieren</button>
         </form>
     </div>
+
+    {% if msg %}
+    <div class="msg {{ 'ok' if 'FEHLER' not in msg and 'Unbekannte' not in msg and 'nicht verfügbar' not in msg and 'Keine ' not in msg else 'err' }}" style="margin-bottom:16px">
+        <button type="button" class="btn-mini" onclick="this.closest('.msg').style.display='none'">OK</button>{{ msg }}</div>
+    {% endif %}
 
     {% set st = module_states.get(inst.id) if module_states else none %}
     {% if st and st.error %}

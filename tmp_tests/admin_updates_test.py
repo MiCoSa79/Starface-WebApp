@@ -235,6 +235,15 @@ check("Erfolg in UI sichtbar", "Update angestoßen" in r.text,
       repr(r.url) + " | " + r.text[:600].replace("\n", " "))
 check("Statusmeldung hat OK-Button (ausblenden per onclick)",
       "this.closest('.msg')" in r.text, "OK-Button fehlt")
+# Banner-Position: NICHT ganz oben, sondern zwischen den Aktions-Buttons und der Tabelle
+_i_btn = r.text.index("Module aktualisieren")
+_i_bnr = r.text.index("Update angestoßen")
+_i_tbl = r.text.index("Version (IST)")
+_i_hd = r.text.index("Updates nach Anlage")
+check("V1: Banner sitzt zwischen Aktions-Buttons und Tabelle",
+      _i_btn < _i_bnr < _i_tbl, f"buttons={_i_btn} banner={_i_bnr} tabelle={_i_tbl}")
+check("V1: Banner steht nicht mehr ganz oben (nach dem Titel)",
+      _i_bnr > _i_hd, f"banner={_i_bnr} titel={_i_hd}")
 
 def fail_push(inst, token, **kw):
     return {"status": "error", "message": "Testanlage nicht erreichbar"}
