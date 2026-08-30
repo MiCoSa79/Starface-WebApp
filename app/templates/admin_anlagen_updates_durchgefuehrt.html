@@ -17,7 +17,12 @@
         <div class="tbl-filters">
             <input type="text" data-filter="tbl-durch" data-col="1" data-wildcard
                    placeholder="Anlage filtern (* = beliebig, ? = genau 1 Zeichen)" aria-label="Durchgeführte Updates nach Anlage filtern" autocomplete="off">
-            <select data-col="4" aria-label="Nach Erfolg filtern"><option value="">Erfolg (alle)</option></select>
+            <select data-col="5" aria-label="Nach Gesamtstatus filtern">
+                <option value="">Gesamt (alle)</option>
+                <option value="erfolgreich">erfolgreich</option>
+                <option value="fehlgeschlagen">fehlgeschlagen</option>
+                <option value="unbekannt">unbekannt</option>
+            </select>
             <span class="muted tbl-count" data-count="durch">{{ rows|length }} von {{ rows|length }}</span>
         </div>
         <table id="tbl-durch">

@@ -233,6 +233,14 @@ conn.execute("""CREATE TABLE installations (
     url TEXT NOT NULL, auth_id TEXT, auth_pass TEXT, client_secret TEXT,
     module_instance_name TEXT, monitoring_instance_name TEXT, is_starface10 INTEGER DEFAULT 0
 )""")
+# F109: seit F105 ruft collect_installations -> _update_laeuft anlagen_update_log ab
+conn.execute("""CREATE TABLE IF NOT EXISTS anlagen_update_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, installation_id INTEGER NOT NULL,
+    quelle TEXT NOT NULL DEFAULT 'direkt', plan_id INTEGER,
+    version_vor TEXT DEFAULT '', version_nach TEXT NOT NULL,
+    angestossen_um TEXT NOT NULL, bestaetigt_um TEXT DEFAULT '',
+    status TEXT NOT NULL, detail TEXT DEFAULT ''
+)""")
 conn.execute("INSERT INTO installations (name, url, monitoring_instance_name) VALUES (?,?,?)",
              ("PBX-GUT", "http://gut", "TelefonieMonitoring"))
 conn.execute("INSERT INTO installations (name, url, monitoring_instance_name) VALUES (?,?,?)",
