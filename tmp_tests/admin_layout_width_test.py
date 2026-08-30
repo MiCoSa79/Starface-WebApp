@@ -147,6 +147,28 @@ check("F98: Login bindet die Basis-CSS (Footer-Geruest wirkt global)",
       r.status_code == 200 and "/static/admin.css?v=" in r.text,
       f"status={r.status_code}")
 
+# F99 (v1.0.97): Anlagen-Aktions-Buttons — die lokale .actions-inline
+# a/button-Regel (0,1,1: padding 6x12, display:inline-block, ohne Zentrierung)
+# ueberschrieb die globalen .btn-* (0,1,0: 8x14, inline-flex, center) → Buttons
+# unterschiedlich gross, Icons ⚡/✎ linksbuendig (iPhone-Foto 30.08.). Fix:
+# kollidierende Regel entfernt, .actions-inline spiegelt die .btn-Basis.
+r = c.get("/anlagen")
+_anl = r.text
+check("F99: anlagen.html ohne .actions-inline a/button-Kollision",
+      ".actions-inline a, .actions-inline button" not in _anl
+      and ".actions-inline a.detail-dl" in _anl,
+      "kollidierende Regel steht noch im anlagen.html-<style>")
+check("F99: .actions-inline spiegelt .btn-Basis (wrap + rechts)",
+      "flex-wrap:wrap" in _anl and "justify-content:flex-end" in _anl,
+      "anlagen.html .actions-inline-Regel unvollstaendig")
+check("F99: Container-Bodenabstand inkl. iPhone-Safe-Area",
+      "padding-bottom: calc(32px + env(safe-area-inset-bottom, 0px))" in _css,
+      "admin.css .container-padding-bottom fehlt")
+check("F99: Mobile-Vollbreiten-MQ nimmt Link-Buttons in Tabellenzellen aus (a <button>)",
+      "container table a.btn-secondary" in _css and "container table a.btn-danger" in _css
+      and "container table button" in _css,
+      "admin.css Zellen-Ausnahme nur fuer <button>, nicht fuer a.btn-*?")
+
 if failed:
     print(f"FEHLGESCHLAGEN ({len(failed)}):")
     for name, detail in failed:
