@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<module lastChangedTime="1788015600000" moduleType="EXTENDED" createTime="1787767616269" id="ab50cee5-bae2-4cf4-9378-8ecfa7448791" name="Deployment-Modul" specVersion="5" vendor="Axel Meiser - Kraemer IT" version="9">
- <description>Deployment-Modul: zentrales HUB-Modul für automatische Modul-Updates. v1 = PingChannel (Kanal-Beweis). v2 = UpdateFromUrl: signierter Download + ModuleRegistry.importModule (echtes Update). v4 = GUI-Tab 'Sicherheit' mit Token-Feld (GU_UPDATE_TOKEN). v9 = CreateInstance: neue Instanz eines installierten Moduls anlegen (InstanzAnlegen).</description>
+<module lastChangedTime="1788058800000" moduleType="EXTENDED" createTime="1787767616269" id="ab50cee5-bae2-4cf4-9378-8ecfa7448791" name="Deployment-Modul" specVersion="5" vendor="Axel Meiser - Kraemer IT" version="10">
+ <description>Deployment-Modul: zentrales HUB-Modul für automatische Modul-Updates. v1 = PingChannel (Kanal-Beweis). v2 = UpdateFromUrl: signierter Download + ModuleRegistry.importModule (echtes Update). v4 = GUI-Tab 'Sicherheit' mit Token-Feld (GU_UPDATE_TOKEN). v9 = CreateInstance: neue Instanz eines installierten Moduls anlegen (InstanzAnlegen). v10 = Anlagen-Updates: GetAnlagenUpdates (verfügbare STARFACE-Server-Updates) + ExecuteAnlagenUpdate (Server-Update anstoßen).</description>
     <descriptionURL />
     <disabled>false</disabled>
     <inputVars>
@@ -271,6 +271,172 @@
                 </functionCall>
             </children>
         </function>
+
+        <function visibility="Private" createTime="1787767616269" id="AnlagenUpdates" name="AnlagenUpdates" specVersion="0" vendor="Axel Meiser - Kraemer IT" version="0">
+            <description>Fragt die auf der Anlage verfuegbaren STARFACE-Server-Updates (Final-Kanal) ab und liefert sie als JSON (GetAnlagenUpdates, dm-v10).</description>
+            <descriptionURL />
+            <disabled>false</disabled>
+            <inputVars>
+                <variable id="updateToken" label="updateToken" name="updateToken" type="STRING" valueByReference="false" valueByReferenceAllowed="false" valueByValueAllowed="true" visible="true">
+                    <description>Vom Aufrufer uebergebenes Token</description>
+                    <value />
+                </variable>
+                <variable id="installedToken" label="installedToken" name="installedToken" type="STRING" valueByReference="false" valueByReferenceAllowed="false" valueByValueAllowed="true" visible="true">
+                    <description>Instanz-Variable GU_UPDATE_TOKEN (Vergleich)</description>
+                    <value />
+                </variable>
+            </inputVars>
+            <outputVars>
+                <variable id="response" label="response" name="response" type="STRING" valueByReference="false" valueByReferenceAllowed="false" valueByValueAllowed="true" visible="true">
+                    <description>JSON-Liste der verfuegbaren Updates</description>
+                    <value />
+                </variable>
+            </outputVars>
+            <resources />
+            <children />
+            <implementationFile>AnlagenUpdates.class</implementationFile>
+        </function>
+
+
+        <function visibility="Private" createTime="1787767616269" id="AnlagenUpdate" name="AnlagenUpdate" specVersion="0" vendor="Axel Meiser - Kraemer IT" version="0">
+            <description>Stoesst ein STARFACE-Server-Update (Final-Kanal) auf der Anlage an; Antwort vor logoutAll, Ausfuehrung im Hintergrund (ExecuteAnlagenUpdate, dm-v10).</description>
+            <descriptionURL />
+            <disabled>false</disabled>
+            <inputVars>
+                <variable id="version" label="version" name="version" type="STRING" valueByReference="false" valueByReferenceAllowed="false" valueByValueAllowed="true" visible="true">
+                    <description>Zielversion aus der Update-Liste</description>
+                    <value />
+                </variable>
+                <variable id="updateUrl" label="updateUrl" name="updateUrl" type="STRING" valueByReference="false" valueByReferenceAllowed="false" valueByValueAllowed="true" visible="true">
+                    <description>Erwartete DNF-Repo-URL (Plausibilitaets-Check)</description>
+                    <value />
+                </variable>
+                <variable id="updateToken" label="updateToken" name="updateToken" type="STRING" valueByReference="false" valueByReferenceAllowed="false" valueByValueAllowed="true" visible="true">
+                    <description>Vom Aufrufer uebergebenes Token</description>
+                    <value />
+                </variable>
+                <variable id="installedToken" label="installedToken" name="installedToken" type="STRING" valueByReference="false" valueByReferenceAllowed="false" valueByValueAllowed="true" visible="true">
+                    <description>Instanz-Variable GU_UPDATE_TOKEN (Vergleich)</description>
+                    <value />
+                </variable>
+            </inputVars>
+            <outputVars>
+                <variable id="response" label="response" name="response" type="STRING" valueByReference="false" valueByReferenceAllowed="false" valueByValueAllowed="true" visible="true">
+                    <description>OK: ... oder ERROR: ...</description>
+                    <value />
+                </variable>
+            </outputVars>
+            <resources />
+            <children />
+            <implementationFile>AnlagenUpdate.class</implementationFile>
+        </function>
+
+        <function visibility="Private" createTime="1787767616269" id="f43965da-2f63-406d-982a-0ebe3cd996c3" name="AnlagenUpdatesRpc" specVersion="0" vendor="Axel Meiser - Kraemer IT" version="0">
+            <description>RPC-Wrapper: GetAnlagenUpdates (updateToken) — verdrahtet auf die Java-Klasse AnlagenUpdates (installedToken aus GU_UPDATE_TOKEN).</description>
+            <descriptionURL />
+            <disabled>false</disabled>
+            <inputVars>
+                <variable id="81a98432-ad6a-401d-a6d3-d0ab7482c337" label="updateToken" name="updateToken" type="STRING" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="true" visible="true">
+                    <description>Instanz-Token (F-C-Schutz)</description>
+                    <value />
+                </variable>
+            </inputVars>
+            <outputVars>
+                <variable id="90603ace-bcac-496b-8108-c7d735164986" label="response" name="response" type="STRING" valueByReference="true" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="true">
+                    <description>JSON-Liste der verfuegbaren Updates</description>
+                    <value />
+                </variable>
+            </outputVars>
+            <resources />
+            <children>
+                <functionCall createTime="1787767616269" id="d0644362-6812-4268-b062-c78d060c0aa0" name="Call --&gt; AnlagenUpdates" specVersion="0" vendor="Axel Meiser - Kraemer IT" version="0">
+                    <description />
+                    <descriptionURL />
+                    <disabled>false</disabled>
+                    <inputVars>
+                        <variable id="updateToken" label="" name="updateToken" type="STRING" valueByReference="true" valueByReferenceAllowed="true" valueByValueAllowed="true" visible="false">
+                            <description />
+                            <value>81a98432-ad6a-401d-a6d3-d0ab7482c337</value>
+                        </variable>
+                        <variable id="installedToken" label="" name="installedToken" type="STRING" valueByReference="true" valueByReferenceAllowed="true" valueByValueAllowed="true" visible="false">
+                            <description />
+                            <value>929c5d60-7afc-4d2c-b6ad-245b514ea039</value>
+                        </variable>
+                    </inputVars>
+                    <outputVars>
+                        <variable id="response" label="" name="response" type="STRING" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
+                            <description />
+                            <value>90603ace-bcac-496b-8108-c7d735164986</value>
+                        </variable>
+                    </outputVars>
+                    <resources />
+                    <children />
+                    <target targetDomainId="ab50cee5-bae2-4cf4-9378-8ecfa7448791" targetId="AnlagenUpdates" targetName="AnlagenUpdates" targetVersion="0" />
+                </functionCall>
+            </children>
+        </function>
+
+
+        <function visibility="Private" createTime="1787767616269" id="d432352a-7f26-4fd7-a7a2-2946bec5bacd" name="AnlagenUpdateRpc" specVersion="0" vendor="Axel Meiser - Kraemer IT" version="0">
+            <description>RPC-Wrapper: ExecuteAnlagenUpdate (version, updateUrl, updateToken) — verdrahtet auf die Java-Klasse AnlagenUpdate (installedToken aus GU_UPDATE_TOKEN).</description>
+            <descriptionURL />
+            <disabled>false</disabled>
+            <inputVars>
+                <variable id="fad4941b-543f-4cf1-8866-14241aa6fc8e" label="version" name="version" type="STRING" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="true" visible="true">
+                    <description>Zielversion aus der Update-Liste</description>
+                    <value />
+                </variable>
+                <variable id="4636a4bd-bd95-480d-8b37-b265560dec02" label="updateUrl" name="updateUrl" type="STRING" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="true" visible="true">
+                    <description>Erwartete DNF-Repo-URL</description>
+                    <value />
+                </variable>
+                <variable id="e462fc53-b94e-4449-bb1b-f0b9d388d4b0" label="updateToken" name="updateToken" type="STRING" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="true" visible="true">
+                    <description>Instanz-Token (F-C-Schutz)</description>
+                    <value />
+                </variable>
+            </inputVars>
+            <outputVars>
+                <variable id="bb8b7707-51c6-4ddd-8932-09fc303f221d" label="response" name="response" type="STRING" valueByReference="true" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="true">
+                    <description>OK: ... oder ERROR: ...</description>
+                    <value />
+                </variable>
+            </outputVars>
+            <resources />
+            <children>
+                <functionCall createTime="1787767616269" id="c4a54800-efe5-4bf8-aa84-a4c3c0ca20b0" name="Call --&gt; AnlagenUpdate" specVersion="0" vendor="Axel Meiser - Kraemer IT" version="0">
+                    <description />
+                    <descriptionURL />
+                    <disabled>false</disabled>
+                    <inputVars>
+                        <variable id="version" label="" name="version" type="STRING" valueByReference="true" valueByReferenceAllowed="true" valueByValueAllowed="true" visible="false">
+                            <description />
+                            <value>fad4941b-543f-4cf1-8866-14241aa6fc8e</value>
+                        </variable>
+                        <variable id="updateUrl" label="" name="updateUrl" type="STRING" valueByReference="true" valueByReferenceAllowed="true" valueByValueAllowed="true" visible="false">
+                            <description />
+                            <value>4636a4bd-bd95-480d-8b37-b265560dec02</value>
+                        </variable>
+                        <variable id="updateToken" label="" name="updateToken" type="STRING" valueByReference="true" valueByReferenceAllowed="true" valueByValueAllowed="true" visible="false">
+                            <description />
+                            <value>e462fc53-b94e-4449-bb1b-f0b9d388d4b0</value>
+                        </variable>
+                        <variable id="installedToken" label="" name="installedToken" type="STRING" valueByReference="true" valueByReferenceAllowed="true" valueByValueAllowed="true" visible="false">
+                            <description />
+                            <value>929c5d60-7afc-4d2c-b6ad-245b514ea039</value>
+                        </variable>
+                    </inputVars>
+                    <outputVars>
+                        <variable id="response" label="" name="response" type="STRING" valueByReference="false" valueByReferenceAllowed="true" valueByValueAllowed="false" visible="false">
+                            <description />
+                            <value>bb8b7707-51c6-4ddd-8932-09fc303f221d</value>
+                        </variable>
+                    </outputVars>
+                    <resources />
+                    <children />
+                    <target targetDomainId="ab50cee5-bae2-4cf4-9378-8ecfa7448791" targetId="AnlagenUpdate" targetName="AnlagenUpdate" targetVersion="0" />
+                </functionCall>
+            </children>
+        </function>
     </children>
     <createdWith>STARFACE 10.0.2.5</createdWith>
     <defaultLocale>de</defaultLocale>
@@ -286,6 +452,15 @@
         </rpcEntryPoint>
         <rpcEntryPoint id="fbfa781b-b115-430d-9fd6-695fad3731cc" name="CreateInstance">
             <functionReference targetDomainId="ab50cee5-bae2-4cf4-9378-8ecfa7448791" targetId="48a74b8e-33e7-49b8-b066-4efee34bd0e8" targetName="CreateInstanceRpc" targetVersion="0" />
+            <type>XMLRPC_auth</type>
+        </rpcEntryPoint>
+
+        <rpcEntryPoint id="f4527fe3-35d4-41e3-8ce0-4f117196ff6f" name="GetAnlagenUpdates">
+            <functionReference targetDomainId="ab50cee5-bae2-4cf4-9378-8ecfa7448791" targetId="f43965da-2f63-406d-982a-0ebe3cd996c3" targetName="AnlagenUpdatesRpc" targetVersion="0" />
+            <type>XMLRPC_auth</type>
+        </rpcEntryPoint>
+        <rpcEntryPoint id="c7564222-18f5-4fc6-8629-fe807628d119" name="ExecuteAnlagenUpdate">
+            <functionReference targetDomainId="ab50cee5-bae2-4cf4-9378-8ecfa7448791" targetId="d432352a-7f26-4fd7-a7a2-2946bec5bacd" targetName="AnlagenUpdateRpc" targetVersion="0" />
             <type>XMLRPC_auth</type>
         </rpcEntryPoint>
     </entryPoints>
@@ -329,4 +504,4 @@
     </resourceKeys>
     <shortDescription>Zentraler Modul-Updater (v9: + CreateInstance fürs Anlegen neuer Instanzen)</shortDescription>
     <writeHash>6a5867d7498984896eb49e8f16936e4f42dc844e</writeHash>
-<noLicenseId>2ec6e85123937869b86101a6cb99eed444d76f09</noLicenseId></module>
+<noLicenseId>4831dd717da00182d750ff16c46a87420d01562b</noLicenseId></module>

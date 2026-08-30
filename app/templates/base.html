@@ -174,7 +174,7 @@
             <a href="/">STARFACE WebApp</a>
             {% endif %}
             {% if user and user.is_admin %}
-            <details class="drop {% if active in ['anlagen','benutzer','rechte','grundeinstellungen','modules','updates','updates-modul','updates-standard','api-doku','wiki'] %}active{% endif %}">
+            <details class="drop {% if active in ['anlagen','benutzer','rechte','grundeinstellungen','modules','updates','updates-modul','updates-standard','anlagen-updates','api-doku','wiki'] %}active{% endif %}">
                 <summary>Administration ▾</summary>
                 <div class="drop-menu">
                     <a href="/anlagen" class="{% if active=='anlagen' %}active{% endif %}">Anlagen</a>
@@ -191,6 +191,7 @@
                             <a href="/admin/updates/standard" class="{% if active=='updates-standard' %}active{% endif %}">Standard-Module</a>
                         </div>
                     </details>
+                    <a href="/admin/anlagen-updates" class="{% if active=='anlagen-updates' %}active{% endif %}">Anlagen-Updates</a>
                     <a href="/admin/api-doku" class="{% if active=='api-doku' %}active{% endif %}">API-Doku</a>
                     <a href="/wiki" class="{% if active=='wiki' %}active{% endif %}">Wiki</a>
                 </div>

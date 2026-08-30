@@ -9,7 +9,13 @@ Damit steckt im Modul selbst NIE eine Update-URL und NIE ein Secret —
 die Basis-URL kommt aus der Admin-Einstellung `module_update_base_url`,
 das Signatur-Secret aus der Env `UPDATE_SIGNING_SECRET` (nie in UI/DB).
 """
+import json
 import os
+
+try:
+    from main import _decrypt
+except ImportError:
+    from app.main import _decrypt
 
 # Container-Import-Muster: Im Image liegen App-Module unter /app/app/ und sind
 # NICHT top-level auflösbar (sys.path enthält nur /app). Deshalb Zwei-Wege-Import
@@ -136,5 +142,88 @@ def create_instance(inst: dict, token: str, *, module_name: str,
             return {"status": "error", "message": response}
         return {"status": "ok", "message": "ok", "raw": raw[:200],
                 "response": response}
+    except RuntimeError as e:  # XML-RPC-Fault u. ä. → kontrollierter Fehler
+        return {"status": "error", "message": str(e)}
+
+
+def _update_token(inst: dict) -> str:
+    """Deployer-Token der Anlage im Klartext.
+
+    Das WebApp-Formular speichert Secrets Fernet-versiegelt (enc:...).
+    Klartext-Werte (z. B. Direkt-Inserts in Tests) bleiben unverändert.
+    """
+    v = str(dict(inst).get("deployer_token") or "")
+    return _decrypt(v) if v.startswith("enc:") else v
+
+
+def get_anlagen_updates(inst: dict, token: str, *,
+                        instance_name: str | None = None) -> dict:
+    """Fragt die verfügbaren STARFACE-Server-Updates der Anlage ab (dm-v10).
+
+    RPC ``GetAnlagenUpdates`` an den Deployment-Modul-Deployer: das Modul
+    liest LicenseComponent.fetchUpdates (Final-Kanal) und liefert JSON
+    mit current-Version + updates-Liste. Read-only — es wird NICHTS
+    verändert.
+
+    inst:  installations-Zeile der WebApp-DB (url, deployer_instance_name,
+           deployer_token)
+    token: OAuth-Token der Anlage (aus _get_token)
+    Liefert {"status": "ok", "data": {...}} oder
+    {"status": "error", "message": ...}.
+    """
+    inst_name = instance_name or str(dict(inst).get("deployer_instance_name") or "")
+    if not inst_name:
+        return {"status": "error",
+                "message": "Keine Deployer-Instanz konfiguriert (deployer_instance_name)."}
+    payload = {"updateToken": _update_token(inst)}
+    try:
+        res = _xmlrpc(inst["url"], token, "GetAnlagenUpdates", payload,
+                      instance_name=inst_name)
+        raw = res.get("raw", "")
+        response = _extract_response(raw)
+        try:
+            data = json.loads(response)
+        except (ValueError, TypeError):
+            return {"status": "error",
+                    "message": f"Unerwartete Antwort: {response[:200]}",
+                    "raw": raw[:200]}
+        if isinstance(data, dict) and "error" in data:
+            return {"status": "error", "message": str(data["error"]),
+                    "raw": raw[:200]}
+        return {"status": "ok", "data": data, "raw": raw[:250]}
+    except RuntimeError as e:  # XML-RPC-Fault u. ä. → kontrollierter Fehler
+        return {"status": "error", "message": str(e)}
+
+
+def execute_anlagen_update(inst: dict, token: str, *, version: str,
+                           update_url: str,
+                           instance_name: str | None = None) -> dict:
+    """Stößt ein STARFACE-Server-Update auf der Anlage an (dm-v10).
+
+    RPC ``ExecuteAnlagenUpdate`` an den Deployment-Modul-Deployer: das Modul
+    validiert Zielversion + URL gegen die frische Update-Liste und startet
+    die Update-Pipeline (Session-Logout, DNF-Update, Reboot). Die Antwort
+    kommt VOR dem Logout zurück; die Ausführung läuft auf der Anlage weiter.
+
+    inst:  installations-Zeile der WebApp-DB (url, deployer_instance_name,
+           deployer_token)
+    token: OAuth-Token der Anlage (aus _get_token)
+    version/update_url: aus der GetAnlagenUpdates-Liste (Anzeige)
+    Liefert {"status": "ok", "message": ...} oder {"status": "error", ...}.
+    """
+    inst_name = instance_name or str(dict(inst).get("deployer_instance_name") or "")
+    if not inst_name:
+        return {"status": "error",
+                "message": "Keine Deployer-Instanz konfiguriert (deployer_instance_name)."}
+    payload = {"version": version, "updateUrl": update_url,
+               "updateToken": _update_token(inst)}
+    try:
+        res = _xmlrpc(inst["url"], token, "ExecuteAnlagenUpdate", payload,
+                      instance_name=inst_name)
+        raw = res.get("raw", "")
+        response = _extract_response(raw)
+        if response.startswith("ERROR"):
+            return {"status": "error", "message": response, "raw": raw[:200]}
+        return {"status": "ok", "message": response, "raw": raw[:200]}
     except RuntimeError as e:  # XML-RPC-Fault u. ä. → kontrollierter Fehler
         return {"status": "error", "message": str(e)}

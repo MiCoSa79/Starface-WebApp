@@ -188,7 +188,7 @@ def build_pdf(module: str, titel: str, untertitel: str, profile: list[tuple[str,
 
 def module_version(name: str) -> str:
     return {"CallBlocker": "29", "TelefonieMonitoring": "8",
-            "Deployment-Modul": "8"}.get(name, "?")
+            "Deployment-Modul": "10"}.get(name, "?")
 
 
 STAND = "27.08.2026"
@@ -327,7 +327,7 @@ def main() -> int:
             "Deployment-Modul",
             "Deployment-Modul",
             "Zentrales HUB-Modul für automatische Modul-Updates über die WebApp.",
-            [("Modul", "Deployment-Modul"), ("Aktuelle Version", "v8 (Stand 27.08.2026)"),
+            [("Modul", "Deployment-Modul"), ("Aktuelle Version", "v10 (Stand 30.08.2026)"),
              ("Hersteller", "Axel Meiser - Kraemer IT"),
              ("Installationsname (Empfehlung)", "Deployment-Modul"),
              ("Update-Basis-URL", "wird im Admin-Bereich der WebApp festgelegt")],
@@ -409,7 +409,11 @@ def main() -> int:
                              "v6: Automatischer Neustart aller aktiven Instanzen des "
                              "Zielmoduls nach dem Import.",
                              "v7: Modul-Paket mit Passwortschutz (writeHash = sha1(id + Passwort); "
-                             "Import/Editor nur mit Modul-Passwort)."]},
+                             "Import/Editor nur mit Modul-Passwort).",
+                             "v8: Umbenennung UpdateDeployer → Deployment-Modul "
+                             "(Instanz-Auflösung über getInstalledInstances + getModuleId).",
+                             "v9: CreateInstance — Instanz eines installierten Moduls anlegen.",
+                             "v10: Anlagen-Updates — GetAnlagenUpdates + ExecuteAnlagenUpdate."]},
                 {"nummer": 7, "titel": "Fehlerbehebung",
                  "fehler": [
                      ("Update wird nicht gestartet / Download-Fehler.",
@@ -422,9 +426,39 @@ def main() -> int:
                       "inaktiv."),
                      ("Nach Update kein Token im Tab „Sicherheit“.",
                       "Normal nicht zu erwarten — Import verändert die Instanz-Konfiguration "
-                      "nicht; sonst Token erneut setzen.")]},
+                      "nicht; sonst Token erneut setzen."),
+                     ("Anlagen-Updates-Seite zeigt keine Updates.",
+                      "Anlage muss den Update-Server erreichen (Internet/Proxy); der "
+                      "Final-Kanal liefert keine Beta-Versionen; Lizenz-/Kunden-Zuordnung "
+                      "der Anlage prüfen."),
+                     ("Geplantes Update wurde übersprungen.",
+                      "WebApp-Scheduler war zum geplanten Zeitpunkt nicht erreichbar — "
+                      "Plan-Status ist „übersprungen“ (kein stilles Nachholen); Termin "
+                      "neu planen.")]},
+                {"nummer": 8, "titel": "Anlagen-Updates (v10)",
+                 "text": "Zusätzlich zu Modul-Updates kann die WebApp seit v10 auch "
+                         "Updates der Telefonanlage selbst (STARFACE-Server) anzeigen und "
+                         "anstoßen — direkt oder zu einem geplanten Zeitpunkt.",
+                 "bullets": ["GetAnlagenUpdates: fragt über LicenseComponent.fetchUpdates "
+                             "(Final-Kanal) die verfügbaren Server-Updates der Anlage ab "
+                             "(Version, Datum, DNF-Repo-URL).",
+                             "ExecuteAnlagenUpdate: stößt das gewählte Update an — erst "
+                             "Validierung gegen die frische Update-Liste (Zielversion + URL), "
+                             "dann SessionManager.logoutAll(SERVER_UPDATE), "
+                             "shutdownServices() und startUpdate() (DNF-Pipeline mit Reboot).",
+                             "Die Antwort wird VOR dem Session-Logout zurückgegeben; die "
+                             "Ausführung läuft im Hintergrund weiter.",
+                             "Planung: Die WebApp (Admin → Anlagen-Updates) speichert den "
+                             "gewünschten Termin (Zeitzone Europe/Berlin) und stößt das "
+                             "Update zum geplanten Zeitpunkt an. War die WebApp zu diesem "
+                             "Zeitpunkt nicht erreichbar, wird der Plan als „übersprungen“ "
+                             "markiert (kein stilles Nachholen).",
+                             "Eingriff in den laufenden Betrieb: Neustart der Anlage "
+                             "(TK-Ausfall, Voicemail/Fax temporär verschoben, DB-Upgrade) — "
+                             "Updates deshalb bewusst und außerhalb der Geschäftszeiten "
+                             "planen."]},
             ],
-            STAND),
+            "30.08.2026"),
     ]
     for p in docs:
         print(f"OK {p.name} ({p.stat().st_size} Byte)")

@@ -1,64 +1,70 @@
 ---
-title: Anlagen-Updates über das Deployment-Modul — Machbarkeitsbefund & TODO
-description: TODO (nicht freigegeben): STARFACE-Server-/System-Updates über unser Deployment-Modul triggern. Machbarkeitsprüfung abgeschlossen (27.08., 3 parallele Befunde) — Weg belegt (LicenseComponent.fetchUpdates → ServerUpdateHandler → startUpdate), Umsetzung offen. Risiken: Anlagen-Reboot, Dienste-Stopp, Session-Kickout.
-updated: 2026-08-27
+title: Anlagen-Updates über das Deployment-Modul — umgesetzt (dm-v10)
+description: STARFACE-Server-/System-Updates über unser Deployment-Modul triggern — UMGSETZT in dm-v10 + WebApp (Anlagen-Updates-Seite, Scheduler, Europe/Berlin-Zeitzone). Weg belegt: LicenseComponent.fetchUpdates → ServerUpdateHandler-Kette → startUpdate. Risiken: Anlagen-Reboot, Dienste-Stopp, Session-Kickout.
+updated: 2026-08-30
 ---
 
-# Anlagen-Updates über das Deployment-Modul — TODO
+# Anlagen-Updates über das Deployment-Modul — ✅ umgesetzt (dm-v10)
 
-**Status:** 🛠 **TODO — geprüft, machbar, NICHT umgesetzt** (Machbarkeitsbefund 27.08., Umsetzung erst nach Freigabe Axel — großer Eingriff: Anlagen-Update = Reboot + TK-Ausfall).
+**Status:** ✅ **UMGSETZT** — Deployment-Modul **v10** (RPCs `GetAnlagenUpdates` + `ExecuteAnlagenUpdate`) + WebApp-Administration „Anlagen-Updates“ (abfragen, sofort installieren, planen) + Scheduler + Zeitzone Europe/Berlin. Freigabe Axel (30.08.) nach Machbarkeitsbefund (27.08.).
 
 **Kernfrage (Axel):** Kann das Deployment-Modul neben Modul-Updates auch **Anlagen-Updates** (STARFACE-Server-/System-Update) triggern?
 
-**Kurzantwort:** Heute **nein** (Modul v9 = Modul-Update + Instanz-Verwaltung, aber **kein** Anlagen-Update), aber **technisch machbar und produktiv belegt**: Das Fremdmodul Admin Power Pack (Fluxpunkt) triggert Server-Updates exakt über die unten stehende Bean-Kette (`EXECUTE_STARFACE_UPDATE`). Offiziell gibt es **keinen** externen Trigger-Weg (nur GUI: Admin → Server → Status → „Jetzt suchen“, Auto-Backup, 2 Installationswege, Neustart).
+**Kurzantwort:** **Ja, seit v10.** Produktiv belegt war der Weg schon (Fremdmodul Admin Power Pack, Fluxpunkt); umgesetzt ist er jetzt mit **eigenem** RPC-Paar am Deployment-Modul, **bewusst getrennt** vom Modul-Update-Flow (`UpdateFromUrl`).
 
-> **Update 29.08. (F79, dm-v9):** Das Deployment-Modul ist seit v9 um den RPC **`CreateInstance`** erweitert (WebApp-Detailseite: „Instanz anlegen“ — `ModuleRegistry.createModuleInstance`-Kette). Das betrifft die **Instanz-Verwaltung**, NICHT die hier beschriebenen Anlagen-/Server-Updates — die sind davon unabhängig und bleiben **TODO** (Freigabe Axel steht aus: Reboot + TK-Ausfall).
+## Bedienung (WebApp)
 
-## Befundlage (27.08., 3 parallele Recherchen — alle Belege in der Hermes-Wiki-Entity „deployment-modul-anlagen-update“, Abschnitt „Artefakte“)
+1. **Modul:** `Deployment-Modul.sfm` (v10) in der Anlage aktualisieren/importieren (Instanz + Token bleiben erhalten).
+2. **WebApp → Administration → Anlagen-Updates** (neuer Menüpunkt im Admin-Dropdown).
+3. Anlage wählen → Tabelle „Verfügbare Updates“ (Version/Datum/Typ, installierte Version oben).
+4. **Installieren** = sofort ausführen (mit Bestätigungs-Warnung) oder **Planen** (datetime-local, Europe/Berlin).
+5. „Geplante Updates“ unten: Status `planned → executed / error / missed / cancelled`, Abbrechen solange `planned`.
 
-1. **Lokal (SDK 10.0.2.5 per javap):** Die komplette Update-Pipeline ist im SDK vorhanden und aus Modulcode ansteuerbar (Spring-Beans per `springApplicationContext().getBean(...)` — Muster vom Plattform-Baustein `CheckUpdateOption` bytecode-verifiziert). Es gibt **keinen** fertigen Designer-Baustein dafür; `CheckUpdateOption` (experimentell) prüft nur die Lizenz-Abdeckung einer Version, kein Trigger.
-2. **Web (21 Quellen):** REST-API ohne Update-Endpunkte (STARFACEGmbH/rest-examples, 47 Pfade); `update.starface.de`-Protokoll nichtöffentlich; offizielles Modul „Update Helper“ (früher UpdateTool) nur für Major-Upgrades (6.4→7, USB-Stick, 4-GB-Download, Neustart-Bestätigung per Telefon/UI). Foren-Recherche teils blockiert → Lücke markiert.
-3. **48 echte `.sfm` gescannt:** Außer Admin Power Pack kann **kein weiteres** Modul Anlagen-Updates triggern. XML-Monitoring (o-byte) ruft `fetchUpdates()` nur **lesend** auf („neues Major Release“-Hinweis). Auch die 10 STARFACE-Standardmodule aus dem VM-Extrakt: ohne Trigger.
+## Umgesetzte Bausteine (v10, 30.08.)
 
-## Technischer Weg (belegt, javap-Signaturen)
+| Baustein | Details |
+|---|---|
+| RPC `GetAnlagenUpdates` (read-only) | `LicenseComponent.fetchUpdates(Final, GERMAN)` → JSON `{current, updates:[{version,date,type,url}]}`; kein Eingriff, nur Lesen |
+| RPC `ExecuteAnlagenUpdate` | Validierung (Token; Zielversion **+ URL** gegen frische `fetchUpdates`-Liste) → Bean-Kette in **eigenem Thread mit 2 s Delay**, Antwort sofort VOR `logoutAll` |
+| Bean-Kette (privat, nicht `prepareAndStartAutomaticUpdate`!) | `setLocale → setUpdateUri → setOldVersion → setUpdateInfo → setTargetVersion → logoutAll(SERVER_UPDATE) → shutdownServices → startUpdate` |
+| WebApp-Seite | `/admin/anlagen-updates` (neuer Nav-Punkt), Combobox-Anlagenwahl, Update-Tabelle, Plan-Tabelle, Warn-Hinweis (Eingriff in Produktion) |
+| Scheduler | Daemon-Thread (30-s-Tick) in der WebApp; führt fällige Pläne aus; **`missed`** statt stillem Nachholen, wenn > 5 min überfällig (WebApp war down) |
+| Zeitzone (Vorgabe Axel) | Planung in **Europe/Berlin** eingegeben, **immer UTC (ISO+00:00) gespeichert**, Scheduler vergleicht UTC, Anzeige zurück in Berlin — Sommer-/Winterzeit im Test abgesichert |
+| DB | `anlagen_update_plans` (id, installation_id, version, update_url, scheduled_at, status, result, created_at) |
+
+## Technischer Weg (javap-verifiziert, SDK 10.0.2.5)
 
 ```
-1. Check:   LicenseComponent.fetchUpdates(Version$VersionType, Locale) → List<UpdateInfo>
-            (VersionType: Final|Beta|Internal|Preview; UpdateInfo.url = DNF-Repo-URL, .version = Zielversion)
-2. Execute: ServerUpdateHandler (Spring-Bean @Component):
-            setUpdateUri(url) → setOldVersion(Version.buildVersion()) → setUpdateInfo(info)
-            → setTargetVersion(info.version.toString())
-   →       SessionManager.logoutAll(LogoutServlet$LogoutType.SERVER_UPDATE)   // ALLE Sessions raus!
+1. Check:   LicenseComponent.fetchUpdates(LicenseComponent.Version$VersionType.Final, Locale.GERMAN)
+            → List<UpdateInfo>  (UpdateInfo.url = DNF-Repo-URL, .version = Zielversion, .date, .availCode)
+2. Execute (in OWN THREAD, 2 s Delay — eigener RPC-Prozess stirbt sonst am Logout):
+            ServerUpdateHandler (Spring-Bean):
+            setLocale → setUpdateUri(ui.getUrl()) → setOldVersion(Version.buildVersion())
+            → setUpdateInfo(ui) → setTargetVersion(ui.getVersion().toString())
+   →       SessionManager.logoutAll(LogoutServlet$LogoutType.SERVER_UPDATE)   // ALLE Sessions raus
    →       shutdownServices()   (Asterisk/XMPP/Federation/SystemCheck stoppen)
    →       startUpdate()        (→ UpdateController.startPart1 → DnfHelper: downloadUpdates/installUpdates,
                                  switchToUpdateserver, dnfUpdate, RPM_RESTART_SERVER_FILE → Reboot)
-3. Beta:    PbxConfigurationService.update().betaEnabled().setValue(true) VOR fetchUpdates(VersionType.Beta, …)
-4. Timer:   eigener ScheduledExecutorService im Modul (Fluxpunkt-Key „starface-update-timer“ ist plattformfremd)
+3. WICHTIG: prepareAndStartAutomaticUpdate(...) ist PRIVATE im SDK → Einzel-Setter-Kette (oben) nachbauen.
+   Version.buildVersion() ist String; Version$VersionType liegt in de.starface.license.manager.ws.beans.license.
+   Classpath-Beleg: ServerUpdateHandler + UpdateInfo aus sdk-libs/*.jar, de.vertico.starface.Version aus WEB-INF/classes.
 ```
 
-Muster 1:1 aus dem internen `ServerUpdateHandler.prepareAndStartAutomaticUpdate` (Bytecode). Classpath: `PbxConfigurationService`/`Version` kommen aus `lib/starface-ng-10.0.2.5.jar`.
+## Offene Punkte / Abnahme
 
-## Umsetzungs-TODO (nach Freigabe)
+- [ ] Erst-Betrieb: Deployment-Modul v10 auf **Testanlage** importieren, RPCs über die neue Seite gegenprüfen (echte Anlage, echte Update-Liste)
+- [ ] Bewusst NICHT automatisch: kein Update ohne expliziten Klick/Plan („Mach nix kaputt, was vorher funktionierte“)
+- [ ] Bei `missed`: Termin in der WebApp neu planen (kein stilles Nachholen — Architektur-Entscheidung Option A)
 
-- [ ] **Freigabe Axel** (Plan-Dokument + Risiko-Gespräch, Eingriff in laufenden Betrieb!)
-- [ ] Deployment-Modul **v9**: neue `IBaseExecutable`-Klasse analog `UpdateFromUrl.java` (~50–120 Zeilen)
-  - [ ] RPC `GetAnlagenUpdates` (read-only: Version/Datum/URL, Typ Final/Beta — Anzeige in WebApp)
-  - [ ] RPC `ExecuteAnlagenUpdate` (Bean-Kette oben; **Antwort VOR `logoutAll` raus** bzw. separater Thread — eigene Session stirbt sonst)
-- [ ] Descriptor: 2 `rpcEntryPoint`s (`XMLRPC_auth`) + Private-Wrapper-Funktionen (Firmenmuster)
-- [ ] Build: Passwortschutz-Pflicht (F41, `writeHash = sha1(id + PW)`), Vendor „Axel Meiser - Kraemer IT“, manueller Tag `dm-v9` (vorher `git tag --list` prüfen!)
-- [ ] WebApp: **separate** Ansicht/Buttons (bewusst ausgelöst) — NICHT in den bestehenden Modul-Update-Flow (`UpdateFromUrl`) integrieren
-- [ ] Test-Konzept (Fake-XML-RPC / Testanlage), Abnahme wie gehabt (Wiki-Pflicht, CI-Tag)
-- [ ] Doku: Modul-PDF + WebApp-Wiki + Hermes-Wiki (log.md, Entity, index.md)
+## Risiken (Update = Eingriff in Produktion! — UI-Warnhinweis auf der Seite)
 
-## Risiken (Update = Eingriff in Produktion!)
-
-- **Gesamt-Reboot + Dienste-Stopp:** Asterisk/XMPP/Federation/SystemCheck gestoppt, Voicemail/Fax/var-data temporär verschoben, `sqldump` + DB-Upgrade, Updateserver-Installation → **alle Gespräche/Telefonie tot** während des Updates.
-- **Session-Kickout:** `logoutAll(SERVER_UPDATE)` wirft Admins, Web-UI, Softphones und API-Clients raus — auch den aufrufenden RPC.
-- **Reihenfolge-Pflicht:** `updateUri/targetVersion/oldVersion/locale` müssen vor `startPart1` gesetzt sein; nur **ein** DNF-Download gleichzeitig (`downloadingInProgress`); `updateUri` muss erreichbares DNF-Repo passender Arch sein.
-- **Beta-Flag** muss vor `fetchUpdates(Beta, …)` gesetzt sein.
-- **Getrennt halten:** Modul- vs. Anlagen-Update (`UpdateInfoWrapper.isSystemSoftwareUpdate()/isModuleSoftwareUpdate()`).
+- **Gesamt-Reboot + Dienste-Stopp:** Asterisk/XMPP/Federation/SystemCheck gestoppt, Voicemail/Fax/var-data temporär verschoben, `sqldump` + DB-Upgrade → **alle Gespräche/Telefonie tot** während des Updates.
+- **Session-Kickout:** `logoutAll(SERVER_UPDATE)` wirft Admins, Web-UI, Softphones und API-Clients raus — auch den aufrufenden RPC (deshalb Antwort-Vorab + 2-s-Delay-Thread).
+- **Reihenfolge-Pflicht:** Setter vor `startPart1`; nur **ein** DNF-Download gleichzeitig (`downloadingInProgress`); `updateUri` muss erreichbares DNF-Repo passender Arch sein.
+- **Getrennt halten:** Modul- vs. Anlagen-Update (`UpdateInfoWrapper.isSystemSoftwareUpdate()/isModuleSoftwareUpdate()`); `GetAnlagenUpdates` liefert bewusst nur den Final-Kanal (keine Beta-Spielereien in Produktion).
 
 ## Abgrenzung & Quellen
 
-- Hermes-Wiki (ausführliche Fassung + Artefakt-Pfade): `profiles/axel/wiki/entities/deployment-modul-anlagen-update.md`; Detail-RE Admin Power Pack (Abschnitt 6 „STARFACE-Server-Update“): `profiles/axel/wiki/entities/admin-power-pack-re.md`
 - Modul-Update-Flow (bestehend, ANLAGEN-getrennt): [[modul-auto-update]]
+- Hermes-Wiki (ausführliche Fassung + Artefakt-Pfade): `profiles/axel/wiki/entities/deployment-modul-anlagen-update.md`
+- Details Admin Power Pack (Fremdmuster): `profiles/axel/wiki/entities/admin-power-pack-re.md`

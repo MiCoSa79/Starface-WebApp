@@ -17,7 +17,7 @@ from functools import lru_cache
 import time
 import asyncio
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 from urllib.parse import quote
@@ -210,6 +210,16 @@ def init_db():
             installation_id INTEGER NOT NULL,
             module_name TEXT NOT NULL,
             PRIMARY KEY (installation_id, module_name)
+        );
+        CREATE TABLE IF NOT EXISTS anlagen_update_plans (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            installation_id INTEGER NOT NULL,
+            version TEXT NOT NULL,
+            update_url TEXT NOT NULL,
+            scheduled_at TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'planned',
+            result TEXT DEFAULT '',
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
         );
     """)
     # Migration (v0.0.34+): bestehende DBs um Modul-Versionierungs-Spalten erweitern
@@ -669,6 +679,18 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[UpdateServer] Spiegel FEHLER (Start laeuft weiter): {e}")
     monitoring_task = asyncio.create_task(monitoring.run_loop())
+    # Anlagen-Update-Scheduler (dm-v10): Daemon-Thread führt fällige Pläne
+    # (anlagen_update_plans) aus; darf den Container-Start NIE brechen.
+    try:
+        from anlagen_update_scheduler import start_scheduler
+    except ImportError:
+        from app.anlagen_update_scheduler import start_scheduler
+    try:
+        start_scheduler()
+        print("[AnlagenUpdates] Scheduler gestartet "
+              "(UTC-Speicherung, TICK=30s, Zeitzone Europe/Berlin an der UI)")
+    except Exception as e:
+        print(f"[AnlagenUpdates] Scheduler konnte nicht starten: {e}")
     if ADMIN_USERNAME and ADMIN_PASSWORD:
         conn = _db()
         exists = conn.execute("SELECT id FROM users WHERE username = ?", (ADMIN_USERNAME,)).fetchone()
@@ -2278,6 +2300,195 @@ async def admin_updates_standard_push(request: Request):
         parts.append("Fehler: " + "; ".join(errs))
     msg = " ".join(parts) if parts else "Keine Aktion ausgeführt."
     return _standard_redirect(msg)
+
+
+# ── Anlagen-Updates (dm-v10): verfügbare Server-Updates abfragen, anstoßen,
+# ── planen (Zeitzonen-Pflicht: Eingabe Europe/Berlin → Speicherung UTC) ──────
+def _anlagen_updates_redirect(msg: str, inst_id: int = 0) -> RedirectResponse:
+    url = "/admin/anlagen-updates?msg=" + quote(msg)
+    if inst_id:
+        url += f"&inst_id={inst_id}"
+    return RedirectResponse(url, status_code=303)
+
+
+@app.get("/admin/anlagen-updates", response_class=HTMLResponse)
+async def admin_anlagen_updates_page(request: Request):
+    """Admin-Seite: Anlagen-Updates (dm-v10).
+
+    Oben eine Such-Combobox über alle Anlagen; ohne Auswahl (Leerzustand)
+    nur ein Hinweis. Mit ?inst_id= werden die verfügbaren STARFACE-Server-
+    Updates der Anlage FRISCH abgefragt (GetAnlagenUpdates, Read-only) und
+    zusammen mit allen geplanten Updates (anlagen_update_plans) angezeigt.
+    """
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user or not user["is_admin"]:
+        return RedirectResponse("/")
+    try:
+        from module_updates import get_anlagen_updates
+        from timeutil import utc_iso_zu_lokal_anzeige, lokal_now_dt_local
+    except ImportError:
+        from app.module_updates import get_anlagen_updates
+        from app.timeutil import utc_iso_zu_lokal_anzeige, lokal_now_dt_local
+    conn = _db()
+    installations = conn.execute(
+        "SELECT * FROM installations ORDER BY name").fetchall()
+    plans = conn.execute(
+        "SELECT p.*, i.name AS inst_name FROM anlagen_update_plans p"
+        " JOIN installations i ON i.id = p.installation_id"
+        " ORDER BY p.scheduled_at DESC").fetchall()
+    conn.close()
+    try:
+        selected_id = int(request.query_params.get("inst_id", "0"))
+    except (TypeError, ValueError):
+        selected_id = 0
+    selected = next((i for i in installations if i["id"] == selected_id), None)
+    updates = None
+    updates_error = ""
+    if selected:
+        if not selected["deployer_instance_name"]:
+            updates_error = ("Keine Deployment-Instanz konfiguriert — unter Anlage "
+                             "bearbeiten den Instanznamen des Deployment-Moduls "
+                             "hinterlegen.")
+        else:
+            try:
+                token = _get_token(selected)
+                res = get_anlagen_updates(selected, token)
+                if res.get("status") == "ok":
+                    updates = res.get("data")
+                else:
+                    updates_error = res.get("message", "Unbekannter Fehler")
+            except Exception as e:  # Token-/Transportfehler → Banner statt Abbruch
+                updates_error = str(e)
+    return TEMPLATES.TemplateResponse(
+        "admin_anlagen_updates.html",
+        {"request": request, "user": user,
+         "installations": [selected] if selected else [],
+         "all_installations": installations,
+         "selected_id": selected_id,
+         "updates": updates,
+         "updates_error": updates_error,
+         "plans": plans,
+         "fmt_local": utc_iso_zu_lokal_anzeige,
+         "now_local": lokal_now_dt_local(),
+         "active": "anlagen-updates",
+         "version": os.environ.get("APP_VERSION", "dev"),
+         "msg": request.query_params.get("msg", "")})
+
+
+@app.post("/admin/anlagen-updates/execute")
+async def admin_anlagen_updates_execute(request: Request):
+    """Stößt ein STARFACE-Server-Update SOFORT an (ExecuteAnlagenUpdate).
+
+    Die Antwort des Moduls kommt VOR dessen Session-Logout zurück — die
+    Ausführung läuft auf der Anlage weiter (DNF-Update + Reboot).
+    """
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user or not user["is_admin"]:
+        return RedirectResponse("/")
+    try:
+        from module_updates import execute_anlagen_update
+    except ImportError:
+        from app.module_updates import execute_anlagen_update
+    form = await request.form()
+    try:
+        inst_id = int(form.get("installation_id", "0"))
+    except ValueError:
+        inst_id = 0
+    version = form.get("version", "")
+    update_url = form.get("update_url", "")
+    conn = _db()
+    inst = conn.execute("SELECT * FROM installations WHERE id=?",
+                        (inst_id,)).fetchone()
+    conn.close()
+    if not inst:
+        return _anlagen_updates_redirect("Unbekannte Anlage.", inst_id)
+    try:
+        token = _get_token(inst)
+        res = execute_anlagen_update(inst, token, version=version,
+                                     update_url=update_url)
+        msg = res.get("message", "ok") if res.get("status") == "ok" \
+            else "FEHLER: " + res.get("message", "Unbekannter Fehler")
+    except Exception as e:  # Token-/Transportfehler
+        msg = "FEHLER: " + str(e)
+    _log_event(inst_id, user["user_id"], "anlagen-update-execute", f"{version}: {msg}")
+    return _anlagen_updates_redirect(msg, inst_id)
+
+
+@app.post("/admin/anlagen-updates/schedule")
+async def admin_anlagen_updates_schedule(request: Request):
+    """Plant ein Server-Update für einen späteren Zeitpunkt.
+
+    scheduled_for kommt als datetime-local (naive Europe/Berlin-Browserzeit)
+    und wird IMMER nach UTC umgerechnet gespeichert — der Scheduler
+    vergleicht ausschließlich UTC (Nutzer-Vorgabe „Bei Uhrzeiten auf die
+    Zeitzone achten“; Container läuft in UTC, DST-Wechsel UTC+1/+2).
+    """
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user or not user["is_admin"]:
+        return RedirectResponse("/")
+    try:
+        from timeutil import lokal_naive_zu_utc_iso, utc_iso_zu_lokal_anzeige
+    except ImportError:
+        from app.timeutil import lokal_naive_zu_utc_iso, utc_iso_zu_lokal_anzeige
+    form = await request.form()
+    try:
+        inst_id = int(form.get("installation_id", "0"))
+    except ValueError:
+        inst_id = 0
+    version = form.get("version", "")
+    update_url = form.get("update_url", "")
+    scheduled_local = form.get("scheduled_for", "")
+    utc_iso = lokal_naive_zu_utc_iso(scheduled_local)
+    if not utc_iso:
+        return _anlagen_updates_redirect("FEHLER: Ungültiger Zeitpunkt.", inst_id)
+    if datetime.fromisoformat(utc_iso) < datetime.now(timezone.utc):
+        return _anlagen_updates_redirect(
+            "FEHLER: Zeitpunkt liegt in der Vergangenheit.", inst_id)
+    conn = _db()
+    inst = conn.execute("SELECT * FROM installations WHERE id=?",
+                        (inst_id,)).fetchone()
+    if not inst:
+        conn.close()
+        return _anlagen_updates_redirect("Unbekannte Anlage.", inst_id)
+    conn.execute(
+        "INSERT INTO anlagen_update_plans"
+        " (installation_id, version, update_url, scheduled_at)"
+        " VALUES (?,?,?,?)",
+        (inst_id, version, update_url, utc_iso))
+    conn.commit()
+    conn.close()
+    display = utc_iso_zu_lokal_anzeige(utc_iso)
+    _log_event(inst_id, user["user_id"], "anlagen-update-schedule",
+               f"{version} für {display}")
+    return _anlagen_updates_redirect(
+        f"Update {version} geplant für {display}.", inst_id)
+
+
+@app.post("/admin/anlagen-updates/cancel")
+async def admin_anlagen_updates_cancel(request: Request):
+    """Bricht einen geplanten, noch nicht ausgeführten Update-Plan ab."""
+    user = verify_session(request.cookies.get(SESSION_COOKIE))
+    if not user or not user["is_admin"]:
+        return RedirectResponse("/")
+    form = await request.form()
+    try:
+        plan_id = int(form.get("plan_id", "0"))
+    except ValueError:
+        plan_id = 0
+    conn = _db()
+    cur = conn.execute(
+        "UPDATE anlagen_update_plans SET status='cancelled',"
+        " result='Abgebrochen durch Admin' WHERE id=? AND status='planned'",
+        (plan_id,))
+    conn.commit()
+    row = conn.execute("SELECT installation_id FROM anlagen_update_plans WHERE id=?",
+                       (plan_id,)).fetchone()
+    conn.close()
+    inst_id = row["installation_id"] if row else 0
+    msg = "Plan abgebrochen." if cur.rowcount \
+        else "Plan nicht gefunden oder bereits ausgeführt."
+    _log_event(inst_id or None, user["user_id"], "anlagen-update-cancel", msg)
+    return _anlagen_updates_redirect(msg, inst_id)
 
 
 @app.get("/admin/modules/{module_id}/download")
