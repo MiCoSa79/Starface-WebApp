@@ -102,6 +102,32 @@ check("F86: Außenklick schließt Nav-Dropdowns (initNavDrops in admin.js)",
       and "details.drop[open]" in _js and "d.open = false" in _js,
       "Außenklick-Handler fehlt in admin.js")
 
+# F91 (v1.0.88): admin.js GLOBAL via base.html — Außenklick-Fix wirkt auf ALLEN
+# Seiten (F86-Fix lag nur in Templates -> /, /konto, /monitoring, /wiki,
+# /admin/modules, /grundeinstellungen, /admin/api-doku ohne initNavDrops)
+r = c.get("/")
+check("F91: admin.js global in base.html eingebunden (eine Einbindung app-weit)",
+      'src="/static/admin.js?v=' in r.text,
+      "base.html bindet admin.js nicht global ein")
+check("F91: base.html enthält KEINE Template-Duplikat-Hinweise",
+      r.text.count('src="/static/admin.js?v=') == 1,
+      "admin.js mehrfach im gerenderten HTML")
+
+for _tpl in ("anlagen.html", "benutzer.html", "rechte.html", "installation_detail.html",
+             "admin_updates.html", "admin_updates_modul.html"):
+    _tpl_src = open(f"app/templates/{_tpl}", encoding="utf-8").read()
+    _dup = [l for l in _tpl_src.splitlines() if "<script" in l and "admin.js" in l]
+    check(f"F91: {_tpl} ohne eigene admin.js-Einbindung (nur noch global via base)",
+          not _dup, str(_dup))
+
+# F91-Teil 2: Klick auf einen Link IM offenen Dropdown schließt es ebenfalls
+# („Mein Konto“ auf /konto bleibt sonst offen — Axel-Feedback)
+r = c.get("/static/admin.js")
+_js = r.text
+check("F91: Link-Klick im Dropdown schließt es (closest('a') + contains(link))",
+      "closest('a')" in _js and "d.contains(link)" in _js,
+      "Link-Klick-Logik fehlt in admin.js")
+
 if failed:
     print(f"FEHLGESCHLAGEN ({len(failed)}):")
     for name, detail in failed:

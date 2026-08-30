@@ -94,7 +94,6 @@
     </div>
     {% endif %}
 </div>
-<script src="/static/admin.js?v={{ version }}" defer></script>
 <script>
 document.getElementById('update-modul').addEventListener('change', function () {
     if (this.value) location.href = '/admin/updates/modul?module=' + encodeURIComponent(this.value);

@@ -161,11 +161,17 @@ function testConn(instId, name, adminRoute) {
     // F86 (v1.0.83): Navigations-Dropdowns (Administration / Benutzerkonto /
     // Modul-Updates) schließen bei Klick außerhalb — native <details> togglen
     // sonst nur über das Summary selbst.
+    // F91 (v1.0.88): admin.js wird seit v1.0.88 GLOBAL via base.html geladen
+    // (vorher nur in 6 Templates -> Einzelseiten ohne den Außenklick-Fix);
+    // ZUSÄTZLICH: Klick auf einen Link im offenen Dropdown schließt es ebenfalls
+    // (deckt „Auswahl anklicken ohne Seitensprung" ab, z. B. „Mein Konto" auf /konto).
     function initNavDrops() {
         document.addEventListener('click', function (e) {
+            var t = e.target;
+            var link = t && t.closest ? t.closest('a') : null;
             document.querySelectorAll('details.drop[open], details.user-drop[open], details.sub[open]')
                 .forEach(function (d) {
-                    if (!d.contains(e.target)) { d.open = false; }
+                    if (!d.contains(t) || (link && d.contains(link))) { d.open = false; }
                 });
         });
     }
