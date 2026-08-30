@@ -107,6 +107,10 @@ function testConn(instId, name, adminRoute) {
             const controls = Array.from(wrap.querySelectorAll('.tbl-filters input, .tbl-filters select'));
             controls.forEach(ctl => {
                 if (ctl.tagName !== 'SELECT') return;
+                /* F109: Selects mit data-static-options (Gesamtstatus-Dropdown)
+                   werden NICHT dynamisch aus Zelltexten befüllt — der Zelltext
+                   enthält Detail/Zeit und würde Datums-Optionen erzeugen. */
+                if (ctl.dataset.staticOptions !== undefined) return;
                 const col = parseInt(ctl.dataset.col, 10);
                 const vals = new Set();
                 rows.forEach(r => {
@@ -129,7 +133,12 @@ function testConn(instId, name, adminRoute) {
                     const q = ctl.value.trim().toLowerCase();
                     if (!q) return true;
                     if (ctl.dataset.minlen && q.length < parseInt(ctl.dataset.minlen, 10)) return true;
-                    const cell = r.cells[col].textContent.trim().toLowerCase();
+                    /* F109: Selects vergleichen gegen das maschinenlesbare
+                       data-status-Attribut der Zelle (falls vorhanden) — der
+                       sichtbare Zelltext enthält Detail-Zeilen (Zeit/Version). */
+                    const cell = (ctl.tagName === 'SELECT' && r.cells[col].querySelector('[data-status]')
+                        ? r.cells[col].querySelector('[data-status]').dataset.status
+                        : r.cells[col].textContent).trim().toLowerCase();
                     if (ctl.tagName === 'SELECT') return cell === q;
                     if (ctl.dataset.wildcard !== undefined) return wildcardToRegExp(q).test(cell);
                     return cell.includes(q);

@@ -17,8 +17,8 @@
         <div class="tbl-filters">
             <input type="text" data-filter="tbl-durch" data-col="1" data-wildcard
                    placeholder="Anlage filtern (* = beliebig, ? = genau 1 Zeichen)" aria-label="Durchgeführte Updates nach Anlage filtern" autocomplete="off">
-            <select data-col="5" aria-label="Nach Gesamtstatus filtern">
-                <option value="">Gesamt (alle)</option>
+            <select data-col="5" data-static-options aria-label="Nach Gesamtstatus filtern">
+                <option value="">Gesamtstatus (alle)</option>
                 <option value="erfolgreich">erfolgreich</option>
                 <option value="fehlgeschlagen">fehlgeschlagen</option>
                 <option value="unbekannt">unbekannt</option>
@@ -45,9 +45,9 @@
                     <td>{% if r.trig_status == 'erfolgreich' %}<span style="color:#81c784">✓ erfolgreich</span>{% else %}<span style="color:#e57373">✗ fehlgeschlagen</span>{% endif %}<span class="muted"> · {{ r.trig_um }}</span>{% if r.quelle == 'plan' %} <span class="muted">(geplant)</span>{% endif %}</td>
                     <td>{% if r.prf_status == "—" %}<span class="muted">—</span>{% else %}{% if r.prf_status == 'erfolgreich' %}<span style="color:#81c784">✓</span>{% elif r.prf_status == 'fehlgeschlagen' %}<span style="color:#e57373">✗</span>{% else %}<span class="muted">?</span>{% endif %} <span class="muted">{{ r.prf_status }} · {{ r.prf_um }}</span>{% endif %}</td>
                     <td>
-                        {% if r.status == 'erfolgreich' %}<span style="color:#81c784">erfolgreich</span>
-                        {% elif r.status == 'fehlgeschlagen' %}<span style="color:#e57373">fehlgeschlagen</span>
-                        {% else %}<span class="muted">unbekannt</span>{% endif %}
+                        {% if r.status == 'erfolgreich' %}<span data-status="erfolgreich" style="color:#81c784">erfolgreich</span>
+                        {% elif r.status == 'fehlgeschlagen' %}<span data-status="fehlgeschlagen" style="color:#e57373">fehlgeschlagen</span>
+                        {% else %}<span data-status="unbekannt" class="muted">unbekannt</span>{% endif %}
                         {% if r.detail %}<span style="display:block;color:#9e9e9e;font-size:11px;line-height:1.35;margin-top:2px;max-width:320px">{{ r.detail }}</span>{% endif %}
                     </td>
                 </tr>
