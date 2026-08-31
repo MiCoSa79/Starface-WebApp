@@ -38,13 +38,13 @@ jobs:
       run: |
         # Übergang/Freigabe: Ist der aktuelle Commit schon mit vX.Y.Z getaggt
         # (z. B. v1.0.0), wird genau dieser Tag verwendet (kein Bump).
-        CUR_TAG=$(git tag --points-at HEAD | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1)
+        CUR_TAG=$(git tag --points-at HEAD | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1 || true)
         if [ -n "$CUR_TAG" ]; then
           NEXT="$CUR_TAG"
           echo "Commit ist bereits getaggt: $NEXT (kein Bump)"
         else
           # Nur den Semver-Kern betrachten (v0.0.1), etwaige Suffixe ignorieren
-          LAST=$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' | sort -V | tail -n1)
+          LAST=$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' | sort -V | tail -n1 || true)
           if [ -z "$LAST" ]; then
             NEXT="v1.0.0"
           else
