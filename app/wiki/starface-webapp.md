@@ -140,6 +140,7 @@ error_box 9) + CDP `mobile_url_layout_cdp.mjs` 7/7 + `menu_umbau_cdp.mjs` 19/19.
 
 1. **Tenant-Verwaltung** — Mandanten/Organisationen in der WebApp; Verwaltung ausschließlich durch eine **Super-Admin**-Rolle (Hinweis Axel).
 2. **Lizenzverwaltung für Module** — Lizenzen **tenant-basiert** (je Mandant je Modul) **und** für die STARFACE-WebApp selbst (**Super-Admins**).
+3. **Backup vor Anlagen-Update + Backup-Download/SFTP (FR-001, 01.09.** — Konzept, wartet auf Freigabe): „Backup jetzt"-Button pro Anlage (REST `PUT /server/backups/actions/run` → poll `state` → `GET files/{id}`), optionale SFTP/FTP-Weiterleitung durch die WebApp, **erfolgreiches Backup als Pflicht-Voraussetzung vor jedem `UpdateFromUrl`** (bei FAILED kein Update, Plan → error mit Grund). Analyse: Anlage kennt kein FTP, aber SFTP/SMB/Dropbox/Mail als Ziel-Typen (Anlagen-seitig nur über Zeitpläne); ad-hoc-Job schreibt immer auf HDD der Anlage. Details + offene Fragen: `app/docs/feature-requests/FR-001-backup-vor-update.md`.
 
 ## Versionierung & Docker-Kanäle (ab v1.0.0, F57)
 
