@@ -41,9 +41,10 @@ print("Wiki-E2E: Renderer-Ebene (wiki_render)")
 import wiki_render  # noqa: E402
 
 pages = wiki_render.list_pages()
-# 10 Seiten (Stand F44/v0.0.198): telefonie-monitoring.md (Projekt-Historie) UND
-# starface-telefonie-monitoring.md (Modul-Anleitung) sind bewusst zwei getrennte Seiten.
-check("Index listet die Wiki-Seiten (Repo-Wiki app/wiki/)", len(pages) == 10, f"gefunden: {[p['slug'] for p in pages]}")
+# 11 Seiten (Stand 01.09.2026/FR-001): telefonie-monitoring.md (Projekt-Historie) UND
+# starface-telefonie-monitoring.md (Modul-Anleitung) sind bewusst zwei getrennte Seiten;
+# backup-vor-update-fr001.md seit FR-001 (01.09.2026).
+check("Index listet die Wiki-Seiten (Repo-Wiki app/wiki/)", len(pages) == 11, f"gefunden: {[p['slug'] for p in pages]}")
 for p in pages:
     check(f"Frontmatter vollständig: {p['slug']}",
           bool(p["title"]) and bool(p["description"]) and bool(p["updated"]))
