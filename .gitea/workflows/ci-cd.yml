@@ -1,0 +1,108 @@
+name: Build and Push Docker Image (Gitea)
+
+# ════════════════════════════════════════════════════════════════════════
+# Gitea Actions (Phase 5.5) — Portierung des GitHub-Workflows 1:1.
+#   • Push auf main            → Entwicklungs-Release: Docker-Tags
+#                                nightly + v1.0.x (Git-Tag-Auto-Bump).
+#                                KEINE Datums-Tags mehr.
+#   • Git-Tag 'release-latest' → OFFIZIELLE FREIGABE (setzt Hermes im
+#                                Auftrag von Axel): zusätzlich latest + v1.0.x
+#                                in der Gitea-Registry.
+#   • Ziel-Registry: gitea.meiser.family (eigene Gitea-Instanz, Phase 5.5).
+#     Docker Hub wird NICHT mehr angesteuert (Variante B: bis zur Abnahme
+#     baut die GitHub-CI parallel weiter — Datei .github/workflows bleibt
+#     unangetastet).
+# ════════════════════════════════════════════════════════════════════════
+on:
+  push:
+    branches: [ "main" ]
+    tags: [ "release-latest" ]
+  workflow_dispatch:
+
+permissions:
+  contents: write   # Job-Token darf den erzeugten Git-Tag zurückschieben
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    # Job-Container braucht Zugriff auf den Host-Docker (Socket), damit
+    # docker/build-push-action den Daemon des Hosts nutzen kann.
+    options: --volume /var/run/docker.sock:/var/run/docker.sock
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0   # wichtig: alle Tags für die Versionsbestimmung
+
+    - name: Determine version (bump or reuse existing tag)
+      id: version
+      run: |
+        # Übergang/Freigabe: Ist der aktuelle Commit schon mit vX.Y.Z getaggt
+        # (z. B. v1.0.0), wird genau dieser Tag verwendet (kein Bump).
+        CUR_TAG=$(git tag --points-at HEAD | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1)
+        if [ -n "$CUR_TAG" ]; then
+          NEXT="$CUR_TAG"
+          echo "Commit ist bereits getaggt: $NEXT (kein Bump)"
+        else
+          # Nur den Semver-Kern betrachten (v0.0.1), etwaige Suffixe ignorieren
+          LAST=$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' | sort -V | tail -n1)
+          if [ -z "$LAST" ]; then
+            NEXT="v1.0.0"
+          else
+            BASE="${LAST%%-*}"   # Suffix VOR dem Rechnen abschneiden,
+            BASE="${BASE#v}"     # sonst wertet PAT=$((PAT+1)) "1-20260815" als -20260814 aus!
+            IFS='.' read -r MAJ MIN PAT <<< "$BASE"
+            PAT=$((PAT + 1))
+            NEXT="v$MAJ.$MIN.$PAT"
+          fi
+          echo "Neue Version: $NEXT"
+        fi
+        echo "next=$NEXT" >> "$GITHUB_OUTPUT"
+
+    - name: Create and push Git tag (skip if exists)
+      run: |
+        if git rev-parse -q --verify "refs/tags/${{ steps.version.outputs.next }}" >/dev/null; then
+          echo "Git-Tag ${{ steps.version.outputs.next }} existiert bereits — übersprungen"
+        else
+          git config user.name "gitea-actions"
+          git config user.email "actions@gitea.meiser.family"
+          git tag "${{ steps.version.outputs.next }}"
+          git push "https://x-access-token:${GITHUB_TOKEN}@gitea.meiser.family/axel/starface-webapp.git" "${{ steps.version.outputs.next }}"
+        fi
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Login to Gitea Registry
+      uses: docker/login-action@v3
+      with:
+        registry: gitea.meiser.family
+        username: ${{ secrets.REGISTRY_USER }}
+        password: ${{ secrets.REGISTRY_TOKEN }}
+
+    - name: Build and push — nightly channel
+      id: docker_nightly
+      if: github.ref_type != 'tag'
+      uses: docker/build-push-action@v5
+      with:
+        push: true
+        build-args: |
+          APP_VERSION=${{ steps.version.outputs.next }}
+        tags: |
+          gitea.meiser.family/axel/starface-webapp:nightly
+          gitea.meiser.family/axel/starface-webapp:${{ steps.version.outputs.next }}
+
+    - name: Build and push — release channel (latest)
+      id: docker_release
+      if: github.ref_type == 'tag'
+      uses: docker/build-push-action@v5
+      with:
+        push: true
+        build-args: |
+          APP_VERSION=${{ steps.version.outputs.next }}
+        tags: |
+          gitea.meiser.family/axel/starface-webapp:latest
+          gitea.meiser.family/axel/starface-webapp:${{ steps.version.outputs.next }}
+
+    - name: Image digest
+      run: |
+        echo "nightly: ${{ steps.docker_nightly.outputs.digest }}"
+        echo "release: ${{ steps.docker_release.outputs.digest }}"
